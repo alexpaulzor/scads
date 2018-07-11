@@ -78,6 +78,7 @@ emblem_text_2 = "MC";
 emblem_height = 50;
 emblem_depth = 20;
 emblem_plate_thickness = 6;
+support_thickness = 0.2;
 
 /* [Top Plate] */
 
@@ -105,15 +106,16 @@ Top_Peg_Diameter = 5.5;
 
 module emblem() {
     z_emblem_base = dimC - emblem_plate_thickness;
-
+    emblem_plate_x = X_Peg_Offset + 2 * Top_Peg_Diameter;
+    emblem_plate_y = Y_Peg_Offset + 2 * Top_Peg_Diameter;
     translate([0, 0, z_emblem_base]){
         translate([
             -X_Peg_Offset / 2 - Top_Peg_Diameter, 
             -Y_Peg_Offset / 2 - Top_Peg_Diameter, 
             emblem_plate_thickness])
             cube([
-                X_Peg_Offset + 2 * Top_Peg_Diameter, 
-                Y_Peg_Offset + 2 * Top_Peg_Diameter, 
+                emblem_plate_x, 
+                emblem_plate_y, 
                 emblem_plate_thickness]);
         translate([0, emblem_depth / 2, 2 * emblem_plate_thickness])
             rotate([90, 0, 0])
@@ -123,8 +125,8 @@ module emblem() {
             -X_Peg_Offset / 2 - Top_Peg_Diameter, 
             -Y_Peg_Offset / 2 - Top_Peg_Diameter, 
             emblem_plate_thickness + emblem_height])
-            cube([X_Peg_Offset + 2 * Top_Peg_Diameter, 
-                Y_Peg_Offset + 2 * Top_Peg_Diameter, emblem_plate_thickness]);
+            cube([emblem_plate_x, 
+                emblem_plate_y, emblem_plate_thickness]);
         translate([0, emblem_depth / 2, 2 * emblem_plate_thickness + emblem_height])
             rotate([90, 0, 0])
                 linear_extrude(emblem_depth)
@@ -133,8 +135,29 @@ module emblem() {
             -X_Peg_Offset / 2 - Top_Peg_Diameter, 
             -Y_Peg_Offset / 2 - Top_Peg_Diameter, 
             2 * emblem_height + emblem_plate_thickness])
-            cube([X_Peg_Offset + 2 * Top_Peg_Diameter, 
-                Y_Peg_Offset + 2 * Top_Peg_Diameter, emblem_plate_thickness]);
+            cube([emblem_plate_x, 
+                emblem_plate_y, emblem_plate_thickness]);
+        // need some support
+     translate([50, -emblem_plate_y / 2, 0])
+        cube([support_thickness, emblem_plate_y, 100]);
+     translate([45, -emblem_plate_y / 2, 0])
+        cube([support_thickness, emblem_plate_y, 100]);
+     translate([45, 0, 0])
+        cube([5, support_thickness, 100]);
+        
+     translate([-50, -emblem_plate_y / 2, 0])
+        cube([support_thickness, emblem_plate_y, 55]);
+     translate([-45, -emblem_plate_y / 2, 0])
+        cube([support_thickness, emblem_plate_y, 55]);
+     translate([-50, 0, 0])
+        cube([5, support_thickness, 55]);
+        
+     translate([10.5, -emblem_plate_y / 2, 0])
+        cube([support_thickness, emblem_plate_y, 46]);
+     translate([15.5, -emblem_plate_y / 2, 0])
+        cube([support_thickness, emblem_plate_y, 49]);
+     translate([10.5, 0, 0])
+        cube([5, support_thickness, 46]);
     }
 }
 
