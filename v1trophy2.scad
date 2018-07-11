@@ -77,55 +77,16 @@ module emblem_cube_sq(emblem_text, font_height) {
         font_height, emblem_x, emblem_y, emblem_z,
         z_text_scale);
 }
-/*
-    
-    module z_text() {
-        scale(z_text_scale)
-        rotate([0, 0, 90])
-        translate([0, -font_height / 2, 0])
-            linear_extrude(emblem_z)
-                text(emblem_text_z, font_height, halign="center", font=font);
-    }
-    module v1_plate() {
-        
-        difference() {
-            translate([-emblem_x / 2, -emblem_y / 2, emblem_z / 2])
-                cube([emblem_x, emblem_y, floor_height]);
-            translate([0, 0, 0])
-                z_text();
-        }
-    }
-    
-    translate([0, 0, 0]) v1_plate();
-    translate([0, 0, -emblem_z - floor_height / 2]) v1_plate();
-   
-   
-    intersection() {
-        union() {
-            translate([0, emblem_y / 2, 0])
-            rotate([90, 0, 0])
-                translate([0, -font_height / 2, 0])
-                linear_extrude(emblem_y)
-                    text(emblem_text_x, font_height, halign="center", font=font);
-            translate([-1, -emblem_y / 2, -filler_cube_z / 2])
-        cube([filler_cube_z, emblem_y, filler_cube_z]);
-        }
-        translate([-emblem_x / 2, 0, 0])
-            rotate([90, 0, 90])
-            translate([0, -font_height / 2, 0])
-            linear_extrude(emblem_y)
-                text(emblem_text_y, font_height, halign="center", font=font);
-    }
-}
-*/
+
 module mc_mc_mc() {
     emblem_text = "MC";
     emblem_cube_sq(emblem_text, font_height);
 }
 
-! mc_mc_mc();
+rotate([0, -90, 0]) 
+    mc_mc_mc();
 
 
-# translate([100, 100, 0]) 
+% translate([100, 100, 0]) 
     rotate([0, -90, 0]) 
         mc_api_v1();
