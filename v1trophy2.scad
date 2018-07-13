@@ -28,7 +28,6 @@ module emblem_cube(emblem_text_x, emblem_text_y, emblem_text_z,
     translate([0, 0, 0]) v1_plate();
     translate([0, 0, -emblem_z - floor_height / 2]) v1_plate();
    
-   
     intersection() {
         union() {
             translate([0, emblem_y / 2, 0])
@@ -36,14 +35,18 @@ module emblem_cube(emblem_text_x, emblem_text_y, emblem_text_z,
                 translate([0, -font_height / 2, 0])
                 linear_extrude(emblem_y)
                     text(emblem_text_x, font_height, halign="center", font=font);
-            translate([-1, -emblem_y / 2, -filler_cube_z / 2])
-        cube([filler_cube_z, emblem_y, filler_cube_z]);
+            # translate([-1, -emblem_y / 2, -filler_cube_z / 2])
+            cube([filler_cube_z, emblem_y, filler_cube_z]);
         }
-        translate([-emblem_x / 2, 0, 0])
-            rotate([90, 0, 90])
-            translate([0, -font_height / 2, 0])
-            linear_extrude(emblem_y)
-                text(emblem_text_y, font_height, halign="center", font=font);
+        union() {
+            translate([-emblem_x / 2, 0, 0])
+                rotate([90, 0, 90])
+                translate([0, -font_height / 2, 0])
+                linear_extrude(emblem_y)
+                    text(emblem_text_y, font_height, halign="center", font=font);
+            # translate([-emblem_x / 2, -1, -filler_cube_z / 2])
+            cube([emblem_x, filler_cube_z, filler_cube_z]);
+        }
     }
 }
 
@@ -84,7 +87,7 @@ module mc_mc_mc() {
 }
 
 rotate([0, -90, 0]) 
-    mc_mc_mc();
+!    mc_mc_mc();
 
 
 % translate([100, 100, 0]) 
