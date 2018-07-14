@@ -60,8 +60,6 @@ final_bearing_id = axle_bearing_id;
 final_axle_od = axle_od;
 final_bearing_height = axle_bearing_height;
 */
-// RENDER SETTINGS
-$fn = 24;
 
 // DIMENSIONAL SETTINGS
 plate_height = 10;
@@ -83,9 +81,9 @@ gear_height = 10;
 gear_spoke_height = gear_height / 2;
 
 motor_gear_pd_in = 2 * min_pitch_depth + motor_shaft_od;
-axle_large_gear_pd_in = axle_distance - motor_gear_pd_in / 2;
+axle_large_gear_pd_in = axle_distance - motor_gear_pd_in / 2 - min_pitch_depth * 2;
 axle_small_gear_pd_in = 2 * min_pitch_depth + axle_od;
-final_gear_pd_in = (final_axle_distance - axle_distance) - axle_small_gear_pd_in / 2;
+final_gear_pd_in = (final_axle_distance - axle_distance) - axle_small_gear_pd_in / 2 - min_pitch_depth * 2;
 
 motor_gear_teeth = floor(motor_gear_pd_in / gear_pitch_ratio);
 axle_large_gear_teeth = floor(axle_large_gear_pd_in / gear_pitch_ratio);
@@ -116,6 +114,9 @@ echo("motor t/d: ", motor_gear_teeth, motor_gear_pd,
 // PRINT SETTINGS
 part_sep = 5;
 
+// RENDER SETTINGS
+$fn = 24;
+
 //model();
 //design();
 layout();
@@ -136,8 +137,7 @@ module set_screw_collar(od, id, height) {
     nut_angle = 120;		// angle between nuts, standard = 90
     
     nut_elevation = height/2;
-    id = id * exp_factor;
-    
+
     difference()
 	 {	 
 		cylinder(r=od/2,h=height);
@@ -333,14 +333,14 @@ module mower() {
 module bearing_plate() {
     difference() {
         cube([stepper_size, plate_length, plate_height / 2]);
-        # translate([stepper_size/2, stepper_size/2+axle_distance,
+        translate([stepper_size/2, stepper_size/2+axle_distance,
                 (plate_height - axle_bearing_height) / 2]) 
             cylinder(axle_bearing_height, axle_bearing_od/2, axle_bearing_od/2);
         
         translate([stepper_size/2, stepper_size/2+axle_distance]) 
             cylinder(plate_height, axle_bearing_id/2, axle_bearing_id/2);
         
-        # translate([stepper_size/2, stepper_size/2 + final_axle_distance,
+        translate([stepper_size/2, stepper_size/2 + final_axle_distance,
                 (plate_height - final_bearing_height) / 2]) 
             cylinder(final_bearing_height, final_bearing_od/2, final_bearing_od/2);
         
@@ -506,17 +506,17 @@ module layout_gears() {
 }
 
 module layout() {
-    translate([- axle_large_gear_pd / 2 - part_sep, axle_large_gear_pd + part_sep, 0]) 
+    translate([- axle_large_gear_pd / 1.5 - part_sep, axle_large_gear_pd + part_sep, 0]) 
         layout_gears();
     
-    * translate([0, -end_plate_height - spacer_width - part_sep, 0])
+    translate([0, -end_plate_height - spacer_width - part_sep, 0])
         plate_end();
-    * translate([stepper_size + part_sep, -end_plate_height - spacer_width - part_sep, 0])
+    translate([stepper_size + part_sep, -end_plate_height - spacer_width - part_sep, 0])
         plate_end();
     
-    * translate([0, 0, 0])
+    translate([0, 0, 0])
         half_plate();
-    * translate([stepper_size + part_sep, 0, 0])
+    translate([stepper_size + part_sep, 0, 0])
         half_plate();
     
 }
