@@ -22,6 +22,22 @@ mower_wheel_width = (mower_wheel_outside_w - mower_deck_width) / 2;
 
 
 // drive motor
+
+/* NEMA 23 * /
+stepper_size = 56.4;
+stepper_length = 100;
+stepper_center = 40;
+motor_hole_gap = 47.14;
+stepper_tab_depth = 5;
+hole_offset = (stepper_size - motor_hole_gap) / 2;  // screw hole center to outside edge, nema23 = 4mm
+motor_shaft_od = 10;
+motor_shaft_length = 25;
+motor_carveout_r = 7;
+motor_hole_id = 5;
+// */
+
+
+/* NEMA 17 */
 stepper_size = 42.3;      // outside width of motor
 motor_hole_gap = 31.0;    //c_c distance between screw holes
 stepper_length = 48;
@@ -29,9 +45,17 @@ stepper_center = 22;      // protruding cylinder on motor face
 hole_offset = (stepper_size - motor_hole_gap) / 2;  // screw hole center to outside edge, nema17 = 5.5mm
 stepper_tab_depth = stepper_length;
 stepper_hole_depth = 6;
-
 motor_shaft_od = 5;
 motor_shaft_length = 22;
+motor_hole_id = 3;
+motor_carveout_r = 0;
+
+motor_coupler_length = 25;
+motor_coupler_small_id = 5;
+motor_coupler_large_id = 8;
+motor_coupler_od = 19;
+
+// */
 
 // hardware
 m3_hole_id = 3;
@@ -52,27 +76,27 @@ final_bearing_height = 8;
 drive_wheel_od = 8 * 25.4; // TODO: measure
 drive_wheel_width = 2 * 25.4; // TODO: measure
 // */
-/*
+/* re-using mower wheels * /
 drive_wheel_od = mower_wheel_od;
 drive_wheel_width = mower_wheel_width;
 final_bearing_od = axle_bearing_od;
 final_bearing_id = axle_bearing_id;
 final_axle_od = axle_od;
 final_bearing_height = axle_bearing_height;
-*/
+// */
 
 // DIMENSIONAL SETTINGS
-plate_height = 10;
+plate_height = 12;
 final_axle_distance = 2 * stepper_size;
 axle_distance = final_axle_distance / 2;
 
-plate_gap = stepper_size; // Inside pulley area, between bearing plates
-end_plate_height = plate_height / 2;
+end_plate_height = plate_height / 2 - hole_offset;
 
-spacer_width = hole_offset * 1.5;
+spacer_width = hole_offset * 2;
 
 plate_length = stepper_size / 2
-            + final_axle_distance + axle_distance;
+            + final_axle_distance + axle_distance
+            + hole_offset;
 
 // GEARING
 min_pitch_depth = 2;
@@ -110,6 +134,8 @@ echo("motor t/d: ", motor_gear_teeth, motor_gear_pd,
      "ratio: 1:", gear_ratio);
          
 // END GEARING
+
+plate_gap = 3.5 * gear_height; // Inside pulley area, between bearing plates
 
 // PRINT SETTINGS
 part_sep = 5;
@@ -193,12 +219,12 @@ module simple_gear(height, or, ir) {
 
 module motor_gear() {
     translate([0, 0, 0])
-        set_screw_collar(stepper_center - 4, motor_shaft_od, plate_height);
-    translate([0, 0, plate_height])
+        set_screw_collar(stepper_center - 4, motor_shaft_od, gear_height);
+    translate([0, 0, gear_height])
     gear (circular_pitch=motor_pitch,
-		gear_thickness = motor_shaft_length - plate_height,
-		rim_thickness = motor_shaft_length - plate_height,
-		hub_thickness = motor_shaft_length - plate_height,
+		gear_thickness = gear_height,
+		rim_thickness = gear_height,
+		hub_thickness = gear_height,
 		number_of_teeth = motor_gear_teeth,
         hub_diameter=2 * motor_shaft_od,
         bore_diameter=motor_shaft_od,
@@ -260,7 +286,7 @@ module axle_small_gear(gear_height=gear_height) {
 
 module final_crosslink() {
     translate([0, 0, -gear_height]) 
-            set_screw_collar(2.5 * final_axle_od, final_axle_od, plate_height);
+            set_screw_collar(2.5 * final_axle_od, final_axle_od, gear_height);
     gear_crosslink(2.5 * final_axle_od, final_axle_od, gear_height);
 }
 
@@ -275,8 +301,9 @@ module final_gear() {
             bore_diameter=final_axle_od + 1,
             rim_width = 2);
         translate([0, 0, gear_height])
-        rotate([0, 180, 0])
-            final_crosslink();
+            scale([exp_factor, exp_factor, 1]) 
+            rotate([0, 180, 0])
+                final_crosslink();
     }
 }
 
@@ -354,15 +381,15 @@ module half_holy_plate() {
         bearing_plate();
     
         translate([stepper_size-hole_offset, stepper_size - hole_offset]) 
-            cylinder(plate_height, m3_hole_id / 2, m3_hole_id / 2);
+            cylinder(plate_height, r=motor_hole_id/2);
         translate([hole_offset, stepper_size - hole_offset]) 
-            cylinder(plate_height, m3_hole_id / 2, m3_hole_id / 2);
+            cylinder(plate_height, r=motor_hole_id / 2);
         translate([hole_offset, 
                     plate_length - hole_offset]) 
-            cylinder(plate_height, m3_hole_id / 2, m3_hole_id / 2);
+            cylinder(plate_height, r=motor_hole_id / 2);
         translate([stepper_size - hole_offset, 
                     plate_length - hole_offset]) 
-            cylinder(plate_height, m3_hole_id / 2, m3_hole_id / 2);
+            cylinder(plate_height, r=motor_hole_id / 2);
     }
 }
 
@@ -400,32 +427,33 @@ module full_plate() {
 module spacer() {
     difference() {
         cube([spacer_width, spacer_width, plate_gap]);
-         translate([spacer_width / 2, spacer_width / 2])
+        translate([spacer_width / 2, spacer_width / 2])
             cylinder(plate_gap, m3_hole_id/2, m3_hole_id/2);
-         translate([spacer_width / 2, spacer_width / 2, end_plate_height])
+        translate([spacer_width / 2, spacer_width / 2, spacer_width / 2 + 3])
             rotate([0, 0, 180])
-            set_screw_hole(od=spacer_width, id=0, height=plate_height);
-        translate([spacer_width / 2, spacer_width / 2, plate_gap - end_plate_height - 3])
+                set_screw_hole(od=spacer_width, id=0, height=plate_height);
+        translate([spacer_width / 2, spacer_width / 2, plate_gap - spacer_width - 3])
             rotate([0, 0, 180])
-            set_screw_hole(od=spacer_width, id=0, height=plate_height);
+                set_screw_hole(od=2 * spacer_width, id=0, height=plate_height);
     }
 }
 
 module plate_end() {
     difference() {
-        cube([stepper_size, end_plate_height, plate_gap]);
+        translate([spacer_width, 0, 0])
+            cube([stepper_size - 2 * spacer_width, end_plate_height + hole_offset, plate_gap]);
         translate([spacer_width + hole_offset, 0, hole_offset])
             rotate([-90, 0, 0])
-                cylinder(end_plate_height, m3_hole_id/2, m3_hole_id/2);
+                cylinder(spacer_width, r=m3_hole_id/2);
         translate([spacer_width + hole_offset, 0, plate_gap - hole_offset])
             rotate([-90, 0, 0])
-                cylinder(end_plate_height, m3_hole_id/2, m3_hole_id/2);
+                cylinder(spacer_width, r=m3_hole_id/2);
         translate([stepper_size - spacer_width - hole_offset, 0, plate_gap - hole_offset])
             rotate([-90, 0, 0])
-                cylinder(end_plate_height, m3_hole_id/2, m3_hole_id/2);
+                cylinder(spacer_width, r=m3_hole_id/2);
         translate([stepper_size - spacer_width - hole_offset, 0, hole_offset])
             rotate([-90, 0, 0])
-                cylinder(end_plate_height, m3_hole_id/2, m3_hole_id/2);
+                cylinder(spacer_width, m3_hole_id/2, m3_hole_id/2);
     }
     translate([0, end_plate_height, 0]) 
         spacer();
@@ -449,6 +477,15 @@ module motor() {
             cylinder(stepper_hole_depth, m3_hole_id / 2, m3_hole_id / 2);
        translate([hole_offset, stepper_size - hole_offset, stepper_length - stepper_hole_depth]) 
             cylinder(stepper_hole_depth, m3_hole_id / 2, m3_hole_id / 2);
+       
+       translate([hole_offset, hole_offset]) 
+            cylinder(stepper_length - stepper_tab_depth, motor_carveout_r, motor_carveout_r);
+       translate([stepper_size - hole_offset, hole_offset]) 
+            cylinder(stepper_length - stepper_tab_depth, motor_carveout_r, motor_carveout_r);
+       translate([stepper_size - hole_offset, stepper_size - hole_offset]) 
+            cylinder(stepper_length - stepper_tab_depth, motor_carveout_r, motor_carveout_r);
+       translate([hole_offset, stepper_size - hole_offset]) 
+            cylinder(stepper_length - stepper_tab_depth, motor_carveout_r, motor_carveout_r);
    }
 }
 
@@ -456,10 +493,9 @@ module model() {
     full_plate();
     translate([0, 0, plate_gap + plate_height]) full_plate();
     translate([0, -end_plate_height, plate_height]) plate_end();
-    translate([0, plate_length - spacer_width, plate_height])
-        spacer();
-    translate([stepper_size - spacer_width, plate_length - spacer_width, plate_height])
-        spacer();
+    translate([0, plate_length + end_plate_height, plate_height])
+        mirror([0, 1, 0])
+            plate_end();
     
     % translate([0, 0, -stepper_length]) motor();
     
@@ -487,22 +523,25 @@ module design() {
 }
 
 module layout_gears() { 
-    translate([0, 0, motor_shaft_length])
+    translate([0, 0, 2 * gear_height])
         rotate([180, 0, 0])
             motor_gear();
-    translate([0, -motor_gear_pd / 2 - axle_large_gear_pd / 2- part_sep, 0])
+    translate([0, -motor_gear_pd / 2 - axle_large_gear_pd / 2- part_sep, 0]) {
         rotate([0, 0, 0])
             axle_large_gear();
-    translate([1.5 * motor_gear_pd, 0, 0])
-        axle_small_gear();
-    translate([0, final_gear_pd/2 + motor_gear_pd / 2 + part_sep, 0])
-        axle_crosslink();
-    translate([-1.7 * motor_gear_pd, 0, gear_height])
-        rotate([0, 0, 0])
+        translate([0, 0, gear_height + 0.2])
+            axle_small_gear();
+        translate([0, 0, 0])
+            axle_crosslink();
+    }
+    translate([0, final_gear_pd/2 + motor_gear_pd / 2 + part_sep, 0]) {
+        translate([0, 0, gear_height + 0.2])
+        rotate([180, 0, 0])
             final_crosslink();
-    translate([0, final_gear_pd/2 + motor_gear_pd / 2 + part_sep, 0])
+        
         rotate([0, 0, 0])
             final_gear();
+    }
 }
 
 module layout() {

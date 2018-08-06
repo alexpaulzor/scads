@@ -23,7 +23,7 @@ module emblem_cube(emblem_text_x, emblem_text_y, emblem_text_z,
                 z_text();
         }
     }
-    translate([0, 0, 0]) z_plate();
+    translate([0, 0, -1]) z_plate();
     translate([0, 0, -emblem_z - floor_height / 2]) z_plate();
    
     intersection() {
@@ -135,7 +135,22 @@ module dmw() {
     emblem_text_y = "W";
     
     emblem_x = font_height * 1;
-    emblem_y = font_height * 1.4;
+    emblem_y = font_height * 1.1;
+    emblem_cube(
+        emblem_text_x, emblem_text_y, emblem_text_z,
+        font_height, emblem_x, emblem_y, emblem_z,
+        z_text_scale);
+}
+
+module apw() {
+    emblem_z = font_height;
+    z_text_scale = [0.7, 1, 1];
+    emblem_text_x = "A";
+    emblem_text_z = "P";
+    emblem_text_y = "W";
+    
+    emblem_x = font_height * 1;
+    emblem_y = font_height * 1.3;
     emblem_cube(
         emblem_text_x, emblem_text_y, emblem_text_z,
         font_height, emblem_x, emblem_y, emblem_z,
@@ -187,6 +202,21 @@ module kep() {
         z_text_scale);
 }
 
+module mab() {
+    emblem_z = font_height;
+    z_text_scale = [0.8, 0.7, 1];
+    emblem_text_x = "M";
+    emblem_text_z = "A";
+    emblem_text_y = "B";
+    
+    emblem_x = font_height * 1.1;
+    emblem_y = font_height * 1;
+    emblem_cube(
+        emblem_text_x, emblem_text_y, emblem_text_z,
+        font_height, emblem_x, emblem_y, emblem_z,
+        z_text_scale);
+}
+
 module design() {
     rlj();
 
@@ -213,9 +243,9 @@ module design() {
 
 }
 
-//design();
-plate();
+design();
+//plate();
 module plate() {
-    rotate([90, 0, 0])
-        ajp();
+   // rotate([90, 0, 0])
+        apw();
 } 
