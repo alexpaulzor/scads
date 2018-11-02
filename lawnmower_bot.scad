@@ -144,8 +144,8 @@ part_sep = 5;
 $fn = 24;
 
 //model();
-//design();
-layout();
+design();
+//layout();
             
 echo("SANITY CHECK:",
     "axle_bearing_skin", plate_height / 2 - axle_bearing_height / 2,

@@ -19,7 +19,7 @@ module cork() {
 }
 
 module cork_cone() {
-    translate([0, 0, sphere_ir - cork_thickness])
+    # translate([0, 0, sphere_ir - cork_thickness])
         cylinder(cork_height, cork_id, cork_od);
 }
 
