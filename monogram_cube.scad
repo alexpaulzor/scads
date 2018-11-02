@@ -232,6 +232,21 @@ module mab() {
         z_text_scale);
 }
 
+module mcv1() {
+    emblem_z = font_height;
+    z_text_scale = [0.8, 0.7, 1];
+    emblem_text_x = "M";
+    emblem_text_z = "V1";
+    emblem_text_y = "C";
+    
+    emblem_x = font_height * 1.1;
+    emblem_y = font_height * 1.2;
+    emblem_cube(
+        emblem_text_x, emblem_text_y, emblem_text_z,
+        font_height, emblem_x, emblem_y, emblem_z,
+        z_text_scale);
+}
+
 module design() {
     rlj();
 
@@ -258,9 +273,4 @@ module design() {
 
 }
 
-//design();
-plate();
-module plate() {
-   // rotate([90, 0, 0])
-        gcw();
-} 
+mcv1();
