@@ -1,4 +1,5 @@
-font = "Helvetica:style=Bold";
+//font = "Helvetica:style=Bold";
+font = "Times New Roman:style=Bold";
 
 $fn = 60;
 floor_height = 5;
@@ -232,6 +233,38 @@ module mcv1() {
         z_text_scale);
 }
 
+module mistake() {
+    emblem_z = font_height - 6;
+    z_text_scale = [1.5, 0.75, 1];
+    emblem_text_x = "#1";
+    emblem_text_z = "MISTAKE";
+    emblem_text_y = "WORST";
+    
+    emblem_x = font_height * len(emblem_text_x) * 0.9;
+    emblem_y = font_height * len(emblem_text_y);
+    emblem_cube(
+        emblem_text_x, emblem_text_y, emblem_text_z,
+        font_height, emblem_x, emblem_y, emblem_z,
+        z_text_scale);
+}
+
+module on_call() {
+    emblem_z = font_height;
+    z_text_scale = [1, 1, 1];
+    emblem_text_x = "ON";
+    emblem_text_z = "CALL";
+    emblem_text_y = "I AM";
+    
+    emblem_x = font_height * len(emblem_text_x) * 0.9;
+    emblem_y = font_height * len(emblem_text_y);
+    emblem_cube(
+        emblem_text_x, emblem_text_y, emblem_text_z,
+        font_height, emblem_x, emblem_y, emblem_z,
+        z_text_scale);
+}
+
+mistake();
+
 module design() {
     rlj();
 
@@ -257,7 +290,7 @@ module design() {
         rmk();
 
 }
-    mcv1();
+    //mcv1();
 //design();
 //plate();
 module plate() {
