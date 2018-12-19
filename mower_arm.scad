@@ -5,7 +5,7 @@ arm_w = 33;
 arm_l = 38;
 arm_c_h = 154;
 
-arm_hole_r = 3;
+arm_hole_r = 5 / 2;
 arm_wall_w = 1;
 arm_axle_l = 180;
 arm_top_w = 65;
@@ -198,15 +198,19 @@ module rod_traveller_mount() {
             rotate([-90, 0, 0])
                 cylinder(r=arm_hole_r, h=rod_traveller_w);
         
-        translate([-rod_traveller_hole_c_c_l/2, -rod_traveller_hole_c_c_w/2, -rod_traveller_mount_h/2])
-            cylinder(r=rod_traveller_hole_r, h=rod_traveller_mount_h);
-        translate([-rod_traveller_hole_c_c_l/2, rod_traveller_hole_c_c_w/2, -rod_traveller_mount_h/2])
-            cylinder(r=rod_traveller_hole_r, h=rod_traveller_mount_h);
-        translate([rod_traveller_hole_c_c_l/2, rod_traveller_hole_c_c_w/2, -rod_traveller_h/2])
-            cylinder(r=rod_traveller_hole_r, h=rod_traveller_mount_h);
-        translate([rod_traveller_hole_c_c_l/2, -rod_traveller_hole_c_c_w/2, -rod_traveller_h/2])
-            cylinder(r=rod_traveller_hole_r, h=rod_traveller_mount_h);
+        rod_traveller_mount_holes();
     }
+}
+
+module rod_traveller_mount_holes(h=rod_traveller_mount_h) {
+    translate([-rod_traveller_hole_c_c_l/2, -  rod_traveller_hole_c_c_w/2, -h/2])
+            cylinder(r=rod_traveller_hole_r, h=h);
+        translate([-rod_traveller_hole_c_c_l/2, rod_traveller_hole_c_c_w/2, -h/2])
+            cylinder(r=rod_traveller_hole_r, h=h);
+        translate([rod_traveller_hole_c_c_l/2, rod_traveller_hole_c_c_w/2, -h/2])
+            cylinder(r=rod_traveller_hole_r, h=h);
+        translate([rod_traveller_hole_c_c_l/2, -rod_traveller_hole_c_c_w/2, -h/2])
+            cylinder(r=rod_traveller_hole_r, h=h);
 }
 
 module rod_traveller_block() {
@@ -296,9 +300,11 @@ traveller_num_holes = 4;
 traveller_hole_angle = 360 / traveller_num_holes;
 traveller_ir = 7 / 2;
 
+gimbal_shift_z = -traveller_flange_h;
+
 module shaft_traveller() {
-    
-    % difference() {
+     % translate([0, 0, gimbal_z / 2 - traveller_flange_z / 2 + gimbal_shift_z])
+        difference() {
         union() {
             cylinder(h=traveller_h, r=traveller_collar_or);
             translate([0, 0, traveller_flange_z]) {
@@ -318,31 +324,39 @@ module shaft_traveller() {
 }
 
 gimbal_pivot_hole_ir = 5 / 2;
-gimbal_x = 3 * traveller_flange_or;
-gimbal_y = rod_traveller_h/2 + rod_traveller_mount_h + 1.5 * traveller_flange_or;
-gimbal_z = rod_traveller_l; //traveller_h;
-gimbal_rod_c_c = rod_traveller_h/2 + rod_traveller_mount_h/2;
+gimbal_x = max(3 * traveller_flange_or, rod_traveller_l);
+gimbal_y = gimbal_x; // rod_traveller_h/2 + rod_traveller_mount_h + 1.5 * traveller_flange_or;
+gimbal_z = max(gimbal_x, rod_traveller_l); //traveller_h;
+gimbal_rod_c_c = gimbal_y/2 - 1.5 * gimbal_pivot_hole_ir;
 
 module pivot_gimbal() {
     difference() {
-        translate([-gimbal_x/2, -1.5 * traveller_flange_or, 0])
+        translate([-gimbal_x/2, -gimbal_y / 2, 0])
             cube([gimbal_x, gimbal_y, gimbal_z]);
+        //rotate([0, 0, 0])
+        //    cylinder(r=gimbal_x/2, h=gimbal_z);
         translate([0, 0, 0]) {
-            cylinder(h=gimbal_z, r=traveller_collar_or);
+            cylinder(h=gimbal_z, r=traveller_collar_or + 0.2);
             for (i=[1:traveller_num_holes])
-                rotate([0, 0, (0.5 + i) * traveller_hole_angle])
+                rotate([0, 0, i * traveller_hole_angle])
                     translate([traveller_hole_offset, 0, 0])
                         cylinder(h=gimbal_z, r=traveller_hole_ir);
-            translate([0, 0, traveller_flange_z]) 
-                cylinder(h=gimbal_z - traveller_flange_z, r=traveller_flange_or);
+            translate([0, 0, gimbal_z / 2 + traveller_flange_z/2])
+                cylinder(h=gimbal_z, r=traveller_flange_or+1);
+            cylinder(h=gimbal_z / 2 - traveller_flange_z/2, r=traveller_flange_or+1);
         }
         translate([-gimbal_x/2, gimbal_rod_c_c, gimbal_z / 2])
             rotate([0, 90, 0])
             cylinder(r=gimbal_pivot_hole_ir, h=gimbal_x);
+        translate([0, 0, gimbal_z / 2 + rod_traveller_hole_r]) 
+            rotate([90, 90, 0]) 
+            rod_traveller_mount_holes(gimbal_x*2);
+        translate([0, 0, gimbal_z / 2 - rod_traveller_hole_r]) 
+            rotate([0, 90, 0]) 
+            rod_traveller_mount_holes(gimbal_x*2);
     }
     
 }
-
 
 shaft_gap_z = arm_w + bot_frame_arm_gap * 2 + gimbal_x / 2 + rod_traveller_w / 2;
 //shaft_gap_y = nema_mount_slot_c_c / 2 + rod_mount_hole_c_c / 2;
@@ -400,7 +414,7 @@ module nema_spacer_block() {
 }
 
 module design() {
-    translate([-arm_x, arm_w / 2 + gimbal_x + bot_frame_arm_gap, arm_y])
+    translate([-arm_x, -arm_w / 2 - gimbal_x - bot_frame_arm_gap, arm_y])
         rotate([0, nema_rotation, 0])
             hard_parts();
     rotate([0, 0, 180])
@@ -409,7 +423,7 @@ module design() {
 
 module hard_parts() {
     translate([-traveller_x, 0, gimbal_rod_c_c])
-    rotate([-90, 0, 0]) {
+    rotate([90, 0, 0]) {
         translate([-nema_collar_l - shaft_pillow_l/2, 0, 0]) {
             * # translate([nema_collar_l, 0, 0])
                 nema_spacer_block();
@@ -420,11 +434,11 @@ module hard_parts() {
         % translate([shaft_pillow_l + block_gap, 0, 0])
             shaft_pillow();
         
-        translate([traveller_x - rod_traveller_l / 2, 0, 0])
-            rotate([0, 90, 0])
+        translate([traveller_x - gimbal_x / 2, 0, 0])
+            rotate([180, 0, 0]) rotate([0, 90, 0])
                  shaft_traveller();
         
-        # translate([shaft_pillow_x - shaft_pillow_l - gimbal_x, 0, 0])
+        % translate([shaft_pillow_x - shaft_pillow_l - gimbal_x, 0, 0])
             shaft_pillow();
     }
 }
