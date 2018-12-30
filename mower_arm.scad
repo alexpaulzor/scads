@@ -106,7 +106,7 @@ max_arm_rotation = mower_neck_angle - arm_grip_angle;
 
 //arm_rotation = max_arm_rotation;
 //arm_rotation = max_arm_rotation + arm_rom_deg;
-arm_rotation = -max_arm_rotation - abs(($t - 0.5) * max_arm_rotation * 2); //floor($t * max_arm_rotation * 2) % max_arm_rotation;
+arm_rotation = -max_arm_rotation - abs(($t - 0.5) * max_arm_rotation * 2) - 6; //floor($t * max_arm_rotation * 2) % max_arm_rotation;
 
 arm_x = sin(arm_rotation) * arm_c_h;
 arm_y = cos(arm_rotation) * arm_c_h;
@@ -443,11 +443,15 @@ module hard_parts_rect(include_traveller=true, pillow_x=shaft_pillow_x) {
                          pivot_gimbal();
                 translate([front_shaft_pillow_x, 0, 0])
                     shaft_pillow_spacer();
-                translate([front_shaft_pillow_x - shaft_pillow_l, 0, gimbal_w / 2 + rod_traveller_h/2])
+                translate([front_shaft_pillow_x + shaft_pillow_l / 2 + rod_mount_l / 2, 0, gimbal_w / 2 + rod_traveller_h/2])
                 rod_mount_spacer(40, true);
-            translate([front_shaft_pillow_x - shaft_pillow_l - rod_mount_l, -gimbal_w / 2 - rod_traveller_h/2, 0])
+            translate([front_shaft_pillow_x + shaft_pillow_l / 2 + rod_mount_l * 3 / 2, -gimbal_w / 2 - rod_traveller_h/2, 0])
                      rod_mount_spacer(20, false);
-            }
+                translate([front_shaft_pillow_x + shaft_pillow_l + switch_holder_l * 3 / 2, 0, gimbal_w / 2 + rod_traveller_h/2])
+                    rotate([0, 0, 180])
+                    limit_switch();
+                
+           }
             
             
             % translate([-(rod_l - shaft_l) - shaft_offset_x, 0, gimbal_w / 2 + rod_traveller_h/2])
@@ -621,7 +625,7 @@ switch_w = 20;
 switch_l = 11;
 switch_h = 7;
 switch_hole_offset_w = 5;
-switch_hole_offset_l = 2.5;
+switch_hole_offset_l = 3;
 switch_hole_ir = 2.5 / 2;
 
 switch_roller_offset = 3;
@@ -662,15 +666,14 @@ module limit_switch() {
             cube([switch_holder_l, switch_holder_w, switch_holder_h]);
         # translate([switch_holder_lip_l, switch_holder_h / 2 + switch_roller_overhang, 0])
             switch();
-        translate([0, 2 * rod_r , -switch_roller_h/2])
-            cube([switch_holder_lip_l, switch_roller_w + switch_roller_overhang, switch_roller_h]);
+        translate([0, 0, -switch_roller_h/2])
+            cube([switch_holder_lip_l, switch_holder_w, switch_roller_h]);
         
-        rod();
+        rotate([0, 90, 0])
+            cylinder(r=rod_r+0.5, h=switch_holder_l);
     }
     
 }
-
-! limit_switch();
 
 
 /////////////////////////////////////////////////
@@ -691,5 +694,5 @@ module layout() {
     hard_parts_rect(false, 10 * rod_mount_l + shaft_offset_x);
 }
 // layout();
-//design();
+design();
 //electronics_box();
