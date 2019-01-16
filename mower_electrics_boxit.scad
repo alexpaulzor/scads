@@ -1,6 +1,11 @@
 include <arduino.scad>
+use <boxit.scad>
 
 IN_MM = 25.4;
+
+$fn = 12;
+inside_dims = [160, 125, 125];
+wall_th = 1.5;
 
 /////////////////////////////////////////////////
 //////////// ELECTRONICS ////////////////////////
@@ -47,6 +52,9 @@ module psu() {
     difference() {
         cube([psu_l, psu_w, psu_h]);
         psu_holes();
+        // TODO: make sure this is the right side
+        translate([0, 0, psu_h / 2])
+            cube([psu_h / 2, psu_w, psu_h / 2]);
     }
     psu_holes();
 }
@@ -63,17 +71,20 @@ module mega() {
         % arduino(MEGA2560);
         % translate([0, 0, mega_h - 2])
             arduino(MEGA2560);
-        mega_holes();
     }
+    * mega_holes();
 }
 
 module mega_holes() {
-    for (xy=dueHoles) {
-        translate([xy[0], xy[1], -mega_h])
-            cylinder(r=mega_hole_r, h=mega_h * 3);
+    translate([0, mega_w, 0])
+    rotate([0, 0, -90]) {
+        for (xy=dueHoles) {
+            translate([xy[0], xy[1], -mega_h])
+                cylinder(r=mega_hole_r, h=mega_h * 3);
+        }
+        translate([8, -60, 0])
+            cube([15, 60, 20]);
     }
-    translate([8, -60, 0])
-        cube([15, 60, 20]);
 }
 
 // TODO: estimated
@@ -181,176 +192,6 @@ module stepctl_holes() {
         cylinder(r=stepctl_hole_or-1, h=2 * mega_h);
 }
 
-eface_gap = 2;
-eface_l = psu_l + 2 * eface_gap;
-eface_w = eface_gap / 2;
-eface_h = stepctl_h + 4 * eface_gap + stepctl_wire_h;
-eface_spine_w = eface_gap * 2;
-panel_h = eface_h;
-
-module electronics_face() {
-    psu_h = 0;
-    difference() {
-        union() {
-            cube([eface_l, eface_w, eface_h]);
-            translate([eface_l / 2 - eface_w / 2, 0, 0])
-                cube([eface_w, eface_spine_w, eface_h]);
-            
-            translate([-eface_w, 0, 0])
-                cube([eface_w, eface_spine_w, eface_h + eface_w]);
-            translate([0, 0, eface_h - 3 * eface_w])
-                cube([eface_l, eface_spine_w, 4 * eface_w]);
-            translate([eface_l, 0, 0])
-                cube([eface_w, eface_spine_w, eface_h + eface_w]);
-            translate([0, 0, 0])
-                cube([eface_l, eface_spine_w, eface_w]);
-            translate([0, 0, 2*eface_w])
-                cube([eface_l, eface_spine_w, eface_w]);
-            translate([0, 0, 2*eface_w])
-                cube([4*eface_w, eface_spine_w, eface_h - eface_w]);
-            translate([eface_l - eface_w*4, 0, 2*eface_w])
-                cube([5*eface_w, eface_spine_w, eface_h - eface_w]);
-        }
-        translate([eface_l / 4, -1, 20])
-                rotate([-90, 0, 0])
-                cylinder(r=6, h=eface_w * 2 );
-
-        translate(eface_offset(-1)) {
-            translate(eparts_offset()) eparts_dcctls();
-            eshelf_attach_holes_in_place();
-            ewall_left_in_place();
-            ewall_right_in_place();
-            eshelf_in_place();
-            eceil_in_place();
-        }   
-    }
-}
-
-eshelf_w = psu_w + 2 * (eface_gap + eface_spine_w);
-eshelf_l = eface_l;
-
-module eshelf_attach_holes_in_place() {
-    translate(eface_offset())
-        eshelf_attach_holes();
-}
-
-module eshelf_attach_holes() {
-  # translate([3 * eface_spine_w, -eface_spine_w, 3 * eface_spine_w])
-    rotate([-90, 0, 0])
-        cylinder(r=psu_hole_r, h=eshelf_w + 2 * eface_spine_w);
-    
-  translate([3 * eface_spine_w, -eface_spine_w, panel_h - 3 * eface_spine_w])
-    rotate([-90, 0, 0])
-        cylinder(r=psu_hole_r, h=eshelf_w + 2 * eface_spine_w);
-    
-  translate([eface_l - 3 * eface_spine_w, -eface_spine_w, 3 * eface_spine_w])
-    rotate([-90, 0, 0])
-        cylinder(r=psu_hole_r, h=eshelf_w + 2 * eface_spine_w);
-    
-  translate([eface_l - 3 * eface_spine_w, -eface_spine_w, panel_h - 3 * eface_spine_w])
-    rotate([-90, 0, 0])
-        cylinder(r=psu_hole_r, h=eshelf_w + 2 * eface_spine_w);
-}
-
-module electronics_shelf() {
-    difference() {
-        union() {
-            translate([eface_w, 0, 0])
-                cube([eshelf_l - 2 * eface_w, eshelf_w, eface_w]);
-            translate([0, 0, 0])
-                cube([eface_w, eshelf_w, eface_spine_w]);
-            translate([eshelf_l - eface_w, 0, 0])
-                cube([eface_w, eshelf_w, eface_spine_w]);
-            translate([2 * eface_w, 0, 0])
-                cube([eface_w, eshelf_w, eface_spine_w]);
-            translate([eshelf_l - 3 * eface_w, 0, 0])
-                cube([eface_w, eshelf_w, eface_spine_w]);
-        }
-        translate(eshelf_offset(-1)) {
-            translate(eparts_offset()) {
-                eparts_mega();
-                eparts_stepctl();
-            }
-            eshelf_attach_holes_in_place();
-            # psu_in_place();
-        }   
-    }
-}
-
-module electronics_wall_left() {
-    eslot_h = 7;
-    eslot_w = 40;
-    difference() {
-        cube([eface_w, eshelf_w, panel_h - 3 * eface_w]);
-        translate(ewall_left_offset(-1)) {
-            eshelf_attach_holes_in_place();
-            translate(eparts_offset())
-                eparts_mega();
-        }
-        # translate([0, eshelf_w / 2, panel_h / 2])
-            rotate([90, 0, 0])
-            rotate([0, -90, 0])
-            ssr();
-        * translate([0, (eshelf_w - eslot_w) / 2, panel_h / 2 + ssr_w / 2 + eface_gap])  
-            cube([eface_w, eslot_w, eslot_h]);
-    }
-}
-
-module electronics_wall_right() {
-    panel_h = panel_h - 3 * eface_w;
-    difference() {
-        union() {
-            cube([eface_w, eshelf_w, panel_h]);
-            translate([0, eshelf_w / 2, panel_h / 2])
-                rotate([-45, 0, 0])
-                difference() {
-                    translate([-outlet_d, -outlet_w/2 - eface_gap - eface_w, -outlet_l / 2 - eface_gap - eface_w])
-                        cube([outlet_d, outlet_w + 2 * eface_gap + 2 * eface_w, outlet_l + 2 * eface_gap + 2 * eface_w]);
-                    translate([-outlet_d, -outlet_w/2 - eface_gap, -outlet_l / 2 - eface_gap])
-                        cube([outlet_d, outlet_w + 2 * eface_gap, outlet_l + 2 * eface_gap]);
-                    translate([-outlet_d,  - outlet_flange_w / 2, -outlet_flange_l / 2,])
-        cube([outlet_d, outlet_flange_w, outlet_flange_l]);
-                }
-        }
-        
-        translate([-1, 3 * eshelf_w / 4, eface_h / 4])
-                rotate([0, 90, 0])
-                cylinder(r=6, h=eface_w * 2);
-        translate(ewall_left_offset(-1))
-            eshelf_attach_holes_in_place();
-         # translate([0, eshelf_w / 2, panel_h / 2])
-            rotate([-45, 0, 0])
-            rotate([0, 90, 0])
-            outlet();
-    }
-}
-
-module electronics_wall_back() {
-    difference() {
-        union() {
-            cube([eshelf_l + 2 * eface_w, eface_w, panel_h]);
-            translate([0, -eface_spine_w + eface_w, 0]) {
-                cube([eshelf_l + 2 * eface_w, eface_spine_w, 3 * eface_w]);
-                cube([eface_w * 5, eface_spine_w, panel_h]);
-                translate([0, 0, panel_h - 2 * eface_w])
-                    cube([eshelf_l + 2 * eface_w, eface_spine_w, 3 * eface_w]);
-                translate([eshelf_l - 3* eface_w, 0, 0])
-                    cube([5 * eface_w, eface_spine_w, panel_h]);
-            }
-            translate([eface_w, -stepctl_notch_w + eface_w, 4 * eface_w])
-                cube([eshelf_l, stepctl_notch_w, eface_w]);
-        }
-        translate(ewall_back_offset(-1)) {
-            translate(eparts_offset())
-                eparts_stepctl();
-             eshelf_attach_holes_in_place();
-            ewall_left_in_place();
-            ewall_right_in_place();
-            * eceil_in_place();
-            eshelf_in_place();
-        }
-    }
-}
 
 rocker_or = 10;
 rocker_h = 25;
@@ -372,42 +213,6 @@ module rocker() {
     # cylinder(r=rocker_lip_or, h=rocker_lip_h);
 }
 
-
-module electronics_ceil() {
-    difference() {
-        union() {
-            cube([eshelf_l, eshelf_w, eface_w]);
-            translate([0, 0, -eface_spine_w]) {
-                cube([3 * eface_w, eshelf_w, eface_spine_w]);
-                
-                translate([eshelf_l - 3 * eface_w, 0, 0])
-                    cube([3 * eface_w, eshelf_w, eface_spine_w]);
-                translate([3 * eface_w, eshelf_w / 2 - eface_w/2, 0])
-                    cube([eface_l - 6 * eface_w, eface_w, eface_spine_w]);
-            }
-        }
-        # translate([eshelf_l / 2 - iec_plug_l / 2, eshelf_w - 1.5 * iec_plug_w , 0])
-            iec_plug();
-        for (i=[0:num_rockers - 1]) {
-            translate([
-                    1.5 * rocker_or + eface_spine_w + eface_gap + rocker_or + i * (2.5 * rocker_or - eface_gap), 
-                    rocker_or * 3 + 1.5 * rocker_or * (i % 2), 
-                    eface_w])
-                # rocker();
-        }
-        translate(eceil_offset(-1)) {
-            eshelf_attach_holes_in_place();
-            ewall_left_in_place();
-            ewall_right_in_place();
-        }
-    }
-}
-
-
-
-//outlet_l = 72;
-//outlet_w = 35;
-//outlet_h = 23;
 outlet_flange_l = 93;
 outlet_flange_w = 19;
 outlet_flange_h = 17;
@@ -423,7 +228,7 @@ outlet_center = 10;
 outlet_screw_od = 3;
 outlet_face_d = 5;
 outlet_d = 18;
-face_d = eface_w;
+face_d = outlet_face_d;
 
 plug_h = (outlet_h - outlet_center) / 2;
 module plug_face() {
@@ -435,15 +240,12 @@ module plug_face() {
 }
 
 module outlet() {
-    * translate([-outlet_h / 2, -outlet_w / 2, -outlet_flange_h])
-        cube([outlet_h, outlet_w, outlet_d]);
     translate([-outlet_flange_l / 2, - outlet_flange_w / 2, -outlet_flange_th])
         cube([outlet_flange_l, outlet_flange_w, outlet_flange_th]);
     for (x=[1, 0, -1]) {
         translate([x * outlet_hole_cc_l/2, 0, -outlet_flange_h])
             cylinder(r=outlet_hole_or, h=outlet_w);
         
-    
     translate([outlet_center / 2, -outlet_w / 2, 0])
         plug_face();
     translate([-outlet_center / 2 - plug_h, -outlet_w / 2, 0])
@@ -468,150 +270,146 @@ module ssr() {
         cylinder(r=ssr_hole_or, h=2*ssr_h);
 }
 
+num_rockers = 4;
 
-module eparts_dcctls() {
-    translate([-eshelf_l/2 + 2 * eface_gap, -psu_w/2, (eface_h - dcctl_h) / 2]) {
-        # dcctl();
+module eparts_switches(inside_dims, wall_th) {
+    translate([-inside_dims[0] / 2 + rocker_or * 2, 
+                -num_rockers * rocker_or * 2 / 3, 
+                inside_dims[2] / 2 + wall_th]) {
+        for (i=[0:num_rockers - 1]) {
+            translate([2 * rocker_or * (i % 2), 
+                2 * rocker_or * i,
+                    wall_th])
+                # rocker();
+        }
+    }
+}
+
+
+module eparts_dcctls(inside_dims, wall_th) {
+    translate([inside_dims[1] / 4 - dcctl_l / 2, -inside_dims[1] / 2, -dcctl_h]) {
+       
+        dcctl();
         dcctl_holes();
     }
-    translate([eshelf_l/2 - dcctl_l - 2 * eface_gap, -psu_w/2, (eface_h - dcctl_h) / 2]) {
-        # dcctl();
+    translate([-inside_dims[1] / 4 - dcctl_l / 2, -inside_dims[1] / 2, -dcctl_h]) {
+        dcctl();
         dcctl_holes();
     }
 }
 
-module eparts_mega() {
-    translate([-mega_l / 2, -mega_w / 2, eface_gap + eface_w + mega_lift]) 
-    {
-        mega();
+module eparts_mega(inside_dims, wall_th) {
+    translate([0, 0, -inside_dims[2]/2 + mega_lift]) {
+        translate([-mega_l / 2, -mega_w / 2, 0]) 
+        {
+            % color("gray", 0.05) mega();
+            mega_holes();
+        }
+        translate([-mega_l / 2 + 13, -vreg_w / 2, mega_h]) 
+            vreg();
+        translate([mega_l / 2 - 13 - rc_l, -rc_w / 2, mega_h]) 
+            rc();
     }
-    translate([-mega_l / 2 + 13, -vreg_w / 2, mega_h]) 
-        vreg();
-    translate([mega_l / 2 - 13 - rc_l, -rc_w / 2, mega_h]) 
-        rc();
 }
 
-module eparts_stepctl() {
-    translate([-stepctl_l/2, eshelf_w / 2 - stepctl_notch_w + 2.5*eface_w, 4 * eface_w]) 
+module eparts_stepctl(inside_dims, wall_th) {
+    translate([-stepctl_l/2, inside_dims[1] / 2 - stepctl_notch_w + wall_th * 2, -inside_dims[2] / 2 + mega_lift]) 
         stepctl();
 }
 
-module eparts() {
-    eparts_dcctls();
-    eparts_mega();
-    eparts_stepctl();
+module eparts_psu(inside_dims, wall_th) {
+    translate([-psu_l / 2, psu_w / 2, -inside_dims[2] / 2 - wall_th - psu_hole_d/2])
+        rotate([180, 0, 0])
+            psu();
 }
 
-module electronics_box() {
-     psu_in_place();
-    * eparts_in_place();
-     eface_in_place();
-     eshelf_in_place();
-      ewall_right_in_place();
-     ewall_left_in_place();
-     ewall_back_in_place();
-     eceil_in_place();
-     * bat_in_place();
+module eparts_iec(inside_dims, wall_th) {
+    translate([-inside_dims[0]/2 - iec_plug_h / 2, iec_plug_h / 2, iec_plug_h])
+        rotate([0, 0, 0])
+        iec_plug();
 }
 
-module bat_in_place() {
-    translate([-bat_l/2, -bat_h/2, -psu_h - eface_gap]) 
-        rotate([-90, 0, 0])
-        bat();
+module eparts_outlet(inside_dims, wall_th) {
+    translate([-inside_dims[0]/2, -inside_dims[1]/4, 0])
+        rotate([0, 90, 180])
+        outlet();
 }
 
-module psu_in_place() {
-    translate([psu_l / 2, -psu_w / 2,0 ]) {
-        rotate([0, 180, 0])
-        psu();  
+module ssr_holes() {
+    translate([0, 0, -wall_th]) {
+        cube([ssr_l / 2, ssr_w - 4 * wall_th, 2 * wall_th], center=true);
     }
 }
 
-function eparts_offset(dir=1) = dir * [0, 0, eface_w];
-
-module eparts_in_place() {
-    translate(eparts_offset()) eparts();
+module eparts_ssr(inside_dims, wall_th) {
+    translate([0, -inside_dims[1] / 2 - wall_th, ssr_w/1.5])
+        rotate([90, 0, 0]) {
+            ssr();
+            ssr_holes();
+        }
 }
+
+module eparts(inside_dims, wall_th) {
+    eparts_dcctls(inside_dims, wall_th);
+    # eparts_switches(inside_dims, wall_th);
+    eparts_ssr(inside_dims, wall_th);
+    eparts_mega(inside_dims, wall_th);
+    eparts_psu(inside_dims, wall_th);
+    eparts_iec(inside_dims, wall_th);
+    eparts_outlet(inside_dims, wall_th);
+    eparts_stepctl(inside_dims, wall_th);
+}
+
+module wall_mods(inside_dims, wall_th) {
+    //ofs = boxit_wall_offsets(inside_dims, wall_th);
+    //front_ofs = ofs[5];
+    //# translate(front_ofs + [-stepctl_l / 2, -stepctl_notch_w - wall_th, -inside_dims[2] / 2 + mega_lift])
+    # translate([-stepctl_l/2, inside_dims[1] / 2 - stepctl_notch_w, -inside_dims[2] / 2 + mega_lift - 2 * wall_th])
+        cube([stepctl_l, stepctl_notch_w, 2 * wall_th]);
+    # translate([-stepctl_l/2, inside_dims[1] / 2 - stepctl_notch_w, -inside_dims[2] / 2])
+        cube([wall_th, stepctl_notch_w, mega_lift - wall_th]);
+    # translate([-stepctl_l/2 + stepctl_l - wall_th, inside_dims[1] / 2 - stepctl_notch_w, -inside_dims[2] / 2])
+        cube([wall_th, stepctl_notch_w, mega_lift - wall_th]);
     
-function eface_offset(dir=1) = dir * [-eface_l / 2, -eshelf_w / 2 - eface_w, 0];
-
-module eface_in_place() {
-    translate(eface_offset())
-        electronics_face();
-}
-
-function eshelf_offset(dir=1) = dir * [-eshelf_l / 2, -eshelf_w / 2 + eface_w, eface_w];
-
-module eshelf_in_place() {
-    translate(eshelf_offset())
-        electronics_shelf();
-}
-
-function ewall_left_offset(dir=1) = dir * [-eshelf_l/2 + eface_w, -eshelf_w/2 + eface_w, eface_w * 2];
-
-module ewall_left_in_place() {
-    translate(ewall_left_offset())
-        electronics_wall_left();
-}
-    
-function ewall_right_offset(dir=1) = dir * [eshelf_l / 2 - 2 * eface_w, -eshelf_w / 2 + eface_w, 2 * eface_w];
-
-module ewall_right_in_place() {
-    translate(ewall_right_offset())
-        electronics_wall_right();
-}
-    
-function ewall_back_offset(dir=1) = dir * [-eshelf_l/2 - eface_w, eshelf_w / 2 + eface_w, 0];
-
-module ewall_back_in_place() {
-    translate(ewall_back_offset())
-        electronics_wall_back();
-}
-
-function eceil_offset(dir=1) = dir * [-eshelf_l/2, -eshelf_w/2 + eface_w, panel_h - eface_w];
-
-module eceil_in_place() {
-    translate(eceil_offset())
-        electronics_ceil();
 }
 
 /////////////////////////////////////////////////
 //////////// RENDER /////////////////////////////
 /////////////////////////////////////////////////
-$fn = 24;
 
-module layout() {
-    * translate([250, 250, 0])
-        electronics_box();
-    
-    * translate([1, 1, 0])
-        electronics_shelf();
-    
-    * translate([-135, 113, eface_w])
-        rotate([180, 0, 0]) 
-        electronics_ceil();
-    
-    translate([eface_w + 1, -1, 0])
-        rotate([90, 0, 0])
-        electronics_face();
-    
-     translate([-142, -125, eface_w])
-        rotate([-90, 0, 0])
-        electronics_wall_back();
-    
-    *  translate([0, 0, 0]) 
-        rotate([0, -90, 0])
-        electronics_wall_left();
-    
-     *  translate([-1, 1, eface_w]) 
-        rotate([0, 90, 0])
-        electronics_wall_right();
-        
-     
-    
-    
+
+* boxit(inside_dims, wall_th, ofscale=1) {
+    wall_mods(inside_dims, wall_th);
+    eparts(inside_dims, wall_th);
 }
-layout();
-//!electronics_wall_back();
 
-//electronics_box();
+* boxit(inside_dims, wall_th, ofscale=4) {
+    wall_mods(inside_dims, wall_th);
+    eparts(inside_dims, wall_th);
+}
+* boxit_wall_right(inside_dims, wall_th) {
+    wall_mods(inside_dims, wall_th);
+    eparts(inside_dims, wall_th);
+}
+* boxit_wall_left(inside_dims, wall_th) {
+    wall_mods(inside_dims, wall_th);
+    eparts(inside_dims, wall_th);
+}
+ * boxit_wall_top(inside_dims, wall_th) {
+    wall_mods(inside_dims, wall_th);
+    eparts(inside_dims, wall_th);
+}
+* boxit_wall_bottom(inside_dims, wall_th) {
+    wall_mods(inside_dims, wall_th);
+    eparts(inside_dims, wall_th);
+}
+* wall_mods();
+//translate([0, 100, 0])
+ boxit_wall_front(inside_dims, wall_th) {
+    wall_mods(inside_dims, wall_th);
+    eparts(inside_dims, wall_th);
+}
+* boxit_wall_back(inside_dims, wall_th) {
+    wall_mods(inside_dims, wall_th);
+    eparts(inside_dims, wall_th);
+}

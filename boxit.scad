@@ -7,79 +7,115 @@ I_WALL_TOP = 3;
 I_WALL_BACK = 4;
 I_WALL_FRONT = 5;
 
-NOTCH_SCALE = 3.0;
+WALL_TH = 1.5;
+
+HOLE_OR = 3 / 2;
 
 /*
 wall_th - wall thickness
 inside_dims - [length, width, height]
 */
-module boxit(wall_th, inside_dims, notch_scale=NOTCH_SCALE, ofscale=1.0) {
-    ofs = boxit_wall_offsets(wall_th, inside_dims);
+module boxit(inside_dims, wall_th=WALL_TH, ofscale=1.0) {
+    ofs = boxit_wall_offsets(inside_dims, wall_th);
     
     translate(ofs[I_WALL_LEFT] * ofscale) 
-        boxit_wall(wall_th, inside_dims, I_WALL_LEFT, notch_scale) {
-            if ($children > 0) 
-                intersection() {
-                    children(0);
-                    rotate([0, -90, 0])
-                        wall_mask(inside_dims[2], inside_dims[1], inside_dims[0]/2);
-                }
-            if ($children > 1) children(1);
+        boxit_wall_left(inside_dims, wall_th) {
+            children(0);
+            children(1);
         }
     translate(ofs[I_WALL_RIGHT] * ofscale) 
-        boxit_wall(wall_th, inside_dims, I_WALL_RIGHT, notch_scale) {
-            if ($children > 0) 
-                intersection() {
-                    children(0);
-                    rotate([0, 90, 0])
-                        wall_mask(inside_dims[2], inside_dims[1], inside_dims[0]/2);
-                }
-            if ($children > 1) children(1);
+        boxit_wall_right(inside_dims, wall_th) {
+            children(0);
+            children(1);
         }
     translate(ofs[I_WALL_BOTTOM] * ofscale) 
-        boxit_base(wall_th, inside_dims, I_WALL_BOTTOM, notch_scale) {
-            if ($children > 0) 
-                intersection() {
-                    children(0);
-                    rotate([0, 180, 0])
-                        wall_mask(inside_dims[0], inside_dims[1], inside_dims[2]/2);
-                }
-            if ($children > 1) children(1);
+        boxit_wall_bottom(inside_dims, wall_th) {
+            children(0);
+            children(1);
         }
     translate(ofs[I_WALL_TOP] * ofscale) 
-        //mirror([0, 0, 1])
-        boxit_base(wall_th, inside_dims, I_WALL_TOP, notch_scale) {
-            if ($children > 0) 
-                intersection() {
-                    children(0);
-                    wall_mask(inside_dims[0], inside_dims[1], inside_dims[2]/2);
-                }
-            if ($children > 1) children(1);
+        boxit_wall_top(inside_dims, wall_th) {
+            children(0);
+            children(1);
         }
     translate(ofs[I_WALL_BACK] * ofscale) 
-        boxit_cap(wall_th, inside_dims, I_WALL_BACK, notch_scale) {
-            if ($children > 0) 
-                intersection() {
-                    children(0);
-                    rotate([90, 0, 0])
-                        wall_mask(inside_dims[0], inside_dims[2], inside_dims[1]/2);
-                }
-            if ($children > 1) children(1);
+        boxit_wall_back(inside_dims, wall_th) {
+            children(0);
+            children(1);
         }
     translate(ofs[I_WALL_FRONT] * ofscale) 
-        //mirror([0, 1, 0])
-        boxit_cap(wall_th, inside_dims, I_WALL_FRONT, notch_scale) {
-           if ($children > 0) 
-                intersection() {
-                    children(0);
-                    rotate([-90, 0, 0])
-                        wall_mask(inside_dims[0], inside_dims[2], inside_dims[1]/2);
-                }
-           if ($children > 1) children(1);
+        boxit_wall_front(inside_dims, wall_th) {
+            children(0);
+            children(1);
         }
 }
+    
+module boxit_wall_left(inside_dims, wall_th) {
+    boxit_wall(inside_dims, wall_th, I_WALL_LEFT) {
+        intersection() {
+            children(0);
+            rotate([0, -90, 0])
+                wall_mask(inside_dims[2], inside_dims[1], inside_dims[0]/2);
+            }
+        children(1);
+    }
+}
 
-function boxit_wall_offsets(wall_th, inside_dims) = [
+module boxit_wall_right(inside_dims, wall_th) {       
+    boxit_wall(inside_dims, wall_th, I_WALL_RIGHT) {
+        intersection() {
+            children(0);
+            rotate([0, 90, 0])
+                wall_mask(inside_dims[2], inside_dims[1], inside_dims[0]/2);
+        }
+        children(1);
+    }
+}
+
+module boxit_wall_bottom(inside_dims, wall_th) {        
+    boxit_base(inside_dims, wall_th, I_WALL_BOTTOM) {
+            intersection() {
+                children(0);
+                rotate([0, 180, 0])
+                    wall_mask(inside_dims[0], inside_dims[1], inside_dims[2]/2);
+            }
+            children(1);
+        }
+    }
+    
+module boxit_wall_top(inside_dims, wall_th) {        
+    boxit_base(inside_dims, wall_th, I_WALL_TOP) {
+        intersection() {
+            children(0);
+            wall_mask(inside_dims[0], inside_dims[1], inside_dims[2]/2);
+        }
+        children(1);
+    }
+}
+
+module boxit_wall_back(inside_dims, wall_th) {        
+    boxit_cap(inside_dims, wall_th, I_WALL_BACK) {
+        intersection() {
+            children(0);
+            rotate([90, 0, 0])
+                wall_mask(inside_dims[0], inside_dims[2], inside_dims[1]/2);
+        }
+        children(1);
+    }
+}
+
+module boxit_wall_front(inside_dims, wall_th) {        
+    boxit_cap(inside_dims, wall_th, I_WALL_FRONT) {
+       intersection() {
+            children(0);
+            rotate([-90, 0, 0])
+                wall_mask(inside_dims[0], inside_dims[2], inside_dims[1]/2);
+       }
+       children(1);
+    }
+}
+
+function boxit_wall_offsets(inside_dims, wall_th) = [
     // left, right, bottom, top, back, front
     [-inside_dims[0]/2 - wall_th/2, 0, 0],
     [inside_dims[0]/2 + wall_th/2, 0, 0],
@@ -94,90 +130,120 @@ module wall_mask(l, w, h) {
         square([l/h, w/h], center=true);
 }
 
-module boxit_wall(wall_th, inside_dims, offs_index, notch_scale=NOTCH_SCALE) {
-    ofs = boxit_wall_offsets(wall_th, inside_dims);
+module boxit_wall(inside_dims, wall_th, offs_index) {
+    ofs = boxit_wall_offsets(inside_dims, wall_th);
     difference() {
         union() {
             cube([wall_th, inside_dims[1], inside_dims[2]], center=true);
-           if ($children > 0) 
-                translate(-1 * ofs[offs_index])
+            translate([0, inside_dims[1] / 4, 0])
+                cube([wall_th, inside_dims[1] / 8, inside_dims[2] + 2 * wall_th], center=true);
+           translate([0, -inside_dims[1] / 4, 0])
+                cube([wall_th, inside_dims[1] / 8, inside_dims[2] + 2 * wall_th], center=true);
+            translate([0, 0, inside_dims[2] / 4])
+                cube([wall_th, inside_dims[1] + 2 * wall_th, inside_dims[2] / 8], center=true);
+            translate([0, 0, -inside_dims[2] / 4])
+                cube([wall_th, inside_dims[1] + 2 * wall_th, inside_dims[2] / 8], center=true);
+           translate(-1 * ofs[offs_index])
                 children(0);
         }
-        if ($children > 1) 
-            translate(-1 * ofs[offs_index])
+        translate(-1 * ofs[offs_index])
             children(1);
     }
 }
 
-module boxit_base(wall_th, inside_dims, offs_index, notch_scale=NOTCH_SCALE) {
-    ofs = boxit_wall_offsets(wall_th, inside_dims);
+module boxit_base(inside_dims, wall_th, offs_index) {
+    ofs = boxit_wall_offsets(inside_dims, wall_th);
     difference() {
         union() {
             cube([inside_dims[0] + 4 * wall_th, inside_dims[1], wall_th], center=true);
-            /*translate([inside_dims[0] / 2 + wall_th/2, 0, wall_th * (1 + notch_scale)/2])
-                cube([3 * wall_th, inside_dims[1], notch_scale * wall_th], center=true);
-            translate([-inside_dims[0] / 2 - wall_th/2, 0, wall_th * (1 + notch_scale)/2])
-                cube([3 * wall_th, inside_dims[1], notch_scale * wall_th], center=true);*/
-            if ($children > 0) 
-                translate(-1 * ofs[offs_index])
+            
+            translate([inside_dims[0] / 4, 0, 0])
+                cube([inside_dims[0] / 8, inside_dims[1] + 2 * wall_th, wall_th], center=true);
+            translate([-inside_dims[0] / 4, 0, 0])
+                cube([inside_dims[0] / 8, inside_dims[1] + 2 * wall_th, wall_th], center=true);
+       
+            translate(-1 * ofs[offs_index])
                 children(0);
         }
-        translate(-1 * ofs[offs_index] + ofs[0])
-            boxit_wall(wall_th, inside_dims, notch_scale);
-        translate(-1 * ofs[offs_index] + ofs[1])
-            boxit_wall(wall_th, inside_dims, notch_scale);
-        if ($children > 1) 
-            translate(-1 * ofs[offs_index])
+        translate(-1 * ofs[offs_index] + ofs[I_WALL_LEFT])
+            boxit_wall(inside_dims, wall_th, I_WALL_LEFT) {
+                children(0);
+                children(1);
+            }
+        translate(-1 * ofs[offs_index] + ofs[I_WALL_RIGHT])
+            boxit_wall(inside_dims, wall_th, I_WALL_RIGHT) {
+                children(0);
+                children(1);
+            }
+        translate(-1 * ofs[offs_index])
             children(1);
     }
 }
 
-module boxit_cap(wall_th, inside_dims, offs_index, notch_scale=NOTCH_SCALE) {
-    ofs = boxit_wall_offsets(wall_th, inside_dims);
+module boxit_cap(inside_dims, wall_th, offs_index) {
+    ofs = boxit_wall_offsets(inside_dims, wall_th);
     difference() {
         union() {
             cube([inside_dims[0] + 6 * wall_th, wall_th, inside_dims[2] + 4 * wall_th], center=true);
-            /*translate([-inside_dims[0]/2 - 3*wall_th, wall_th / 2, -inside_dims[2]/2 - 2*wall_th])
-                cube([inside_dims[0] + 6 * wall_th, wall_th * notch_scale, 3 * wall_th]);
-            translate([-inside_dims[0]/2 - 3*wall_th, wall_th / 2, inside_dims[2]/2 -1*wall_th])
-                cube([inside_dims[0] + 6 * wall_th, wall_th * notch_scale, 3 * wall_th]);
-            translate([-inside_dims[0]/2 - 3*wall_th, wall_th / 2, -inside_dims[2]/2 - 2*wall_th])
-                cube([5 * wall_th, wall_th * notch_scale, inside_dims[2] + 4*wall_th]);
-            translate([inside_dims[0]/2 + -2*wall_th, wall_th / 2, -inside_dims[2]/2 - 2*wall_th])
-                cube([5 * wall_th, wall_th * notch_scale, inside_dims[2] + 4*wall_th]);*/
-            if ($children > 0) 
-                translate(-1 * ofs[offs_index])
+            translate(-1 * ofs[offs_index])
                 children(0);
         }
-        translate(-1 * ofs[offs_index] + ofs[0])
-            boxit_wall(wall_th, inside_dims, notch_scale);
-        translate(-1 * ofs[offs_index] + ofs[1])
-            //mirror([1, 0, 0])
-            boxit_wall(wall_th, inside_dims, notch_scale);
-        translate(-1 * ofs[offs_index] + ofs[2])
-            boxit_base(wall_th, inside_dims, notch_scale);
-        translate(-1 * ofs[offs_index] + ofs[3])
-            //mirror([0, 0, 1])
-            boxit_base(wall_th, inside_dims, notch_scale);
-        if ($children > 1) 
-            translate(-1 * ofs[offs_index])
-            children(1);
+        
+        translate(-1 * ofs[offs_index]) {
+            # children(1); 
+            translate(ofs[I_WALL_LEFT])
+                boxit_wall(inside_dims, wall_th, I_WALL_LEFT) {
+                    children(0);
+                    children(1);
+                }
+            translate(ofs[I_WALL_RIGHT])
+                boxit_wall(inside_dims, wall_th, I_WALL_RIGHT) {
+                    children(0);
+                    children(1);
+                }
+            translate(ofs[I_WALL_TOP])
+                boxit_base(inside_dims, wall_th, I_WALL_TOP) {
+                    children(0);
+                    children(1);
+                }
+            translate(ofs[I_WALL_BOTTOM])
+                boxit_base(inside_dims, wall_th, I_WALL_BOTTOM) {
+                    children(0);
+                    children(1);
+                }
+            
+            through_holes(inside_dims, wall_th) {
+                children(0);
+                children(1);
+            }
+        }
     }
 }
 
-module boxit_demo(wall_th, inside_dims) {
-    boxit(wall_th, inside_dims) {
-        if ($children > 0) children(0);
-        if ($children > 1) children(1);
-    }
-    % boxit(wall_th, inside_dims, ofscale=3.0) {
-        if ($children > 0) children(0);
-        if ($children > 1) children(1);
+module through_holes(inside_dims, wall_th) {
+    for (x=[-1,1]) {
+        for (z=[-1,1]) {
+            translate([x * (inside_dims[0] / 2 - 3 * wall_th - HOLE_OR), 0, z * (inside_dims[2] / 2 - 3 * wall_th - HOLE_OR)]) {
+                rotate([90, 0, 0]) {
+                    cylinder(r=HOLE_OR, h=1.5 * inside_dims[1], center=true);
+            }
+            }
+        }
     }
 }
 
-wall_th = 8 * 0.2;
-inside_dims = [50, 100, 75];
+module boxit_demo(inside_dims, wall_th, ofscale=5.0) {
+    boxit(inside_dims, wall_th) {
+        children(0);
+        children(1);
+    }
+    % boxit(inside_dims, wall_th, ofscale=ofscale) {
+        children(0);
+        children(1);
+    }
+}
+
+
 module demo_contents() {
     sphere(r=45);
 }
@@ -188,8 +254,10 @@ module demo_anticontents() {
 }
 * demo_contents();
 * demo_anticontents();
-boxit_demo(wall_th, inside_dims) {
+wall_th = 8 * 0.2;
+inside_dims = [100, 50, 75];
+boxit_demo(inside_dims, wall_th) {
      demo_contents();
     demo_anticontents();
    
-}
+}  // */
