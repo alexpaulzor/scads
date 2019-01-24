@@ -7,7 +7,7 @@ I_WALL_TOP = 3;
 I_WALL_BACK = 4;
 I_WALL_FRONT = 5;
 
-WALL_TH = 1.5;
+WALL_TH = 2;
 
 HOLE_OR = 3 / 2;
 
@@ -52,65 +52,65 @@ module boxit(inside_dims, wall_th=WALL_TH, ofscale=1.0) {
     
 module boxit_wall_left(inside_dims, wall_th) {
     boxit_wall(inside_dims, wall_th, I_WALL_LEFT) {
-        intersection() {
+        //intersection() {
             children(0);
-            rotate([0, -90, 0])
-                wall_mask(inside_dims[2], inside_dims[1], inside_dims[0]/2);
-            }
+        //    rotate([0, -90, 0])
+         //       wall_mask(inside_dims[2], inside_dims[1], inside_dims[0]/2);
+         //   }
         children(1);
     }
 }
 
 module boxit_wall_right(inside_dims, wall_th) {       
     boxit_wall(inside_dims, wall_th, I_WALL_RIGHT) {
-        intersection() {
+        //intersection() {
             children(0);
-            rotate([0, 90, 0])
-                wall_mask(inside_dims[2], inside_dims[1], inside_dims[0]/2);
-        }
+        //    rotate([0, 90, 0])
+        //        wall_mask(inside_dims[2], inside_dims[1], inside_dims[0]/2);
+        //}
         children(1);
     }
 }
 
 module boxit_wall_bottom(inside_dims, wall_th) {        
     boxit_base(inside_dims, wall_th, I_WALL_BOTTOM) {
-            intersection() {
+         //   intersection() {
                 children(0);
-                rotate([0, 180, 0])
-                    wall_mask(inside_dims[0], inside_dims[1], inside_dims[2]/2);
-            }
+        //        rotate([0, 180, 0])
+        //            wall_mask(inside_dims[0], inside_dims[1], inside_dims[2]/2);
+         //   }
             children(1);
         }
     }
     
 module boxit_wall_top(inside_dims, wall_th) {        
     boxit_base(inside_dims, wall_th, I_WALL_TOP) {
-        intersection() {
+        //intersection() {
             children(0);
-            wall_mask(inside_dims[0], inside_dims[1], inside_dims[2]/2);
-        }
+        //    wall_mask(inside_dims[0], inside_dims[1], inside_dims[2]/2);
+        //}
         children(1);
     }
 }
 
 module boxit_wall_back(inside_dims, wall_th) {        
     boxit_cap(inside_dims, wall_th, I_WALL_BACK) {
-        intersection() {
+        //intersection() {
             children(0);
-            rotate([90, 0, 0])
-                wall_mask(inside_dims[0], inside_dims[2], inside_dims[1]/2);
-        }
+         //   rotate([90, 0, 0])
+        //        wall_mask(inside_dims[0], inside_dims[2], inside_dims[1]/2);
+        //}
         children(1);
     }
 }
 
 module boxit_wall_front(inside_dims, wall_th) {        
     boxit_cap(inside_dims, wall_th, I_WALL_FRONT) {
-       intersection() {
-            children(0);
-            rotate([-90, 0, 0])
-                wall_mask(inside_dims[0], inside_dims[2], inside_dims[1]/2);
-       }
+       //intersection() {
+            children([0]);
+       //     rotate([-90, 0, 0])
+      //          wall_mask(inside_dims[0], inside_dims[2], inside_dims[1]/2);
+      // }
        children(1);
     }
 }
@@ -136,13 +136,13 @@ module boxit_wall(inside_dims, wall_th, offs_index) {
         union() {
             cube([wall_th, inside_dims[1], inside_dims[2]], center=true);
             translate([0, inside_dims[1] / 4, 0])
-                cube([wall_th, inside_dims[1] / 8, inside_dims[2] + 2 * wall_th], center=true);
+                cube([wall_th, inside_dims[1] / 8, inside_dims[2] + 4 * wall_th], center=true);
            translate([0, -inside_dims[1] / 4, 0])
-                cube([wall_th, inside_dims[1] / 8, inside_dims[2] + 2 * wall_th], center=true);
+                cube([wall_th, inside_dims[1] / 8, inside_dims[2] + 4 * wall_th], center=true);
             translate([0, 0, inside_dims[2] / 4])
-                cube([wall_th, inside_dims[1] + 2 * wall_th, inside_dims[2] / 8], center=true);
+                cube([wall_th, inside_dims[1] + 4 * wall_th, inside_dims[2] / 8], center=true);
             translate([0, 0, -inside_dims[2] / 4])
-                cube([wall_th, inside_dims[1] + 2 * wall_th, inside_dims[2] / 8], center=true);
+                cube([wall_th, inside_dims[1] + 4 * wall_th, inside_dims[2] / 8], center=true);
            translate(-1 * ofs[offs_index])
                 children(0);
         }
@@ -155,25 +155,25 @@ module boxit_base(inside_dims, wall_th, offs_index) {
     ofs = boxit_wall_offsets(inside_dims, wall_th);
     difference() {
         union() {
-            cube([inside_dims[0] + 4 * wall_th, inside_dims[1], wall_th], center=true);
+            cube([inside_dims[0] + 6 * wall_th, inside_dims[1], wall_th], center=true);
             
             translate([inside_dims[0] / 4, 0, 0])
-                cube([inside_dims[0] / 8, inside_dims[1] + 2 * wall_th, wall_th], center=true);
+                cube([inside_dims[0] / 8, inside_dims[1] + 4 * wall_th, wall_th], center=true);
             translate([-inside_dims[0] / 4, 0, 0])
-                cube([inside_dims[0] / 8, inside_dims[1] + 2 * wall_th, wall_th], center=true);
+                cube([inside_dims[0] / 8, inside_dims[1] + 4 * wall_th, wall_th], center=true);
        
             translate(-1 * ofs[offs_index])
                 children(0);
         }
         translate(-1 * ofs[offs_index] + ofs[I_WALL_LEFT])
             boxit_wall(inside_dims, wall_th, I_WALL_LEFT) {
-                children(0);
-                children(1);
+                cube(0); //children(0);
+                cube(0); //children(1);
             }
         translate(-1 * ofs[offs_index] + ofs[I_WALL_RIGHT])
             boxit_wall(inside_dims, wall_th, I_WALL_RIGHT) {
-                children(0);
-                children(1);
+                cube(0); //children(0);
+                cube(0); //children(1);
             }
         translate(-1 * ofs[offs_index])
             children(1);
@@ -184,38 +184,37 @@ module boxit_cap(inside_dims, wall_th, offs_index) {
     ofs = boxit_wall_offsets(inside_dims, wall_th);
     difference() {
         union() {
-            cube([inside_dims[0] + 6 * wall_th, wall_th, inside_dims[2] + 4 * wall_th], center=true);
-            translate(-1 * ofs[offs_index])
-                children(0);
+            translate(-1 * ofs[offs_index]) {
+                children([0]);
+            }
+            cube([inside_dims[0] + 6 * wall_th, wall_th, inside_dims[2] + 6 * wall_th], center=true);
+            
         }
         
         translate(-1 * ofs[offs_index]) {
-            # children(1); 
+            children(1); 
             translate(ofs[I_WALL_LEFT])
                 boxit_wall(inside_dims, wall_th, I_WALL_LEFT) {
-                    children(0);
-                    children(1);
+                    cube(0); //children(0);
+                    cube(0);
                 }
             translate(ofs[I_WALL_RIGHT])
                 boxit_wall(inside_dims, wall_th, I_WALL_RIGHT) {
-                    children(0);
-                    children(1);
+                    cube(0); //children(0);
+                    cube(0);
                 }
             translate(ofs[I_WALL_TOP])
                 boxit_base(inside_dims, wall_th, I_WALL_TOP) {
-                    children(0);
-                    children(1);
+                    cube(0); //children(0);
+                    cube(0);
                 }
             translate(ofs[I_WALL_BOTTOM])
                 boxit_base(inside_dims, wall_th, I_WALL_BOTTOM) {
-                    children(0);
-                    children(1);
+                    cube(0); //children(0);
+                    cube(0);
                 }
             
-            through_holes(inside_dims, wall_th) {
-                children(0);
-                children(1);
-            }
+            # through_holes(inside_dims, wall_th);
         }
     }
 }
@@ -260,4 +259,9 @@ boxit_demo(inside_dims, wall_th) {
      demo_contents();
     demo_anticontents();
    
-}  // */
+} 
+* boxit_wall_front(inside_dims, wall_th) {
+     demo_contents();
+    # demo_anticontents();
+   
+}

@@ -3,9 +3,9 @@ use <boxit.scad>
 
 IN_MM = 25.4;
 
-$fn = 12;
+$fn = 32;
 inside_dims = [160, 125, 125];
-wall_th = 1.5;
+wall_th = 2;
 
 /////////////////////////////////////////////////
 //////////// ELECTRONICS ////////////////////////
@@ -52,7 +52,6 @@ module psu() {
     difference() {
         cube([psu_l, psu_w, psu_h]);
         psu_holes();
-        // TODO: make sure this is the right side
         translate([0, 0, psu_h / 2])
             cube([psu_h / 2, psu_w, psu_h / 2]);
     }
@@ -303,7 +302,7 @@ module eparts_mega(inside_dims, wall_th) {
         translate([-mega_l / 2, -mega_w / 2, 0]) 
         {
             % color("gray", 0.05) mega();
-            mega_holes();
+            # mega_holes();
         }
         translate([-mega_l / 2 + 13, -vreg_w / 2, mega_h]) 
             vreg();
@@ -318,9 +317,11 @@ module eparts_stepctl(inside_dims, wall_th) {
 }
 
 module eparts_psu(inside_dims, wall_th) {
-    translate([-psu_l / 2, psu_w / 2, -inside_dims[2] / 2 - wall_th - psu_hole_d/2])
-        rotate([180, 0, 0])
-            psu();
+    translate([-psu_l / 2 - 5, psu_w / 2, -inside_dims[2] / 2 - psu_hole_d/2 + wall_th])
+        rotate([180, 0, 0]) {
+            * % psu();
+            # psu_holes();
+        }
 }
 
 module eparts_iec(inside_dims, wall_th) {
@@ -358,19 +359,34 @@ module eparts(inside_dims, wall_th) {
     eparts_iec(inside_dims, wall_th);
     eparts_outlet(inside_dims, wall_th);
     eparts_stepctl(inside_dims, wall_th);
+    # save_plastic(inside_dims, wall_th);
+}
+
+module save_plastic(inside_dims, wall_th) {
+    translate([2.5 * rocker_or, 0, inside_dims[2] / 2])
+        linear_extrude(height=wall_th*2)
+        offset(r=rocker_or/2)
+        square([inside_dims[0] - 8 * rocker_or, inside_dims[1] * 3 / 4], center=true);
+    
+    translate([inside_dims[0]/2, 0, 0])
+        rotate([0, 90, 0])
+        linear_extrude(height=wall_th*2)
+        offset(r=rocker_or/2)
+        square([inside_dims[2] * 3 / 4, inside_dims[1] * 3 / 4], center=true);
 }
 
 module wall_mods(inside_dims, wall_th) {
     //ofs = boxit_wall_offsets(inside_dims, wall_th);
     //front_ofs = ofs[5];
     //# translate(front_ofs + [-stepctl_l / 2, -stepctl_notch_w - wall_th, -inside_dims[2] / 2 + mega_lift])
-    # translate([-stepctl_l/2, inside_dims[1] / 2 - stepctl_notch_w, -inside_dims[2] / 2 + mega_lift - 2 * wall_th])
-        cube([stepctl_l, stepctl_notch_w, 2 * wall_th]);
-    # translate([-stepctl_l/2, inside_dims[1] / 2 - stepctl_notch_w, -inside_dims[2] / 2])
-        cube([wall_th, stepctl_notch_w, mega_lift - wall_th]);
-    # translate([-stepctl_l/2 + stepctl_l - wall_th, inside_dims[1] / 2 - stepctl_notch_w, -inside_dims[2] / 2])
-        cube([wall_th, stepctl_notch_w, mega_lift - wall_th]);
-    
+    union() {
+        translate([-stepctl_l/2, inside_dims[1] / 2 - stepctl_notch_w, -inside_dims[2] / 2 + mega_lift - 2 * wall_th])
+            cube([stepctl_l, stepctl_notch_w, 2 * wall_th]);
+        translate([-stepctl_l/2, inside_dims[1] / 2 - stepctl_notch_w, -inside_dims[2] / 2])
+            cube([wall_th, stepctl_notch_w, mega_lift - wall_th]);
+        translate([-stepctl_l/2 + stepctl_l - wall_th, inside_dims[1] / 2 - stepctl_notch_w, -inside_dims[2] / 2])
+            cube([wall_th, stepctl_notch_w, mega_lift - wall_th]);
+    }
 }
 
 /////////////////////////////////////////////////
@@ -380,36 +396,37 @@ module wall_mods(inside_dims, wall_th) {
 
 * boxit(inside_dims, wall_th, ofscale=1) {
     wall_mods(inside_dims, wall_th);
-    eparts(inside_dims, wall_th);
+    # eparts(inside_dims, wall_th);
 }
 
 * boxit(inside_dims, wall_th, ofscale=4) {
     wall_mods(inside_dims, wall_th);
+    cube(0);
     eparts(inside_dims, wall_th);
 }
 * boxit_wall_right(inside_dims, wall_th) {
-    wall_mods(inside_dims, wall_th);
+    cube(0);
     eparts(inside_dims, wall_th);
 }
 * boxit_wall_left(inside_dims, wall_th) {
-    wall_mods(inside_dims, wall_th);
+    cube(0);
     eparts(inside_dims, wall_th);
 }
  * boxit_wall_top(inside_dims, wall_th) {
-    wall_mods(inside_dims, wall_th);
+    cube(0);
     eparts(inside_dims, wall_th);
 }
-* boxit_wall_bottom(inside_dims, wall_th) {
-    wall_mods(inside_dims, wall_th);
+boxit_wall_bottom(inside_dims, wall_th) {
+    cube(0); //wall_mods(inside_dims, wall_th);
     eparts(inside_dims, wall_th);
 }
-* wall_mods();
+//* wall_mods();
 //translate([0, 100, 0])
- boxit_wall_front(inside_dims, wall_th) {
+*boxit_wall_front(inside_dims, wall_th) {
     wall_mods(inside_dims, wall_th);
     eparts(inside_dims, wall_th);
 }
 * boxit_wall_back(inside_dims, wall_th) {
-    wall_mods(inside_dims, wall_th);
+    cube(0);
     eparts(inside_dims, wall_th);
 }
