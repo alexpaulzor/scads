@@ -209,7 +209,7 @@ module iec_plug() {
 module rocker() {
     translate([0, 0, -rocker_h])
         cylinder(r=rocker_or, h=rocker_h + rocker_lip_h);
-    # cylinder(r=rocker_lip_or, h=rocker_lip_h);
+    cylinder(r=rocker_lip_or, h=rocker_lip_h);
 }
 
 outlet_flange_l = 93;
@@ -279,7 +279,7 @@ module eparts_switches(inside_dims, wall_th) {
             translate([2 * rocker_or * (i % 2), 
                 2 * rocker_or * i,
                     wall_th])
-                # rocker();
+                rocker();
         }
     }
 }
@@ -320,7 +320,7 @@ module eparts_psu(inside_dims, wall_th) {
     translate([-psu_l / 2 - 5, psu_w / 2, -inside_dims[2] / 2 - psu_hole_d/2 + wall_th])
         rotate([180, 0, 0]) {
             * % psu();
-            # psu_holes();
+            * psu_holes();
         }
 }
 
@@ -350,16 +350,32 @@ module eparts_ssr(inside_dims, wall_th) {
         }
 }
 
+module eparts_atx(inside_dims, wall_th) {
+    translate([inside_dims[0]/2, inside_dims[1]*2/5, inside_dims[2]/4 - wall_th])
+        rotate([0, -90, 90])
+        atx();
+}
+
+module eparts_disp(inside_dims, wall_th) {
+    translate([inside_dims[0]/2 + wall_th , -inside_dims[1]/4.5, 2 / 3 * inside_dims[2]/2])
+        rotate([90, 0, 0])
+        rotate([0, 90, 0])
+        disp();
+}
+
 module eparts(inside_dims, wall_th) {
+    # eparts_atx(inside_dims, wall_th);
+    # eparts_disp(inside_dims, wall_th);
     eparts_dcctls(inside_dims, wall_th);
-    # eparts_switches(inside_dims, wall_th);
+    eparts_switches(inside_dims, wall_th);
     eparts_ssr(inside_dims, wall_th);
     eparts_mega(inside_dims, wall_th);
     eparts_psu(inside_dims, wall_th);
     eparts_iec(inside_dims, wall_th);
     eparts_outlet(inside_dims, wall_th);
     eparts_stepctl(inside_dims, wall_th);
-    # save_plastic(inside_dims, wall_th);
+    eparts_stepctl(inside_dims, wall_th);
+    save_plastic(inside_dims, wall_th);
 }
 
 module save_plastic(inside_dims, wall_th) {
@@ -368,11 +384,11 @@ module save_plastic(inside_dims, wall_th) {
         offset(r=rocker_or/2)
         square([inside_dims[0] - 8 * rocker_or, inside_dims[1] * 3 / 4], center=true);
     
-    translate([inside_dims[0]/2, 0, 0])
+    translate([inside_dims[0]/2, -inside_dims[1]/10, -inside_dims[2]/8])
         rotate([0, 90, 0])
         linear_extrude(height=wall_th*2)
         offset(r=rocker_or/2)
-        square([inside_dims[2] * 3 / 4, inside_dims[1] * 3 / 4], center=true);
+        square([inside_dims[2]/2, inside_dims[1] * 3/5], center=true);
 }
 
 module wall_mods(inside_dims, wall_th) {
@@ -389,6 +405,33 @@ module wall_mods(inside_dims, wall_th) {
     }
 }
 
+atx_l = 55;
+atx_w = 24;
+atx_h = 10;
+atx_nub_l = 4;
+atx_nub_w = 8;
+atx_nub_h = 2;
+
+module atx() {
+    cube([atx_l, atx_w, atx_h], true);
+    translate([0, 0, atx_h / 2 + atx_nub_h / 2])
+        cube([atx_nub_l, atx_w, atx_nub_h], true);
+}
+
+disp_l = 58;;
+disp_w = 28;
+disp_h = 12;
+disp_flange_l = 62;
+disp_flange_w = 34;
+disp_flange_h = 2;
+
+module disp() {
+    translate([0, 0, -disp_h/2])
+        cube([disp_l, disp_w, disp_h], true);
+    translate([0, 0, disp_flange_h/2])
+        cube([disp_flange_l, disp_flange_w, disp_flange_h], true);
+}
+
 /////////////////////////////////////////////////
 //////////// RENDER /////////////////////////////
 /////////////////////////////////////////////////
@@ -396,15 +439,14 @@ module wall_mods(inside_dims, wall_th) {
 
 * boxit(inside_dims, wall_th, ofscale=1) {
     wall_mods(inside_dims, wall_th);
-    # eparts(inside_dims, wall_th);
-}
-
-* boxit(inside_dims, wall_th, ofscale=4) {
-    wall_mods(inside_dims, wall_th);
-    cube(0);
     eparts(inside_dims, wall_th);
 }
-* boxit_wall_right(inside_dims, wall_th) {
+
+ * boxit(inside_dims, wall_th, ofscale=4) {
+    wall_mods(inside_dims, wall_th);
+    eparts(inside_dims, wall_th);
+}
+ boxit_wall_right(inside_dims, wall_th) {
     cube(0);
     eparts(inside_dims, wall_th);
 }
@@ -416,7 +458,7 @@ module wall_mods(inside_dims, wall_th) {
     cube(0);
     eparts(inside_dims, wall_th);
 }
-boxit_wall_bottom(inside_dims, wall_th) {
+* boxit_wall_bottom(inside_dims, wall_th) {
     cube(0); //wall_mods(inside_dims, wall_th);
     eparts(inside_dims, wall_th);
 }
