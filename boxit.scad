@@ -125,16 +125,80 @@ function boxit_wall_offsets(inside_dims, wall_th) = [
     [0, inside_dims[1]/2 + wall_th/2, 0],
 ];
 
+boxit_wall_mirrors = [
+    // left, right, bottom, top, back, front
+    [0, 0, 0],
+    [1, 0, 0],
+    [0, 0, 0],
+    [0, 0, 1],
+    [0, 0, 0],
+    [0, 1, 0],
+];
+
 module wall_mask(l, w, h) {
     linear_extrude(height=h*2, scale=h*2)
         square([l/h, w/h], center=true);
+}
+
+module edged_wall(dims, wall_th, enabled=[1, 1]) {
+    cube(dims, center=true);
+    min_dim = min(dims);
+    max_dim = max(dims);
+    min_dim_idx = search(min_dim, dims)[0];
+    max_dim_idx = search(max_dim, dims)[0];
+    mid_dim_idx = (
+        (min_dim_idx != 0 && max_dim_idx != 0) ? 0 : (
+        (min_dim_idx != 1 && max_dim_idx != 1) ? 1 : 2));
+    mid_dim = dims[mid_dim_idx];
+    
+    norm_dims = [max_dim_idx, mid_dim_idx, min_dim_idx];
+    // if wall is on x-y plane
+    // i.e. [x=max, y=mid, z=min]
+    // [ [ [translate], [dims] ], ...]
+    flat_edges = concat((enabled[0] ? ( [
+        [ [-max_dim / 2 + wall_th*1.5, 0, min_dim],
+            [3 * wall_th, mid_dim, 2 * min_dim] ],
+        [ [max_dim / 2 - wall_th*1.5, 0, min_dim],
+            [3 * wall_th, mid_dim, 2 * min_dim] ] ] ) : [] ),
+        ( enabled[1] ? ( [
+            [ [0, -mid_dim / 2 + wall_th*1.5, min_dim],
+                [max_dim, 3 * wall_th, 2 * min_dim] ],
+            [ [0, mid_dim / 2 - wall_th*1.5, min_dim],
+                [max_dim, 3 * wall_th, 2 * min_dim] ]
+        ] ) : [] ));
+   
+   // Map out dim to corresponding flat dim index
+   // max_idx: 0,
+   // mid: 1,
+   // min: 2
+   /*
+   dmap = [
+        search(max_dim_idx, norm_dims)[0],
+        search(mid_dim_idx, norm_dims)[0],
+        search(min_dim_idx, norm_dims)[0],
+   ];*/
+   
+   echo("dims, norm_dims", dims, norm_dims);
+   
+   for (edge=flat_edges) {
+       t = edge[0];
+       c = edge[1];
+       tout = [for (i=[0:2]) t[norm_dims[i]]];
+       cout = [for (i=[0:2]) c[norm_dims[i]]];
+       echo("edge, tout, cout", edge, tout, cout);
+       translate(tout) {
+           cube(cout, center=true);
+       }
+   }
+    
 }
 
 module boxit_wall(inside_dims, wall_th, offs_index) {
     ofs = boxit_wall_offsets(inside_dims, wall_th);
     difference() {
         union() {
-            cube([wall_th, inside_dims[1], inside_dims[2]], center=true);
+            mirror(boxit_wall_mirrors[offs_index])
+                edged_wall([wall_th, inside_dims[1], inside_dims[2]], wall_th, enabled=[0, 0]);
             translate([0, inside_dims[1] / 4, 0])
                 cube([wall_th, inside_dims[1] / 8, inside_dims[2] + 4 * wall_th], center=true);
            translate([0, -inside_dims[1] / 4, 0])
@@ -155,7 +219,8 @@ module boxit_base(inside_dims, wall_th, offs_index) {
     ofs = boxit_wall_offsets(inside_dims, wall_th);
     difference() {
         union() {
-            cube([inside_dims[0] + 6 * wall_th, inside_dims[1], wall_th], center=true);
+            mirror(boxit_wall_mirrors[offs_index])
+                edged_wall([inside_dims[0] + 4 * wall_th, inside_dims[1], wall_th], wall_th, enabled=[1, 0]);
             
             translate([inside_dims[0] / 4, 0, 0])
                 cube([inside_dims[0] / 8, inside_dims[1] + 4 * wall_th, wall_th], center=true);
@@ -187,7 +252,8 @@ module boxit_cap(inside_dims, wall_th, offs_index) {
             translate(-1 * ofs[offs_index]) {
                 children([0]);
             }
-            cube([inside_dims[0] + 6 * wall_th, wall_th, inside_dims[2] + 6 * wall_th], center=true);
+            mirror(boxit_wall_mirrors[offs_index])
+                edged_wall([inside_dims[0] + 4 * wall_th, wall_th, inside_dims[2] + 4 * wall_th], wall_th);
             
         }
         
