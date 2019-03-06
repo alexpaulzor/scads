@@ -92,7 +92,7 @@ module mega() {
         % translate([0, 0, mega_h - 2])
             arduino(MEGA2560);
     }
-    * mega_holes();
+    // mega_holes();
 }
 
 module mega_holes() {
@@ -337,7 +337,7 @@ module eparts_mega(inside_dims, wall_th) {
         translate([-mega_l / 2, -mega_w / 2, 0]) 
         {
             % color("gray", 0.05) mega();
-            # mega_holes();
+            mega_holes();
         }
         translate([-mega_l / 2 + 13, -vreg_w / 2, mega_h]) 
             vreg();
@@ -360,7 +360,7 @@ module eparts_psu(inside_dims, wall_th) {
 }*/
 
 module eparts_iec(inside_dims, wall_th) {
-    translate([-inside_dims[0]/2 - iec_plug_h / 2, -iec_plug_w / 2, 0])
+    translate([-inside_dims[0]/2 - iec_plug_h / 2, -iec_plug_w / 3, iec_plug_l])
         rotate([0, 0, 0])
         iec_plug();
 }
@@ -386,7 +386,8 @@ module eparts_ssr(inside_dims, wall_th) {
 }
 
 module eparts_atx(inside_dims, wall_th) {
-    translate([-inside_dims[0]/2, 0, -inside_dims[2] / 2.6])
+    translate([-inside_dims[0]/2, inside_dims[1]/3, inside_dims[2] / 6])
+        rotate([90, 0, 0])
         rotate([0, 0, 90])
         atx();
 }
@@ -404,7 +405,7 @@ module eparts(inside_dims, wall_th) {
     eparts_dcctls(inside_dims, wall_th);
     eparts_switches(inside_dims, wall_th);
     // eparts_ssr(inside_dims, wall_th);
-    * eparts_mega(inside_dims, wall_th);
+    eparts_mega(inside_dims, wall_th);
 //    eparts_psu(inside_dims, wall_th);
     eparts_iec(inside_dims, wall_th);
     eparts_outlet(inside_dims, wall_th);
