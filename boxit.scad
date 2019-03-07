@@ -167,25 +167,12 @@ module edged_wall(dims, wall_th, enabled=[1, 1]) {
                 [max_dim, 3 * wall_th, 2 * min_dim] ]
         ] ) : [] ));
    
-   // Map out dim to corresponding flat dim index
-   // max_idx: 0,
-   // mid: 1,
-   // min: 2
-   /*
-   dmap = [
-        search(max_dim_idx, norm_dims)[0],
-        search(mid_dim_idx, norm_dims)[0],
-        search(min_dim_idx, norm_dims)[0],
-   ];*/
-   
-   echo("dims, norm_dims", dims, norm_dims);
-   
    for (edge=flat_edges) {
        t = edge[0];
        c = edge[1];
        tout = [for (i=[0:2]) t[norm_dims[i]]];
        cout = [for (i=[0:2]) c[norm_dims[i]]];
-       echo("edge, tout, cout", edge, tout, cout);
+
        translate(tout) {
            cube(cout, center=true);
        }

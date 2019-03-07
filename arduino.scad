@@ -266,7 +266,7 @@ module standoffs(
 module holePlacement(boardType = UNO ) {
 	for(i = boardHoles[boardType] ) {
 		translate(i)
-			child(0);
+			children(0);
 	}
 }
 
@@ -287,21 +287,18 @@ module components( boardType = UNO, component = ALL, extension = 0, offset = 0 )
 	translate([0, 0, pcbHeight]) {
 		for( i = [0:len(components[boardType]) - 1] ){
 			if( components[boardType][i][3] == component || component == ALL) {
-				assign( 
-					//Calculates position + adjustment for offset and extention  
-					position = components[boardType][i][0] - (([1,1,1] - components[boardType][i][2]) * offset)
+                //Calculates position + adjustment for offset and extention  
+                position = components[boardType][i][0] - (([1,1,1] - components[boardType][i][2]) * offset)
 						+ [	min(components[boardType][i][2][0],0), 
 						 	min(components[boardType][i][2][1],0),
-	               			min(components[boardType][i][2][2],0) ] * extension,
+	               			min(components[boardType][i][2][2],0) ] * extension;
 					//Calculates the full box size including offset and extention
-					dimensions = components[boardType][i][1] 
+				dimensions = components[boardType][i][1] 
 						+ ((components[boardType][i][2] * [1,1,1]) 
 							* components[boardType][i][2]) * extension
-						+ ([1,1,1] - components[boardType][i][2]) * offset * 2 
-					) {					
-					translate( position ) color( components[boardType][i][4] ) 
-						cube( dimensions );
-				}
+						+ ([1,1,1] - components[boardType][i][2]) * offset * 2 ;			
+				translate( position ) color( components[boardType][i][4] ) 
+                cube( dimensions );
 			}
 		}	
 	}
