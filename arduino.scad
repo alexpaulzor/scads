@@ -397,8 +397,6 @@ function boardPosition(boardType = UNO) =
 function boardDimensions(boardType = UNO) = 
 	maxCompPoint([[pcbPosition(boardType), pcbDimensions(boardType)], [componentsPosition(boardType), componentsDimensions(boardType)]]) 
 	- minCompPoint([[pcbPosition(boardType), pcbDimensions(boardType)], [componentsPosition(boardType), componentsDimensions(boardType)]]);
-
-/******************************* BOARD SPECIFIC DATA ******************************/
 //Board IDs
 NG = 0;
 DIECIMILA = 1;
@@ -412,8 +410,6 @@ YUN = 8;
 INTELGALILEO = 9;
 TRE = 10;
 ETHERNET = 11;
-
-/********************************** MEASUREMENTS **********************************/
 pcbHeight = 1.7;
 headerWidth = 2.54;
 headerHeight = 9;
@@ -516,9 +512,6 @@ boardShapes = [
 		0,              //Tre
                 ngBoardShape    //Ethernet
 		];	
-
-/*********************************** COMPONENTS ***********************************/
-
 //Component data. 
 //[position, dimensions, direction(which way would a cable attach), type(header, usb, etc.), color]
 ngComponents = [
@@ -600,9 +593,8 @@ components = [
         etherComponents         //Ethernet
 	];
 
-/****************************** NON-BOARD PARAMETERS ******************************/
-
 //Mounting holes
 woodscrewHeadRad = 4.6228;	//Number 8 wood screw head radius
 woodscrewThreadRad = 2.1336;  	//Number 8 wood screw thread radius
 woodscrewHeadHeight = 2.8448;	//Number 8 wood screw head height
+// Exactly 600 lines helps for debugging syntax issues in files that include this one.
