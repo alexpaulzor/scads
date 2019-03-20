@@ -150,14 +150,85 @@ module cam_enclosure() {
     cam_enc_top();
 }
 
+
+loadcell_th = 2.5;
+loadcell_w = 34;
+loadcell_l = 34;
+//loadcell_odiag = 40;
+loadcell_border = 3;
+loadcell_bump_l = 10;
+loadcell_bump_w = 24;
+loadcell_bump_h = 5;
+loadcell_xoffs = 15;
+loadcell_corner_r = 8;
+module roundsquare(w, corner_r, th) {
+    cube([w, w - 2*corner_r, th], center=true);
+    cube([w - 2*corner_r, w, th], center=true);
+    
+    for (x=[-1, 1])
+        for (y=[-1, 1])
+            translate([x*(w/2 - corner_r), y*(w/2 - corner_r), 0])
+                cylinder(r=corner_r, h=th, center=true, $fn=60);
+}
+
+//roundsquare(loadcell_w, loadcell_corner_r, loadcell_th);
+
+module loadcell_edge(th=loadcell_th) {
+    translate([0, 0, th/2])
+    difference() {
+        roundsquare(loadcell_w, loadcell_corner_r, th + 0.1);
+        * roundsquare(loadcell_w - 2 * loadcell_border, loadcell_corner_r, th);
+    }
+}
+
+module loadcell() {
+    loadcell_edge();
+    translate([loadcell_xoffs - loadcell_l/2 - loadcell_bump_l/2, 0, loadcell_th + loadcell_bump_h/2])
+        cube([loadcell_bump_l, loadcell_bump_w, loadcell_bump_h], center=true);
+}
+
+glass_th = 3.5; //measured 3.17
+glass_lw = 305;
+
+module glass() {
+    cube([glass_lw, glass_lw, glass_th], center=true);
+}
+
+module scale_foot() {
+    fz = 2 * loadcell_th + glass_th;
+    difference() {
+        translate([0, 0, -fz/2+glass_th])
+            cube([loadcell_w + 4 * wall_th, loadcell_w + 4 * wall_th, fz], center=true);
+        translate([0, 0, -loadcell_th])
+            rotate([180, 0, 0])
+                loadcell();
+        translate([0, 0, -loadcell_th/2])
+            roundsquare(loadcell_w - 2 * loadcell_border, loadcell_corner_r, loadcell_th);
+        translate([-loadcell_w/2, -loadcell_w/2, 0])
+            cube([loadcell_w + 2 * wall_th, loadcell_w + 2 * wall_th, glass_th]);
+    }
+}
+
+module scale() {
+    % translate([0, 0, glass_th/2]) glass();
+    
+    for (x=[-1, 1])
+        for (y=[-1, 1])
+            translate([x*(glass_lw/2 - loadcell_w/2 - wall_th), y*(glass_lw/2 - loadcell_w/2 - wall_th), 0])
+        scale_foot();
+}
+
+!scale_foot();
+scale();
+/*
 % translate([0, 0, 50])
     cam_enclosure();
 
-translate([-40, 5, cam_board_th])
+translate([45, 2, cam_board_th])
     rotate([0, 180, 0])
         cam_enc_top();
 cam_enc_bottom();
-
+*
 module animated_enclosure() {
     % translate(enclosure_offset)
         food_bowl();
@@ -168,3 +239,4 @@ module animated_enclosure() {
 }
 * animated_enclosure();
 
+*/
