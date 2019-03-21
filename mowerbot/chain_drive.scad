@@ -4,7 +4,8 @@ PI = 3.14159;
 $fn=60;
 BEAM_W = 15;
 
-CHAIN_SIZE = 40; 
+CHAIN_SIZE = 40;
+BIKE_CHAIN = true;
 
 CHAIN_STRANDS = CHAIN_SIZE == 40 ? 2 : 1;
 CHAIN_GAP = 2 * BEAM_W;
@@ -12,7 +13,6 @@ CHAIN_GAP = 2 * BEAM_W;
 CHAIN_PITCH = get_pitch(CHAIN_SIZE) * IN_MM;
 ROLLER_OR = get_roller_diameter(CHAIN_SIZE) * IN_MM / 2;
 ROLLER_W = get_thickness(CHAIN_SIZE) * IN_MM;
-
 
 /**
 returns [
@@ -23,26 +23,45 @@ returns [
     LINK_LARGE_W,
     LINK_PIN_W,
     LINK_PIN_OR,
+    GEAR_TH
 ] 
 */
 function get_link_sizes(size=CHAIN_SIZE) =
     //bike chain
-    size == 40 ? [
-        // LINK_L = 
-        21,
-        // LINK_H = 
-        8.3,
-        // LINK_TH = 
-        0.8,
-        // LINK_SMALL_W
-        5.5,
-        // LINK_LARGE_W = 
-        7.5,
-        // LINK_PIN_W = 
-        8.6,
-        // LINK_PIN_OR = 
-        3.5/2
-    ] :
+    size == 40 ? (
+        BIKE_CHAIN ?
+        [
+            // LINK_L = 
+            21,
+            // LINK_H = 
+            8.3,
+            // LINK_TH = 
+            0.8,
+            // LINK_SMALL_W
+            5.5,
+            // LINK_LARGE_W = 
+            7.5,
+            // LINK_PIN_W = 
+            0.125 * IN_MM,
+            // LINK_PIN_OR = 
+            3.5/2,
+        ] : [
+            // LINK_L = 
+            21,
+            // LINK_H = 
+            0.472 * IN_MM,
+            // LINK_TH = 
+            0.059 * IN_MM,
+            // LINK_SMALL_W
+            (0.309 + 0.059 * 2) * IN_MM,
+            // LINK_LARGE_W = 
+            (0.309 + 0.059 * 4) * IN_MM,,
+            // LINK_PIN_W = 
+            0.309 * IN_MM,
+            // LINK_PIN_OR = 
+            0.156 * IN_MM / 2,
+            
+        ]) :
     //motorcycle chain
     size == 520 ? [
         // LINK_L = 
@@ -70,11 +89,13 @@ LINK_LARGE_W = link_sizes[4];
 LINK_PIN_W = link_sizes[5];
 LINK_PIN_OR = link_sizes[6];
 
+GEAR_TH = LINK_SMALL_W - 2 * LINK_TH;
+
 CHAIN_LENGTH = 3 * 12 * IN_MM;
 CHAIN_LINKS = CHAIN_LENGTH / CHAIN_PITCH; //60;
 DRIVE_CLEARANCE = 120;
-DRIVE_TEETH = 30;
-//20; // Absolute minimum 20 for 520 chain or arm will collide with chain
+DRIVE_TEETH = 27;
+//20; // Absolute minimum 20 for 520 chain, 25 for 40 chain or arm will collide with chain
 IDLER_TEETH = 14;
 
 DRIVE_PITCH_OR = CHAIN_PITCH * DRIVE_TEETH / PI / 2;
@@ -85,7 +106,7 @@ IDLER_PITCH_OR = CHAIN_PITCH * IDLER_TEETH / PI / 2;
 
 wall_th = 4;
 pad_th = 4;
-pad_w = BEAM_W * 2 + CHAIN_STRANDS * LINK_LARGE_W;
+pad_w = (CHAIN_STRANDS-1) * (CHAIN_GAP + LINK_LARGE_W) + LINK_LARGE_W + 2 * wall_th;
 pad_hole_ir = 3/2;
 pad_head_or = 3;
 pad_l = LINK_L - 1.5;
@@ -99,38 +120,82 @@ echo("Axle spread mm, links", axle_spread, axle_spread_links);
 
 spread_angle = atan2(DRIVE_PITCH_OR - IDLER_PITCH_OR, axle_spread);
 
+bearing_h = 7;
+bearing_ir = 4;
+bearing_or = 11;
+
+module bearing() {
+    difference() {
+        cylinder(r=bearing_or, h=bearing_h, center=true);
+        cylinder(r=bearing_ir, h=bearing_h, center=true);
+    }
+}
+
+
 arm_r = 35;
 arm_hole_ir = 3;
 num_holes = 6;
 DRIVE_BORE = 14;
-hub_h = 10;
+
+
+arm_w = 22;
+arm_l = 52;
+arm_h = 11;
+arm_drive_offs = 11;
+arm_clear_r = 25;
+arm_clear_h = 5;
+hub_h = arm_clear_h + LINK_PIN_W;
 
 module drive_arm() {
-    
+    difference() {
+        translate([-arm_drive_offs, -arm_w/2, 0])
+            cube([arm_l, arm_w, arm_h]);
+        translate([arm_clear_r, -arm_w/2, 0])
+            cube([arm_l-arm_clear_r, arm_w, arm_clear_h]);
+        translate([-arm_drive_offs, -arm_w/2, arm_h - arm_clear_h])
+            cube([arm_clear_r + arm_drive_offs, arm_w, arm_clear_h]);
+        translate([0, 0, arm_h/2])
+            cylinder(r=arm_hole_ir, h=arm_h*2, center=true);
+        translate([arm_r, 0, arm_h/2])
+            cylinder(r=arm_hole_ir, h=arm_h*2, center=true);
+    }
 }
 
 module drive_sprocket() {
-    translate([0, 0, -ROLLER_W / 2])
-    difference() {
-        sprocket(size=CHAIN_SIZE, teeth=DRIVE_TEETH, bore=DRIVE_BORE/IN_MM, hub_diameter=1, hub_height=hub_h / IN_MM);
-        for(j=[0:num_holes])  {
-            rotate([0,0,j*360 / num_holes])
-                translate([arm_r, 0, 0])
-                    cylinder(h=hub_h*2, r=arm_hole_ir, center=true);
+    zratio = LINK_PIN_W / (IN_MM * get_thickness(CHAIN_SIZE));
+    translate([0, 0, -ROLLER_W / 2]) {
+        difference() {
+            scale([1, 1, zratio]) {
+                sprocket(size=CHAIN_SIZE, teeth=DRIVE_TEETH, bore=DRIVE_BORE/IN_MM, hub_diameter=(arm_l - arm_drive_offs) * 2 / IN_MM, hub_height=hub_h / IN_MM / zratio);
+            }
+            for(j=[0:num_holes])  {
+                rotate([0,0,j*360 / num_holes])
+                    translate([arm_r, 0, 0])
+                        cylinder(h=hub_h*2, r=arm_hole_ir);
+            }
+            
+            translate([0, 0, LINK_PIN_W])
+                cylinder(r=arm_clear_r, h=arm_h);
         }
     }
 }
 
 module idler_sprocket() {
+    zratio = LINK_PIN_W / (IN_MM * get_thickness(CHAIN_SIZE));
+    
     translate([0, 0, -ROLLER_W / 2])
     difference() {
-        sprocket(size=CHAIN_SIZE, teeth=IDLER_TEETH, bore=DRIVE_BORE/IN_MM, hub_diameter=1, hub_height=hub_h / IN_MM);
-        * for(j=[0:num_holes])  {
-            rotate([0,0,j*360 / num_holes])
-                translate([arm_r, 0, 0])
-                    cylinder(h=hub_h*2, r=arm_hole_ir, center=true);
+        scale([1, 1, zratio]) {
+            sprocket(size=CHAIN_SIZE, teeth=IDLER_TEETH, bore=bearing_ir*2/IN_MM, hub_diameter=(bearing_or*2 + 2*wall_th) / IN_MM, hub_height=(bearing_h)/IN_MM / zratio);
         }
+        for(j=[0:num_holes])  {
+            rotate([0,0,j*360 / num_holes])
+                translate([IDLER_PITCH_OR/1.5, 0, 0])
+                    cylinder(h=hub_h*2, r=arm_hole_ir);
+        }
+        translate([0, 0, bearing_h/2]) bearing();
     }
+    
 }
 
 module roller() {
@@ -198,13 +263,22 @@ module link_clip() {
     link_or = (LINK_L - CHAIN_PITCH) / 2;
     difference() {
         union() {
-            translate([pad_th / 2 - (LINK_H + pad_th * 2) / 2, CHAIN_PITCH/2 - pad_l /2, -(LINK_LARGE_W + 2 * wall_th)/2])
-                cube([LINK_H + pad_th * 2, pad_l, LINK_LARGE_W * CHAIN_STRANDS + 2 * wall_th]);
-            translate([LINK_H/2 + pad_th / 2, CHAIN_PITCH/2 - pad_l / 2, -LINK_LARGE_W / 2 - BEAM_W])
+            for (i=[0:CHAIN_STRANDS - 1]) {
+                translate([pad_th / 2 - (LINK_H + pad_th * 2) / 2, CHAIN_PITCH/2 - pad_l /2, -(LINK_LARGE_W + 2 * wall_th)/2 + i * (LINK_LARGE_W + CHAIN_GAP)])
+                    cube([LINK_H + pad_th * 2, pad_l, LINK_LARGE_W + 2 * wall_th]);
+                if (i > 0)
+                    translate([LINK_H/2 + wall_th, CHAIN_PITCH / 2, LINK_LARGE_W / 2 + CHAIN_GAP/2])
+                        rotate([0, 0, 45])
+                        cube([LINK_H, LINK_H, pad_w], center=true);
+            }
+            translate([LINK_H/2 + pad_th / 2, CHAIN_PITCH/2 - pad_l / 2, -LINK_LARGE_W / 2 - wall_th])
                 cube([pad_th, pad_l, pad_w]);
+                
         }
-        for (i=[0:0.5:CHAIN_STRANDS - 1]) {
-            translate([0, 0, i * LINK_LARGE_W]) {
+        // translate([LINK_H/2 + 3*pad_th / 2, CHAIN_PITCH/2 - pad_l / 2, 0])
+         //       cube([pad_th, pad_l, pad_w]);
+        for (i=[0:CHAIN_STRANDS - 1]) {
+            translate([0, 0, i * (CHAIN_GAP + LINK_LARGE_W)]) {
                 translate([0, 0, -LINK_LARGE_W/2])
                     chain_link_wall(LINK_LARGE_W);
                 gap_w = LINK_SMALL_W;  
@@ -214,22 +288,24 @@ module link_clip() {
                 link_pins(LINK_LARGE_W + 3 * wall_th);
             }
         }
-        
-        for (z=concat([-LINK_LARGE_W / 2 - BEAM_W / 2, CHAIN_STRANDS * (LINK_LARGE_W + CHAIN_GAP) - LINK_LARGE_W/2 + BEAM_W / 2], [for (i=[0:CHAIN_STRANDS-1]) i*(LINK_LARGE_W + CHAIN_GAP)])) {
-            translate([LINK_H/2 + pad_th, CHAIN_PITCH/2, z])
-                rotate([0, 90, 0])
-                # cylinder(r=pad_hole_ir, h=pad_th*2, center=true);
-        }
-        for (i=[0:CHAIN_STRANDS-1]) {
-            z = i*LINK_LARGE_W;
-            translate([LINK_H/2, CHAIN_PITCH/2, z])
-                rotate([0, 90, 0])
-                cylinder(r=pad_head_or, h=pad_th/2);
-        }
    }
 }
 
-//! rotate([90, 0, 0]) link_clip();
+//rotate([90, 0, 0]) link_clip();
+//chain(num_links=floor(DRIVE_TEETH / 2), bend_deg=DRIVE_TEETH_DEG);
+
+//drive_sprocket();
+//% translate([0, 0, LINK_PIN_W/2]) drive_arm();
+
+module plate() {
+    //rotate([180, 0, 0])
+    * idler_sprocket();
+    *drive_sprocket();
+    rotate([90, 0, 0])
+        link_clip();
+}
+
+plate();
 
 module design() {   
    
@@ -253,4 +329,4 @@ module design() {
         idler_sprocket();
     % drive_sprocket();
 }
-design();
+//design();

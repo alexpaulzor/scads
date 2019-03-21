@@ -1,4 +1,4 @@
-include <arduino.scad>
+//include <arduino.scad>
 //use <boxit.scad>
 
 IN_MM = 25.4;
@@ -400,16 +400,12 @@ module pillow_block() {
    mount_block(bearing_or);
 }
 
-
-
 module rocker_mount() {
     % translate([0, -beam_w/2, rocker_or + wall_th])
         rotate([90]) 
         rocker();
     mount_block(rocker_or);
 }
-rotate([90, 0, 0]) rocker_mount();
+
+* rotate([90, 0, 0]) rocker_mount();
 * translate([4 * beam_w, 0, 0]) pillow_block();
-/////////////////////////////////////////////////
-//////////// RENDER /////////////////////////////
-/////////////////////////////////////////////////
