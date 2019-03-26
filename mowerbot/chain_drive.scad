@@ -5,7 +5,7 @@ $fn=60;
 BEAM_W = 15;
 
 CHAIN_SIZE = 40;
-BIKE_CHAIN = true;
+BIKE_CHAIN = false;
 
 CHAIN_STRANDS = CHAIN_SIZE == 40 ? 2 : 1;
 CHAIN_GAP = 2 * BEAM_W;
@@ -47,15 +47,15 @@ function get_link_sizes(size=CHAIN_SIZE) =
             3.5/2,
         ] : [
             // LINK_L = 
-            21,
+            0.900 * IN_MM,
             // LINK_H = 
             0.472 * IN_MM,
             // LINK_TH = 
             0.059 * IN_MM,
             // LINK_SMALL_W
-            (0.309 + 0.059 * 2) * IN_MM,
+            0.427 * IN_MM,
             // LINK_LARGE_W = 
-            (0.309 + 0.059 * 4) * IN_MM,,
+            0.560 * IN_MM,,
             // LINK_PIN_W = 
             0.309 * IN_MM,
             // LINK_PIN_OR = 
@@ -104,14 +104,14 @@ IDLER_TEETH_DEG = 360 / IDLER_TEETH;
 
 IDLER_PITCH_OR = CHAIN_PITCH * IDLER_TEETH / PI / 2;
 
-wall_th = 4;
+wall_th = 2;
 pad_th = 4;
 pad_w = (CHAIN_STRANDS-1) * (CHAIN_GAP + LINK_LARGE_W) + LINK_LARGE_W + 2 * wall_th;
 pad_hole_ir = 3/2;
 pad_head_or = 3;
 pad_l = LINK_L - 1.5;
 
-links_per_clip = 4;
+links_per_clip = 6;
 
 axle_spread_links = floor((CHAIN_LINKS - DRIVE_TEETH / 2 - IDLER_TEETH / 2) / 2);
 axle_spread = axle_spread_links * CHAIN_PITCH;
@@ -161,18 +161,24 @@ module drive_arm() {
     }
 }
 
-module drive_sprocket() {
+module driven_sprocket(bore, hub_d, hub_h) {
     zratio = LINK_PIN_W / (IN_MM * get_thickness(CHAIN_SIZE));
+    difference() {
+        scale([1, 1, zratio])
+            sprocket(size=CHAIN_SIZE, teeth=DRIVE_TEETH, bore=bore/ IN_MM, hub_diameter=hub_d / IN_MM, hub_height=hub_h / IN_MM / zratio);
+        for(j=[0:num_holes])  {
+            rotate([0,0,j*360 / num_holes])
+                translate([arm_r, 0, 0]) {
+                    cylinder(h=hub_h*2, r=arm_hole_ir);
+                }
+        }
+    }
+}
+
+module drive_sprocket() {
     translate([0, 0, -ROLLER_W / 2]) {
         difference() {
-            scale([1, 1, zratio]) {
-                sprocket(size=CHAIN_SIZE, teeth=DRIVE_TEETH, bore=DRIVE_BORE/IN_MM, hub_diameter=(arm_l - arm_drive_offs) * 2 / IN_MM, hub_height=hub_h / IN_MM / zratio);
-            }
-            for(j=[0:num_holes])  {
-                rotate([0,0,j*360 / num_holes])
-                    translate([arm_r, 0, 0])
-                        cylinder(h=hub_h*2, r=arm_hole_ir);
-            }
+            driven_sprocket(DRIVE_BORE, (arm_l - arm_drive_offs) * 2, hub_h);
             
             translate([0, 0, LINK_PIN_W])
                 cylinder(r=arm_clear_r, h=arm_h);
@@ -180,9 +186,19 @@ module drive_sprocket() {
     }
 }
 
+module idle_drive_sprocket() {
+    translate([0, 0, -ROLLER_W / 2]) {
+        difference() {
+            driven_sprocket(bearing_ir*2, (bearing_or*2 + 2*wall_th), bearing_h);
+            
+            translate([0, 0, bearing_h/2]) bearing();
+        }
+    }
+}
+
 module idler_sprocket() {
     zratio = LINK_PIN_W / (IN_MM * get_thickness(CHAIN_SIZE));
-    
+    hole_offs = (IDLER_PITCH_OR - ROLLER_OR + bearing_or) / 2;
     translate([0, 0, -ROLLER_W / 2])
     difference() {
         scale([1, 1, zratio]) {
@@ -190,12 +206,20 @@ module idler_sprocket() {
         }
         for(j=[0:num_holes])  {
             rotate([0,0,j*360 / num_holes])
-                translate([IDLER_PITCH_OR/1.5, 0, 0])
+                translate([hole_offs, 0, 0])
                     cylinder(h=hub_h*2, r=arm_hole_ir);
         }
-        translate([0, 0, bearing_h/2]) bearing();
+        # translate([0, 0, bearing_h/2]) bearing();
     }
     
+}
+
+module idle_sprocket_spacer() {
+    gap = CHAIN_GAP + bearing_h;
+    difference() {
+        cylinder(r=bearing_ir + wall_th/2, h=gap);
+        cylinder(r=bearing_ir, h=gap);
+    }
 }
 
 module roller() {
@@ -291,42 +315,51 @@ module link_clip() {
    }
 }
 
-//rotate([90, 0, 0]) link_clip();
-//chain(num_links=floor(DRIVE_TEETH / 2), bend_deg=DRIVE_TEETH_DEG);
-
-//drive_sprocket();
-//% translate([0, 0, LINK_PIN_W/2]) drive_arm();
-
-module plate() {
-    //rotate([180, 0, 0])
-    * idler_sprocket();
-    *drive_sprocket();
-    rotate([90, 0, 0])
-        link_clip();
+module plate(part=0) {
+    if (part == 0) {
+        rotate([180, 0, 0])
+            idler_sprocket();
+    } else if (part == 1) {
+        drive_sprocket();
+    } else if (part == 2) {
+        rotate([180, 0, 0])
+        idle_drive_sprocket();
+    } else if (part == 3) {
+        rotate([90, 0, 0])
+            link_clip();
+    } else if (part == 4) {
+        idle_sprocket_spacer();
+    }
 }
-
-plate();
 
 module design() {   
    
-    translate([-DRIVE_PITCH_OR, 0, 0])
+    % translate([-DRIVE_PITCH_OR, 0, 0])
         rotate([0, 0, 180 + DRIVE_TEETH_DEG / 2])
-        chain(DRIVE_TEETH / 2, DRIVE_TEETH_DEG, offs=5);
+        chain(floor(DRIVE_TEETH / 2), DRIVE_TEETH_DEG);
     
-    translate([-DRIVE_PITCH_OR, 0, 0])
+    * translate([-DRIVE_PITCH_OR, 0, 0])
         rotate([0, 0, -spread_angle])
         mirror([1, 0, 0])
         chain(axle_spread_links, offs=5);
     
-    translate([DRIVE_PITCH_OR, 0, 0])
+    * translate([DRIVE_PITCH_OR, 0, 0])
         rotate([0, 0, spread_angle])
         chain(axle_spread_links, offs=3);
     
-    translate([IDLER_PITCH_OR, axle_spread, 0])
+    * translate([IDLER_PITCH_OR, axle_spread, 0])
         rotate([0, 0, IDLER_TEETH_DEG / 2])
-        chain(IDLER_TEETH / 2, IDLER_TEETH_DEG, offs=2);
-    % translate([0, axle_spread])
+        chain(floor(IDLER_TEETH / 2), IDLER_TEETH_DEG, offs=2);
+    * translate([0, axle_spread])
         idler_sprocket();
     % drive_sprocket();
+    translate([0, 0, LINK_LARGE_W + CHAIN_GAP])
+        idle_drive_sprocket();
+    * translate([0, 0, LINK_LARGE_W + CHAIN_GAP])
+        idler_sprocket();
+    * idler_sprocket();
+    * translate([0, 0, bearing_h/2])
+        idle_sprocket_spacer();
 }
-//design();
+if (plate_obj_id) plate(plate_obj_id);
+else design();
