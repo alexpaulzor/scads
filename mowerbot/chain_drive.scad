@@ -315,19 +315,28 @@ module link_clip() {
    }
 }
 
+module bearing_spacer() {
+    difference() {
+        cylinder(r=bearing_ir, h=bearing_h, center=true);
+        cylinder(r=arm_hole_ir, h=bearing_h, center=true);
+    }
+}
+
 module plate(part=0) {
-    if (part == 0) {
+    if (part == 1) {
         rotate([180, 0, 0])
             idler_sprocket();
-    } else if (part == 1) {
-        drive_sprocket();
     } else if (part == 2) {
+        drive_sprocket();
+    } else if (part == 3) {
         rotate([180, 0, 0])
         idle_drive_sprocket();
-    } else if (part == 3) {
+    } else if (part == 4) {
         rotate([90, 0, 0])
             link_clip();
-    } else if (part == 4) {
+    } else if (part == 5) {
+        bearing_spacer();
+    } else if (part == 6) {
         idle_sprocket_spacer();
     }
 }
@@ -361,5 +370,6 @@ module design() {
     * translate([0, 0, bearing_h/2])
         idle_sprocket_spacer();
 }
+plate_obj_id=5;
 if (plate_obj_id) plate(plate_obj_id);
 else design();

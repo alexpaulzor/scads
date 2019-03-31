@@ -24,28 +24,28 @@ chain_drive: 40_idler_sprocket.stl 40_drive_sprocket.stl 40_idle_drive_sprocket.
 
 40_idler_sprocket.stl: chain_drive.scad
 	$(SCAD) \
-		-D plate_obj_id=0 \
+		-D plate_obj_id=1 \
 		-o 40_idler_sprocket.stl \
 		--render \
 		$(SCAD_FILE)
 
 40_drive_sprocket.stl: chain_drive.scad
 	$(SCAD) \
-		-D plate_obj_id=1 \
+		-D plate_obj_id=2 \
 		-o 40_drive_sprocket.stl \
 		--render \
 		$(SCAD_FILE)
 
 40_idle_drive_sprocket.stl: chain_drive.scad
 	$(SCAD) \
-		-D plate_obj_id=2 \
+		-D plate_obj_id=3 \
 		-o 40_idle_drive_sprocket.stl \
 		--render \
 		$(SCAD_FILE)
 
 40_double_link_clip.stl: chain_drive.scad
 	$(SCAD) \
-		-D plate_obj_id=3 \
+		-D plate_obj_id=4 \
 		-o 40_double_link_clip.stl \
 		--render \
 		$(SCAD_FILE)
