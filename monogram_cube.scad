@@ -6,7 +6,7 @@ font_height = 50;
 
 module emblem_cube(emblem_text_x, emblem_text_y, emblem_text_z,
         font_height, emblem_x, emblem_y, emblem_z,
-        z_text_scale) {
+        z_text_scale, z_offset=[0, 0]) {
     module z_text() {
         scale(z_text_scale)
         rotate([0, 0, 90])
@@ -19,7 +19,7 @@ module emblem_cube(emblem_text_x, emblem_text_y, emblem_text_z,
         difference() {
             translate([-emblem_x / 2, -emblem_y / 2, emblem_z / 2])
                 cube([emblem_x, emblem_y, floor_height]);
-            translate([0, 0, 3])
+            translate(z_offset + [0, 0, 3])
                 z_text();
         }
     }
@@ -246,7 +246,23 @@ module vrt() {
         font_height, emblem_x, emblem_y, emblem_z,
         z_text_scale);
 }
-vrt();
+
+module py23() {
+    emblem_z = font_height - floor_height/2;
+    z_text_scale = [0.8, 0.7, 1];
+    emblem_text_x = "2";
+    emblem_text_z = "py";
+    emblem_text_y = "3";
+    
+    emblem_x = font_height * 1;
+    emblem_y = font_height * 1.2;
+    emblem_cube(
+        emblem_text_x, emblem_text_y, emblem_text_z,
+        font_height, emblem_x, emblem_y, emblem_z,
+        z_text_scale, z_offset=[-10, 0]);
+}
+py23();
+
 module mcv1() {
     emblem_z = font_height;
     z_text_scale = [0.8, 0.7, 1];
