@@ -23,7 +23,7 @@ stl-%: prep
 	&& cat $$tmpfile \
 	&& $(SCAD) \
 		-o stl/$$module.$$fname.stl \
-		--render $$tmpfile \
+		$$tmpfile \
 	&& echo "Rendered stl/$$module.$$fname.stl"
 	rm -f $$tmpfile
 
