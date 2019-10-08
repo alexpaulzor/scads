@@ -1,9 +1,15 @@
-$fn = 30;
+//$fn = 30;
 cork_height = 20;
 cork_id = 30;
 cork_od = 60;
-sphere_ir = 55;
+sphere_ir = 45;
 cork_thickness = 10;
+
+base_height = 30;
+magnet_or = 10 / 2;
+magnet_h = 2;
+num_magnets = 4;
+globe_scale = 0.75;
 
 globe_offset = [0, 0, 67.5];
 
@@ -57,13 +63,13 @@ module base_text(use_stl=false) {
         import("stl/base_text.flask.stl");
     } else {
         translate([0, text_size/2, 0])
-            linear_extrude(30)
+            linear_extrude(base_height)
             text("PLANET", size=text_size, halign="center", valign="center");
         translate([0, -text_size/2, 0])
-            linear_extrude(30)
+            linear_extrude(base_height)
             text("LABS", size=text_size, halign="center", valign="center");
-        translate([0, 0, 15])
-            cube([100, 3, 30], center=true);
+        translate([0, 0, base_height/2])
+            cube([100, 3, base_height], center=true);
     }
 }
 module base() {
@@ -77,13 +83,45 @@ module base() {
 
 
 module plate() {
-    translate([60, 60, -sphere_ir + cork_thickness]) 
+    % translate([60, 60, -sphere_ir + cork_thickness]) 
         cork(use_stl);
     base();
-    translate([0, 0, 0.2])
+    translate([0, 0, 0.4])
         flask(use_stl);
 }
 
-plate();
+module globe_bottom() {
+    difference() {
+        scale([globe_scale, globe_scale, globe_scale])
+        translate([0.6, 0.6, 0])
+        rotate([0, 180, 0])
+            import("s_hemisphere.stl");
+
+        sphere(r=globe_scale * sphere_ir);
+        for (i=[1:num_magnets]) {
+            rotate([0, 0, i * 360 / num_magnets])
+            translate([globe_scale * sphere_ir + magnet_or, 0, -magnet_h])
+            # cylinder(r=magnet_or, h=magnet_h);
+        }
+    }
+}
+
+module globe_top() {
+    difference() {
+        scale([globe_scale, globe_scale, globe_scale])
+            import("n_hemisphere.stl");
+        sphere(r=globe_scale * sphere_ir);
+        for (i=[1:num_magnets]) {
+            rotate([0, 0, i * 360 / num_magnets])
+            translate([globe_scale*sphere_ir + magnet_or, 0, 0])
+            # cylinder(r=magnet_or, h=magnet_h);
+        }
+    }
+}
+* globe_top();
+% globe_bottom();
+
+
+//plate();
 
 //! base_text();

@@ -1,5 +1,5 @@
-
-filament_or = 2.0 / 2;
+include <lib/t2020beam.scad>;
+filament_or = 2.5 / 2;
 
 wall_th = 1;
 wire_or = 1;
@@ -9,7 +9,7 @@ switch_l = 11;
 switch_h = 7;
 switch_hole_offset_w = 5;
 switch_hole_offset_l = 3;
-switch_hole_ir = 2.5 / 2;
+switch_hole_ir = 3 / 2;
 switch_hole_c_c = 6.95 + 2 * switch_hole_ir;
 
 // edge of switch to far side of roller, resting
@@ -63,6 +63,8 @@ module switch() {
 holder_l = 25;
 holder_w = 22;
 holder_h = 11;
+holder_wall_th = 2;
+holder_flange_h = 2 * t2020_w;
 
 module filament(length=2 * holder_w) {
     rotate([0, 90, 0])
@@ -77,14 +79,31 @@ module filament_path() {
 
 module filament_alarm() {
     difference() {
-        # translate([-2, -2, -holder_h/2])
-            cube([holder_l, holder_w, holder_h], center=false);
+        union() {
+            translate([-holder_wall_th, -holder_wall_th, -holder_h/2])
+                cube([holder_l, holder_w, holder_h], center=false);
+            translate([holder_l - t2020_w, -holder_wall_th, -holder_flange_h/2])
+                cube([t2020_w - holder_wall_th, holder_wall_th, holder_flange_h], center=false);
+            // TODO: reinforcement walls
+            translate([3*holder_wall_th, 0, 0])
+                rotate([45, 0, 0])
+                cube([holder_wall_th, holder_flange_h/sqrt(2), holder_flange_h/sqrt(2)], center=true);
+       
+        }
         switch();
-        
+        // TODO: mounting holes
+        for (i=[-1,1])
+            translate([holder_l-t2020_w/2, 0, i*t2020_w/2])
+            rotate([90, 0, 0])
+            cylinder(r=switch_hole_ir, h=holder_h, center=true);
         filament_path();
+        translate([holder_l-t2020_w/2-1, -t2020_w/2 - holder_wall_th, 0])
+            cube([t2020_w, t2020_w, holder_flange_h], center=true);
     }
     % filament_path();
 }
 
 $fn = 24;
 filament_alarm();
+% translate([
+    holder_l-t2020_w/2, -t2020_w/2 - holder_wall_th, 0]) t2020();

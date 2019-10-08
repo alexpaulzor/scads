@@ -247,6 +247,21 @@ module vrt() {
         z_text_scale);
 }
 
+module esh() {
+    emblem_z = font_height - floor_height/2;
+    z_text_scale = [0.8, 0.7, 1];
+    emblem_text_x = "E";
+    emblem_text_z = "S";
+    emblem_text_y = "H";
+    
+    emblem_x = font_height * 1.1;
+    emblem_y = font_height * 1;
+    emblem_cube(
+        emblem_text_x, emblem_text_y, emblem_text_z,
+        font_height, emblem_x, emblem_y, emblem_z,
+        z_text_scale);
+}
+
 module py23() {
     emblem_z = font_height - floor_height/2;
     z_text_scale = [0.8, 0.7, 1];
@@ -278,7 +293,7 @@ module mcv1() {
 }
 
 module design() {
-    py23();
+    esh();
 }
 
 rotate([0, 0, $t*360])
