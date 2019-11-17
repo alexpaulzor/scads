@@ -1,4 +1,5 @@
-font = "Helvetica:style=Bold";
+// font = "Helvetica:style=Bold";
+font = "Menlo:style=Bold";
 
 $fn = 60;
 floor_height = 5;
@@ -6,10 +7,12 @@ font_height = 50;
 
 module emblem_cube(emblem_text_x, emblem_text_y, emblem_text_z,
         font_height, emblem_x, emblem_y, emblem_z,
-        z_text_scale, z_offset=[0, 0]) {
+        z_text_scale, z_offset=[0, 0, 0], z_rot=0, 
+        include_top=true, include_bottom=true,
+        subtract_z=false) {
     module z_text() {
         scale(z_text_scale)
-        rotate([0, 0, 90])
+        rotate([0, 0, 90 + z_rot])
         translate([0, -font_height / 2, 0])
             linear_extrude(emblem_z)
                 text(emblem_text_z, font_height, halign="center", font=font);
@@ -23,22 +26,53 @@ module emblem_cube(emblem_text_x, emblem_text_y, emblem_text_z,
                 z_text();
         }
     }
-    translate([0, 0, -1]) z_plate();
-    translate([0, 0, -emblem_z - floor_height / 2]) z_plate();
+    if (include_top)
+        translate([0, 0, -1]) z_plate();
+    if (include_bottom)
+        translate([0, 0, -emblem_z - floor_height / 2]) z_plate();
    
-    intersection() {
-        translate([0, emblem_y / 2, 0])
-        rotate([90, 0, 0])
-            translate([0, -font_height / 2, 0])
-            linear_extrude(emblem_y)
-                text(emblem_text_x, font_height, halign="center", font=font);
-           
-         translate([-emblem_x / 2, 0, 0])
-            rotate([90, 0, 90])
-            translate([0, -font_height / 2, 0])
-            linear_extrude(emblem_x)
-                text(emblem_text_y, font_height, halign="center", font=font);
+   difference() {
+        intersection() {
+            translate([0, emblem_y / 2, 0])
+            rotate([90, 0, 0])
+                translate([0, -font_height / 2, 0])
+                linear_extrude(emblem_y)
+                    text(emblem_text_x, font_height, halign="center", font=font);
+               
+             translate([-emblem_x / 2, 0, 0])
+                rotate([90, 0, 90])
+                translate([0, -font_height / 2, 0])
+                linear_extrude(emblem_x)
+                    text(emblem_text_y, font_height, halign="center", font=font);
+        }
+        if (subtract_z)
+            translate(z_offset + [0, 0, 3 - emblem_z/2])
+            z_text();
     }
+}
+
+module design() {
+    pdxit();
+}
+
+rotate([0, 0, $t*360])
+    design();
+
+
+module pdxit() {
+    emblem_z = font_height - 2;
+    z_text_scale = [0.5, 0.7, 1];
+    emblem_text_x = "P";
+    emblem_text_z = "X";
+    emblem_text_y = "D";
+    
+    emblem_x = len(emblem_text_x) * font_height * 0.9;
+    emblem_y = len(emblem_text_y) * font_height * 0.9;
+    emblem_cube(
+        emblem_text_x, emblem_text_y, emblem_text_z,
+        font_height, emblem_x, emblem_y, emblem_z,
+        z_text_scale, z_rot=0, include_top=false,
+        subtract_z=true);
 }
 
 module rlj() {
@@ -291,10 +325,3 @@ module mcv1() {
         font_height, emblem_x, emblem_y, emblem_z,
         z_text_scale);
 }
-
-module design() {
-    esh();
-}
-
-rotate([0, 0, $t*360])
-    design();
