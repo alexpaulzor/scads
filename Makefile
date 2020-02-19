@@ -21,10 +21,10 @@ stl-%: prep
 	&& export tmpfile="$(shell mktemp)" \
 	&& echo -e "use <$$PWD/$$fname.scad>\n$$module($$args);" > $$tmpfile \
 	&& cat $$tmpfile \
-	&& $(SCAD) \
+	&& time $(SCAD) \
 		-o stl/$$module.$$fname.stl \
 		$$tmpfile \
-	&& echo "Rendered stl/$$module.$$fname.stl"
+	&& echo "Rendered stl/$$module.$$fname.stl" | tee >(say)
 	rm -f $$tmpfile
 
 clean: clean-gcode clean-stl

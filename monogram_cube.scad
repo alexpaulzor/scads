@@ -26,27 +26,31 @@ module emblem_cube(emblem_text_x, emblem_text_y, emblem_text_z,
                 z_text();
         }
     }
-    if (include_top)
-        translate([0, 0, -1]) z_plate();
-    if (include_bottom)
-        translate([0, 0, -emblem_z - floor_height / 2]) z_plate();
-   
-   difference() {
-        intersection() {
-            translate([0, emblem_y / 2, 0])
-            rotate([90, 0, 0])
-                translate([0, -font_height / 2, 0])
-                linear_extrude(emblem_y)
-                    text(emblem_text_x, font_height, halign="center", font=font);
-               
-             translate([-emblem_x / 2, 0, 0])
-                rotate([90, 0, 90])
-                translate([0, -font_height / 2, 0])
-                linear_extrude(emblem_x)
-                    text(emblem_text_y, font_height, halign="center", font=font);
+    difference() {
+        union() {
+            if (include_top)
+                translate([0, 0, -1]) z_plate();
+            if (include_bottom)
+                translate([0, 0, -emblem_z - floor_height / 2]) z_plate();
+       
+       
+            intersection() {
+                translate([0, emblem_y / 2, 0])
+                rotate([90, 0, 0])
+                    translate([0, -font_height / 2, 0])
+                    linear_extrude(emblem_y)
+                        text(emblem_text_x, font_height, halign="center", font=font);
+                   
+                 translate([-emblem_x / 2, 0, 0])
+                    rotate([90, 0, 90])
+                    translate([0, -font_height / 2, 0])
+                    linear_extrude(emblem_x)
+                        text(emblem_text_y, font_height, halign="center", font=font);
+            }
         }
         if (subtract_z)
-            translate(z_offset + [0, 0, 3 - emblem_z/2])
+            translate(z_offset + [0, 0, -emblem_z])
+            scale([1, 1, 2])
             z_text();
     }
 }
