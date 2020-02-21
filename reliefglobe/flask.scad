@@ -1,6 +1,7 @@
 IN_MM = 25.4;
-pin_or = 3 / 32 * IN_MM / 2;
+pin_or = 1.25;
 num_pins = 8;
+pin_length = 15;
 
 base_height = 30;
 sphere_ir = 39;
@@ -41,42 +42,61 @@ module base_disc(use_stl=false) {
         import("stl/base_disc.flask.stl");
     } else {
         _base_disc();
+        // % import("stl/base_disc.flask.stl");
     }
 }
 
 module _base_disc() {
-    // cylinder(r=45, h=2);
-    linear_extrude(2)
-    projection(cut=true)
-    globe();
+    difference() {
+        cylinder(r=45, h=3);
+        cylinder(r=35, h=8, center=true);
+    }
+    // linear_extrude(3)
+    // projection(cut=true)
+    // globe(true);
+}
+// ! base();
+module base(use_stl=false) {
+    if (use_stl) {
+        import("stl/base.flask.stl");
+    } else {
+        _base();
+    }
 }
 
-module base(use_stl=false) {
+module _base() {    
     difference() {
-        base_text(use_stl);
-        translate(globe_offset)
-            _globe_bottom();
+        base_text(true);
+        # translate(globe_offset)
+            globe(true);
     }
-    base_disc(true);
+    base_disc(false);
     // cylinder(r=45, h=2);
 }
 
 
 module globe_pins() {
     // cylinder(r=pin_or, h=80, center=true, $fn=32);
-    pin_or_scaled = pin_or / print_scale ;
     sphere(r=sphere_ir);
     for (i=[1:num_pins]) {
         rotate([0, 0, i * 360 / num_pins])
         translate([41, 0, 0])
-        cylinder(r=pin_or_scaled, h=25, center=true, $fn=32);
+        globe_pin();
     }
 }
 
-module globe_bottom() {
-    difference() {
-        _globe_bottom();
-        globe_pins();
+module globe_pin() {
+    cylinder(r=pin_or, h=pin_length, center=true, $fn=32);
+}
+
+module globe_bottom(use_stl=false) {
+    if (use_stl) {
+        import("stl/base.flask.stl");
+    } else {
+        difference() {
+            _globe_bottom();
+            globe_pins();
+        }
     }
 }
 
@@ -87,12 +107,20 @@ module _globe_bottom() {
         import("s_hemisphere.stl");
 }
 
-module globe_top() {
-    difference() {
-        scale(globe_scale)
-            import("n_hemisphere.stl");
-        globe_pins();
+module globe_top(use_stl=false) {
+    if (use_stl) {
+        import("stl/globe_top.flask.stl");
+    } else {
+        difference() {
+             _globe_top()
+            globe_pins();
+        }
     }
+}
+
+module _globe_top() {
+    scale(globe_scale)
+        import("n_hemisphere.stl");
 }
 
 module globe(use_stl=false) {
@@ -103,8 +131,8 @@ module globe(use_stl=false) {
     }
 }
 module _globe() {
-    globe_top();
-    globe_bottom();
+    _globe_top();
+    _globe_bottom();
 }
 
 module plate() {
@@ -114,6 +142,12 @@ module plate() {
         globe_bottom();
     translate([0, 100, 0])
     globe_top();
+    for (i=[1:num_pins]) {
+        rotate([0, 0, 140 - i * 360 / 2 / num_pins])
+        translate([-55, 0, pin_or])
+        rotate([90, 0, 0])
+        globe_pin();
+    }
 }
 
 module scaled_plate() {
@@ -122,12 +156,14 @@ module scaled_plate() {
 }
 
 module design() {
-    globe(true);
+    // translate(globe_offset)
+    _globe_bottom();
     # base_disc(true);
+    // # base(false);
 }
 // design();
 // base_disc(false);
-// scaled_plate();
+scaled_plate();
 // globe_top();
 // globe_bottom();
 // # globe_pins();
