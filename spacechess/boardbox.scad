@@ -1,24 +1,26 @@
 
 SIDE = 40;
 HEIGHT = 3;
-THICK = 2;
-AXLE = 1.75;
+THICK = 1;
+AXLE = 2.5;
 OFFS = HEIGHT - THICK/2; // axle offset from square origin
 CLR = 0.5; // clearance
 
 hinge_len = (SIDE + 2*OFFS - 2 * HEIGHT - 5*CLR) / 4;
 
 num_steps = 9;
-step = 0;
+step = 9;
 $t = step / num_steps;
 echo($t);
 
-module flaps() {
-	% children();
+module preview_only() {
+	% 
+	children();
 }
 
 module hinge_shell(h=SIDE, oversize=false) {
-	cylinder(r=HEIGHT, h=h, $fn=36);
+	oversize = oversize ? 1 : 0;
+	cylinder(r=HEIGHT + oversize * CLR, h=h + oversize * CLR/2, $fn=36);
 }
 
 module axle(h=SIDE) {
@@ -27,29 +29,33 @@ module axle(h=SIDE) {
 
 module nub_axle(h=SIDE) {
 	rotate([0, 0, 45])
-		translate([-THICK/4, -THICK/4, 0])
-		cube([THICK/2, THICK/2, h]);
+		translate([0, 0, h/2])
+		cube([THICK*sqrt(2)/2, THICK*sqrt(2)/2, h], center=true);
 }
 
-module hinge(n=1, invert=0) {
+module hinge(n=1, invert=0, latch=false) {
 	invert = invert ? 1 : 0;
 	difference() {
 		// hinge_shell(n*SIDE);
 		for (i=[0:2*n-1]) {
 			translate([0, 0, HEIGHT + i*SIDE/2 + invert * (hinge_len + CLR/2)]) {
 				hinge_shell(hinge_len - CLR/2);
-				cube([HEIGHT, HEIGHT, hinge_len - CLR/2]);
+				cube([HEIGHT, HEIGHT + THICK, hinge_len - CLR/2]);
+				if (latch)
+					sphere(r=AXLE/2, $fn=36);
 			}
 		}
-		// #
-		for (i=[0:2*n-1]) {
-			translate([0, 0, HEIGHT + i*SIDE/2 + (invert ? 0 : 1) * (hinge_len + CLR/2)]) {
-				hinge_shell(hinge_len + CLR/2, oversize=true);
-				// cube([HEIGHT, HEIGHT, hinge_len - CLR/2]);
+		if (!latch) {
+			for (i=[0:2*n-1]) {
+				translate([0, 0, HEIGHT + i*SIDE/2 + (invert ? 0 : 1) * (hinge_len + CLR/2)]) {
+					hinge_shell(hinge_len + CLR/2, oversize=true);
+					// cube([HEIGHT, HEIGHT, hinge_len - CLR/2]);
+				}
 			}
+			
+			translate([0, 0, -OFFS])
+				axle(n*SIDE + 2*OFFS);
 		}
-		translate([0, 0, -OFFS])
-			axle(n*SIDE + 2*OFFS);
 		// translate([0, 0, n * SIDE - HEIGHT + OFFS])
 		// 	hinge_shell(HEIGHT + OFFS);
 		// hinge_shell(HEIGHT + OFFS);
@@ -59,34 +65,55 @@ module hinge(n=1, invert=0) {
 		// 		hinge_shell(SIDE/2 - 2);
 		// }
 	}
-}
-
-module filler(stl=false) {
-	if (stl) {
-		import("stl/filler.boardbox.stl");
-	} else {
-		cube([SIDE - 4*THICK, SIDE - 4*THICK, HEIGHT - THICK]);
-		for (i=[0, 1]) {
-			translate([i*(SIDE-4*THICK), 0, (HEIGHT - THICK)/2])
-				rotate([-90, 0, 0])
-				nub_axle(SIDE-4*THICK);
-			translate([0, i*(SIDE-4*THICK), (HEIGHT - THICK)/2])
-				rotate([0, 90, 0])
-				nub_axle(SIDE-4*THICK);
-		}
+	*% if (latch) {
+		translate([0, 0, -OFFS])
+			nub_axle(n*SIDE + 2*OFFS);
 	}
 }
 
+module filler(stl=false, oversize=false) {
+	if (stl) {
+		import("stl/filler.boardbox.stl");
+	} else {
+		difference() {
+			union() {
+				cube([SIDE - 4*THICK, SIDE - 4*THICK, THICK]);
+				for (i=[0, 1]) {
+					translate([i*(SIDE-4*THICK), 0, THICK/2])
+						rotate([-90, 0, 0])
+						nub_axle(SIDE-4*THICK);
+					translate([0, i*(SIDE-4*THICK), THICK/2])
+						rotate([0, 90, 0])
+						nub_axle(SIDE-4*THICK);
+				}
+			}
+			if (!oversize) {
+				for (a=[0:45:360]) {
+					translate([SIDE/2 - 4*THICK/2, SIDE/2 - 4*THICK/2, 0])
+						rotate([0, 0, a]) {
+							translate([SIDE/4, 0, 0])
+								cube([SIDE/2, CLR, HEIGHT]);
+							translate([SIDE/2 + HEIGHT, -HEIGHT*2, 0])
+								cube([HEIGHT*2, 4*HEIGHT, HEIGHT]);
+						}
+				}
+			}
+		}
+	}
+}
+// !filler();
 module square(white=1) {
 	translate([0, 0, -HEIGHT/2]) {
 		difference() {
 			//color("white") 
 				cube([SIDE, SIDE, HEIGHT]);
+			translate([2*THICK, 2*THICK, HEIGHT/2])
+				filler(false, oversize=true);
 			translate([2*THICK, 2*THICK, THICK])
-				filler(true);
+				cube([SIDE - 4*THICK, SIDE - 4*THICK, THICK + THICK * 2]);
 		}
 		if (!white)
-			% translate([THICK, THICK, THICK])
+			% translate([2*THICK, 2*THICK, HEIGHT/2])
 				//color("black") 
 				filler(true);
 	}
@@ -105,18 +132,18 @@ module grid(rows, cols, start_white=1) {
 		for (row=[0, rows*SIDE + 2*OFFS]) {
 			translate([row, -HEIGHT, 0])
 				rotate([-90, 0, 0])
-				hinge_shell(cols*SIDE + 2 * HEIGHT);
+				hinge_shell(cols*SIDE + 2 * HEIGHT, oversize=true);
 		}
 		for (col=[0, cols*SIDE + 2*OFFS]) {
 			translate([-HEIGHT, col, 0])
 				rotate([0, 90, 0])
-				hinge_shell(rows*SIDE + 2 * HEIGHT);
+				hinge_shell(rows*SIDE + 2 * HEIGHT, oversize=true);
 		}
 	}
 }
 
 module bottom(stl=false, rows=3, cols=6) {
-	// 3 x 6 squares, hinges 4 sides
+	// 3 x 7 squares, hinges 4 sides
 	if (stl) {
 		import("stl/bottom.boardbox.stl");
 	} else {
@@ -135,27 +162,28 @@ module bottom(stl=false, rows=3, cols=6) {
 
 module top(stl=false, closed=false, rows=3, cols=6) {
 	// 3 x 6 squares, hinges all but 1 long side
-	if (stl) {
-		import("stl/bottom.boardbox.stl");
-	} else {
-		grid(rows, cols);
-		for (y=[0, cols*SIDE + 2*OFFS])
-			translate([0, y, 0])
-				rotate([0, 90, 0])
-				rotate([0, 0, y == 0 ? 0 : -90])
-				hinge(rows, y==0);
-		for (x=[0])
-			translate([x, 0, 0])
-				rotate([-90, x == 0 ? 0 : 90, 0])
-				hinge(cols, x!=0);
-	}
+	// if (stl) {
+	// 	import("stl/bottom.boardbox.stl");
+	// } else {
+	// 	grid(rows, cols);
+	// 	for (y=[0, cols*SIDE + 2*OFFS])
+	// 		translate([0, y, 0])
+	// 			rotate([0, 90, 0])
+	// 			rotate([0, 0, y == 0 ? 0 : -90])
+	// 			hinge(rows, y==0);
+	// 	for (x=[0, rows*SIDE + 2*OFFS])
+	// 		translate([x, 0, 0])
+	// 			rotate([-90, x == 0 ? 0 : 90, 0])
+	// 			hinge(cols, x!=0, x != 0);
+	// }
+	bottom(stl);
 	closed = closed ? 1 : 0;
-	flaps() 
+	preview_only() 
 		rotate([closed * -180, 0, 0])
 		translate([rows * SIDE + 2 * OFFS, 0, 0])
 		rotate([0, 0, 180])
 		top_right(stl, rows=rows);
-	flaps() 
+	preview_only() 
 		translate([0, cols * SIDE + 2 * OFFS, 0])
 		rotate([closed * 180, 0, 0])
 		top_left(stl, rows=rows);
@@ -179,22 +207,22 @@ module back(stl=false, closed=false, rows=3, cols=6) {
 	}
 	side_closed = (closed || ($t >= 4/num_steps)) ? 1 : 0;
 	top_closed = (closed || ($t >= 9/num_steps)) ? 1 : 0;
-	flaps()
+	preview_only()
 		translate([0, cols * SIDE + 2 * OFFS, 0])
 		rotate([side_closed * 180, 0, 0]) 
-		front_right();
-	flaps()
+		front_left();
+	preview_only()
 		translate([SIDE + 2*OFFS, 0, 0])
 		rotate([side_closed * 180, 0, 180]) 
 		front_right();
-	flaps()	
+	preview_only()	
 		translate([SIDE + 2 * OFFS, 0, 0])
 		rotate([0, top_closed * -90, 0])
 		top(stl, closed=(closed || ($t >= 7/num_steps)), rows=rows, cols=cols);
 }
 
 module front(stl=false, closed=false, rows=3, cols=6) {
-	// 1 x 6 squares, hinges all but 1 long side
+	// 1 x 6 squares, hinges all 
 	if (stl) {
 		import("stl/front.boardbox.stl");
 	} else {
@@ -204,28 +232,28 @@ module front(stl=false, closed=false, rows=3, cols=6) {
 				rotate([0, 90, 0])
 				rotate([0, 0, y == 0 ? 0 : -90])
 				hinge(1, y==0);
-		for (x=[0])
+		for (x=[0, 1*SIDE + 2*OFFS])
 			translate([x, 0, 0])
 				rotate([-90, x == 0 ? 0 : 90, 0])
-				hinge(cols, x!=0);
+				hinge(cols, x!=0, x!=0);
 	}
 	closed = closed ? 1 : 0;
-	flaps()
+	preview_only()
 		translate([0, cols * SIDE + 2 * OFFS, 0])
 		rotate([closed * 180, 0, 0]) 
 		front_right(stl);
-	flaps()
+	preview_only()
 		translate([SIDE + 2*OFFS, 0, 0])
 		rotate([closed * 180, 0, 180]) 
-		front_right(stl);
+		front_left(stl);
 }
 
-module right(stl=false, rows=3) {
+module right(stl=false, rows=3, invert=false) {
 	// 3 x 1 squares, on 1 long side only
 	if (stl) {
 		import("stl/right.boardbox.stl");
 	} else {
-		grid(rows, 1, false);
+		grid(rows, 1, invert);
 		for (y=[0])
 			translate([0, y, 0])
 				rotate([0, 90, 0])
@@ -254,15 +282,15 @@ module left(stl=false, rows=3) {
 	// 	// 		rotate([-90, 0, 0])
 	// 	// 		hinge(1, x!=0);
 	// }
-	right(stl, rows);
+	right(stl, rows, true);
 }
 
-module top_right(stl=false, rows=3) {
+module top_right(stl=false, rows=3, invert=false) {
 	// 3 x 1 squares, on 1 long side only (flushfold)
 	if (stl) {
 		import("stl/top_right.boardbox.stl");
 	} else {
-		grid(rows, 1, false);
+		grid(rows, 1, invert);
 		for (y=[0])
 			translate([0, y, 0])
 				rotate([0, 90, 0])
@@ -291,15 +319,15 @@ module top_left(stl=false, rows=3) {
 	// 	// 		rotate([-90, 0, 0])
 	// 	// 		hinge(1, x!=0);
 	// }
-	top_right(stl, rows);
+	top_right(stl, rows, true);
 }
 
-module front_right(stl=false) {
+module front_right(stl=false, invert=true) {
 	// 1 x 1 squares, hinge on 1 side only (flushfold)
 	if (stl) {
 		import("stl/front_right.boardbox.stl");
 	} else {
-		grid(1, 1, true);
+		grid(1, 1, invert);
 		for (y=[0])
 			translate([0, y, 0])
 				rotate([0, 90, 0])
@@ -312,7 +340,7 @@ module front_right(stl=false) {
 	}
 }
 
-// module front_left(stl=false) {
+module front_left(stl=false) {
 // 	// // 1 x 1 squares, hinge on 1 side only (flushfold)
 // 	// if (stl) {
 // 	// 	import("stl/front_left.boardbox.stl");
@@ -328,8 +356,8 @@ module front_right(stl=false) {
 // 	// 	// 		rotate([-90, 0, 0])
 // 	// 	// 		hinge(1, x!=0);
 // 	// }
-// 	front_right(stl);
-// }
+	front_right(stl, false);
+}
 
 module design(stl=false, closed=false) {
 	closed = closed ? 1 : 0;
@@ -362,11 +390,11 @@ module design(stl=false, closed=false) {
 // front();
 design();
 module test_bottom() {
-	bottom(rows=1, cols=1);
+	bottom(rows=1, cols=2);
 }
 
 module test_back(stl=false, closed=false) {
-	back(stl, closed=(closed || ($t>=8/num_steps)), rows=1, cols=1);
+	back(stl, closed=(closed || ($t>=8/num_steps)), rows=1, cols=2);
 }
 
 module test_right(stl=false) {
@@ -374,7 +402,7 @@ module test_right(stl=false) {
 }
 
 module test_front(stl=false, closed=false) {
-	front(stl, closed=closed, rows=1, cols=1);
+	front(stl, closed=closed, rows=1, cols=2);
 }
 
 module test_front_right(stl=false) {
@@ -390,7 +418,7 @@ module test_box() {
 		translate([1 * SIDE + 2 * OFFS, 0, 0])
 		rotate([0, 0, 180])
 		test_right(stl);
-	translate([0, 1 * SIDE + 2 * OFFS, 0])
+	translate([0, 2 * SIDE + 2 * OFFS, 0])
 		rotate([sides_closed * 90, 0, 0])
 		left(stl, rows=1);
 	back_closed = closed || ($t>=6/num_steps) ? 1 : 0;
@@ -398,7 +426,7 @@ module test_box() {
 		rotate([0, back_closed * -90, 0])
 		test_back();
 	front_closed = closed || ($t>=3/num_steps) ? 1 : 0;
-	translate([0, 1 * SIDE + 2 * OFFS])
+	translate([0, 2 * SIDE + 2 * OFFS])
 		rotate([0, front_closed * -90, 180])
 		test_front(stl, closed=(closed || ($t>=2/num_steps)));
 }
