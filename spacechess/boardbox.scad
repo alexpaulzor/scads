@@ -1,15 +1,15 @@
-
+include <archimedean_spiral.scad>;
 SIDE = 40;
 HEIGHT = 3;
 THICK = 1;
-AXLE = 2.5;
+AXLE = 2.4;
 OFFS = HEIGHT - THICK/2; // axle offset from square origin
 CLR = 0.5; // clearance
 
 hinge_len = (SIDE + 2*OFFS - 2 * HEIGHT - 5*CLR) / 4;
 
 num_steps = 9;
-step = 9;
+step = 0;
 $t = step / num_steps;
 echo($t);
 
@@ -23,6 +23,24 @@ module hinge_shell(h=SIDE, oversize=false) {
 	cylinder(r=HEIGHT + oversize * CLR, h=h + oversize * CLR/2, $fn=36);
 }
 
+module clamp_shell(h=SIDE, xthick=0, ythick=1) {
+	xthick = xthick ? 1 : 0;
+	ythick = ythick ? 1 : 0;
+	difference() {
+		union() {
+			cylinder(r=HEIGHT + THICK, h=h, $fn=36);
+			cube([HEIGHT + THICK, HEIGHT + THICK, h]);
+		}
+		cylinder(r=HEIGHT, h=h, $fn=36);
+		if (xthick)
+			translate([-0*HEIGHT*xthick, -HEIGHT*ythick - THICK*2 - CLR, 0])
+			cube([3*HEIGHT, 2*HEIGHT, 2*hinge_len], center=true);
+		else
+			translate([-HEIGHT - THICK*2 - CLR, 0, 0])
+			cube([2*HEIGHT, 3*HEIGHT, 2*hinge_len], center=true);
+	}
+}
+
 module axle(h=SIDE) {
 	cylinder(r=AXLE/2, h=h, $fn=36);
 }
@@ -33,14 +51,31 @@ module nub_axle(h=SIDE) {
 		cube([THICK*sqrt(2)/2, THICK*sqrt(2)/2, h], center=true);
 }
 
-module hinge(n=1, invert=0, latch=false) {
+module clamp_hinge(n=1, invert=0, latch=false, xthick=0, ythick=1) {
 	invert = invert ? 1 : 0;
+	xthick = xthick ? 1 : 0;
+	ythick = ythick ? 1 : 0;
+	for (i=[0:4*n-1]) {
+		translate([0, 0, HEIGHT + i*SIDE/4]) {
+			clamp_shell(hinge_len - CLR/2, xthick, ythick);
+			
+			
+		}
+	}
+	% hinge(n=n, invert=invert, latch=latch, xthick=xthick, ythick=ythick);
+}
+
+module hinge(n=1, invert=0, latch=false, xthick=0, ythick=1) {
+	invert = invert ? 1 : 0;
+	xthick = xthick ? 1 : 0;
+	ythick = ythick ? 1 : 0;
 	difference() {
 		// hinge_shell(n*SIDE);
+		
 		for (i=[0:2*n-1]) {
 			translate([0, 0, HEIGHT + i*SIDE/2 + invert * (hinge_len + CLR/2)]) {
 				hinge_shell(hinge_len - CLR/2);
-				cube([HEIGHT, HEIGHT + THICK, hinge_len - CLR/2]);
+				cube([HEIGHT + xthick*THICK, HEIGHT + ythick*THICK, hinge_len - CLR/2]);
 				if (latch)
 					sphere(r=AXLE/2, $fn=36);
 			}
@@ -72,9 +107,11 @@ module hinge(n=1, invert=0, latch=false) {
 }
 
 module filler(stl=false, oversize=false) {
-	if (stl) {
+	if (stl && oversize) {
 		import("stl/filler.boardbox.stl");
 	} else {
+		oversize = oversize ? 1 : 0;
+		norm_size = oversize ? 0 : 1;
 		difference() {
 			union() {
 				cube([SIDE - 4*THICK, SIDE - 4*THICK, THICK]);
@@ -88,20 +125,32 @@ module filler(stl=false, oversize=false) {
 				}
 			}
 			if (!oversize) {
-				for (a=[0:45:360]) {
+				translate([SIDE/2 - 4*THICK/2, SIDE/2 - 4*THICK/2, 0]) {
+					for (a=[-10:90:360]) {
+						rotate([0, 0, a]) {
+							linear_extrude(HEIGHT)
+								archimedean_spiral(spirals=0.66, thickness=THICK+1, rmax=SIDE/3);
+						}
+					}
+				}
+				for (a=[45:90:360]) {
 					translate([SIDE/2 - 4*THICK/2, SIDE/2 - 4*THICK/2, 0])
 						rotate([0, 0, a]) {
-							translate([SIDE/4, 0, 0])
-								cube([SIDE/2, CLR, HEIGHT]);
-							translate([SIDE/2 + HEIGHT, -HEIGHT*2, 0])
+							translate([SIDE/3, -THICK, -THICK])
+								cube([SIDE/2, 2*THICK, HEIGHT]);
+							translate([SIDE/2 + HEIGHT + THICK, -HEIGHT*2, -1])
 								cube([HEIGHT*2, 4*HEIGHT, HEIGHT]);
 						}
 				}
 			}
 		}
+		translate([SIDE/2 - 4*THICK/2, SIDE/2 - 4*THICK/2, 0]) {
+			cylinder(r=HEIGHT+THICK, h=THICK);
+		}
 	}
 }
-// !filler();
+
+// !filler(oversize=false);
 module square(white=1) {
 	translate([0, 0, -HEIGHT/2]) {
 		difference() {
@@ -152,14 +201,14 @@ module bottom(stl=false, rows=3, cols=6) {
 			translate([0, y, 0])
 				rotate([0, 90, 0])
 				rotate([0, 0, y == 0 ? 0 : -90])
-				hinge(rows, y==0);
+				hinge(rows, y==0, xthick=y!=0, ythick=y==0);
 		for (x=[0, rows*SIDE + 2*OFFS])
 			translate([x, 0, 0])
 				rotate([-90, x == 0 ? 0 : 90, 0])
-				hinge(cols, x!=0);
+				hinge(cols, x!=0, xthick=x==0, ythick=x!=0);
 	}
 }
-
+// !bottom();
 module top(stl=false, closed=false, rows=3, cols=6) {
 	// 3 x 6 squares, hinges all but 1 long side
 	// if (stl) {
@@ -199,11 +248,11 @@ module back(stl=false, closed=false, rows=3, cols=6) {
 			translate([0, y, 0])
 				rotate([0, 90, 0])
 				rotate([0, 0, y == 0 ? 0 : -90])
-				hinge(1, y==0);
+				hinge(1, y==0, xthick=y!=0, ythick=y==0);
 		for (x=[0, 1*SIDE + 2*OFFS])
 			translate([x, 0, 0])
 				rotate([-90, x == 0 ? 0 : 90, 0])
-				hinge(cols, x!=0);
+				hinge(cols, x!=0, xthick=x==0, ythick=x!=0);
 	}
 	side_closed = (closed || ($t >= 4/num_steps)) ? 1 : 0;
 	top_closed = (closed || ($t >= 9/num_steps)) ? 1 : 0;
@@ -220,7 +269,7 @@ module back(stl=false, closed=false, rows=3, cols=6) {
 		rotate([0, top_closed * -90, 0])
 		top(stl, closed=(closed || ($t >= 7/num_steps)), rows=rows, cols=cols);
 }
-
+// !back();
 module front(stl=false, closed=false, rows=3, cols=6) {
 	// 1 x 6 squares, hinges all 
 	if (stl) {
@@ -231,11 +280,11 @@ module front(stl=false, closed=false, rows=3, cols=6) {
 			translate([0, y, 0])
 				rotate([0, 90, 0])
 				rotate([0, 0, y == 0 ? 0 : -90])
-				hinge(1, y==0);
+				hinge(1, y==0, xthick=y!=0, ythick=y==0);
 		for (x=[0, 1*SIDE + 2*OFFS])
 			translate([x, 0, 0])
 				rotate([-90, x == 0 ? 0 : 90, 0])
-				hinge(cols, x!=0, x!=0);
+				hinge(cols, x!=0, x!=0, xthick=x==0, ythick=x!=0);
 	}
 	closed = closed ? 1 : 0;
 	preview_only()
@@ -247,7 +296,7 @@ module front(stl=false, closed=false, rows=3, cols=6) {
 		rotate([closed * 180, 0, 180]) 
 		front_left(stl);
 }
-
+// ! front();
 module right(stl=false, rows=3, invert=false) {
 	// 3 x 1 squares, on 1 long side only
 	if (stl) {
@@ -258,14 +307,20 @@ module right(stl=false, rows=3, invert=false) {
 			translate([0, y, 0])
 				rotate([0, 90, 0])
 				rotate([0, 0, y == 0 ? 0 : -90])
-				hinge(rows, y==0);
-		// for (x=[0, 3 * SIDE + 2 * OFFS])
-		// 	translate([x, 0, 0])
-		// 		rotate([-90, 0, 0])
-		// 		hinge(1, x!=0);
+				hinge(rows, invert=(y==0));
+		for (y=[SIDE + 2 * OFFS])
+			translate([0, y, THICK])
+				rotate([0, 90, 0])
+				rotate([0, 0, y == 0 ? 0 : -90])
+				clamp_hinge(rows, xthick=true, ythick=true);
+		for (x=[0, 3 * SIDE + 2 * OFFS])
+			translate([x, 0, THICK])
+				// rotate([-90, 90, 0])
+				rotate([-90, x == 0 ? 0 : 90, 0])
+				clamp_hinge(1, xthick=x==0, ythick=x==0);
 	}
 }
-
+// !right();
 module left(stl=false, rows=3) {
 	// 3 x 1 squares, hinge on 1 long side only
 	// if (stl) {
@@ -303,6 +358,8 @@ module top_right(stl=false, rows=3, invert=false) {
 	}
 }
 
+// ! top_right();
+
 module top_left(stl=false, rows=3) {
 	// 3 x 1 squares, hinge on 1 long side only (flushfold)
 	// if (stl) {
@@ -339,6 +396,8 @@ module front_right(stl=false, invert=true) {
 		// 		hinge(1, x!=0);
 	}
 }
+
+// ! front_right();
 
 module front_left(stl=false) {
 // 	// // 1 x 1 squares, hinge on 1 side only (flushfold)
@@ -433,6 +492,6 @@ module test_box() {
 // ! test_box();
 // test_bottom();
 // test_front_right();
-// test_front();
+// ! test_front();
 
 
