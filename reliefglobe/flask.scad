@@ -91,7 +91,7 @@ module globe_pin() {
 
 module globe_bottom(use_stl=false) {
     if (use_stl) {
-        import("stl/base.flask.stl");
+        import("stl/globe_bottom.flask.stl");
     } else {
         difference() {
             _globe_bottom();
@@ -112,7 +112,7 @@ module globe_top(use_stl=false) {
         import("stl/globe_top.flask.stl");
     } else {
         difference() {
-             _globe_top()
+             _globe_top();
             globe_pins();
         }
     }
@@ -139,9 +139,9 @@ module plate() {
     base(true);
     translate([100, 0, 0])
         rotate([0, 180, 0])
-        globe_bottom();
+        globe_bottom(true);
     translate([0, 100, 0])
-    globe_top();
+    globe_top(true);
     for (i=[1:num_pins]) {
         rotate([0, 0, 140 - i * 360 / 2 / num_pins])
         translate([-55, 0, pin_or])
@@ -164,6 +164,8 @@ module design() {
 // design();
 // base_disc(false);
 scaled_plate();
+// globe_top();
+// globe_pins();
 // globe_top();
 // globe_bottom();
 // # globe_pins();

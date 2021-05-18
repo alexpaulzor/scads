@@ -6,10 +6,10 @@ AXLE = 2.4;
 OFFS = HEIGHT - THICK/2; // axle offset from square origin
 CLR = 0.5; // clearance
 
-hinge_len = (SIDE + 2*OFFS - 2 * HEIGHT - 5*CLR) / 4;
+hinge_len = (SIDE + 2*OFFS - 2 * HEIGHT - 2*CLR) / 4;
 
 num_steps = 9;
-step = 0;
+step = 9;
 $t = step / num_steps;
 echo($t);
 
@@ -33,11 +33,11 @@ module clamp_shell(h=SIDE, xthick=0, ythick=1) {
 		}
 		cylinder(r=HEIGHT, h=h, $fn=36);
 		if (xthick)
-			translate([-0*HEIGHT*xthick, -HEIGHT*ythick - THICK*2 - CLR, 0])
-			cube([3*HEIGHT, 2*HEIGHT, 2*hinge_len], center=true);
+			translate([0, -HEIGHT*ythick - THICK*2, 0])
+			cube([3*HEIGHT, 2*HEIGHT, 2*h], center=true);
 		else
-			translate([-HEIGHT - THICK*2 - CLR, 0, 0])
-			cube([2*HEIGHT, 3*HEIGHT, 2*hinge_len], center=true);
+			translate([-HEIGHT - THICK*2, 0, 0])
+			cube([2*HEIGHT, 3*HEIGHT, 2*h], center=true);
 	}
 }
 
@@ -56,26 +56,32 @@ module clamp_hinge(n=1, invert=0, latch=false, xthick=0, ythick=1) {
 	xthick = xthick ? 1 : 0;
 	ythick = ythick ? 1 : 0;
 	for (i=[0:4*n-1]) {
-		translate([0, 0, HEIGHT + i*SIDE/4]) {
-			clamp_shell(hinge_len - CLR/2, xthick, ythick);
-			
-			
+		translate([0, 0, HEIGHT + i*SIDE/4 + CLR]) {
+			clamp_shell(hinge_len - 3*CLR, xthick, ythick);
 		}
 	}
 	% hinge(n=n, invert=invert, latch=latch, xthick=xthick, ythick=ythick);
 }
 
-module hinge(n=1, invert=0, latch=false, xthick=0, ythick=1) {
+// !clamp_hinge();
+
+module hinge(n=1, invert=0, latch=false, xthick=0, ythick=1, sunken=0) {
 	invert = invert ? 1 : 0;
 	xthick = xthick ? 1 : 0;
 	ythick = ythick ? 1 : 0;
+	sunken = sunken ? 1 : 0;
 	difference() {
 		// hinge_shell(n*SIDE);
 		
 		for (i=[0:2*n-1]) {
-			translate([0, 0, HEIGHT + i*SIDE/2 + invert * (hinge_len + CLR/2)]) {
-				hinge_shell(hinge_len - CLR/2);
-				cube([HEIGHT + xthick*THICK, HEIGHT + ythick*THICK, hinge_len - CLR/2]);
+			translate([0, 0, HEIGHT + i*SIDE/2 + invert * (hinge_len + CLR)]) {
+				hinge_shell(hinge_len - CLR);
+				translate([sunken*THICK, 0, 0])
+					cube([HEIGHT + xthick*THICK - sunken*THICK, HEIGHT + ythick*THICK, hinge_len - CLR]);
+				cube_side = sqrt((HEIGHT + THICK)^2 / 2);
+				if (sunken)
+					rotate([0, 0, -45])
+					cube([cube_side, cube_side, hinge_len - CLR]);
 				if (latch)
 					sphere(r=AXLE/2, $fn=36);
 			}
@@ -83,7 +89,7 @@ module hinge(n=1, invert=0, latch=false, xthick=0, ythick=1) {
 		if (!latch) {
 			for (i=[0:2*n-1]) {
 				translate([0, 0, HEIGHT + i*SIDE/2 + (invert ? 0 : 1) * (hinge_len + CLR/2)]) {
-					hinge_shell(hinge_len + CLR/2, oversize=true);
+					hinge_shell(hinge_len - CLR/2, oversize=true);
 					// cube([HEIGHT, HEIGHT, hinge_len - CLR/2]);
 				}
 			}
@@ -280,11 +286,11 @@ module front(stl=false, closed=false, rows=3, cols=6) {
 			translate([0, y, 0])
 				rotate([0, 90, 0])
 				rotate([0, 0, y == 0 ? 0 : -90])
-				hinge(1, y==0, xthick=y!=0, ythick=y==0);
+				hinge(1, invert=y==0, xthick=y!=0, ythick=y==0);
 		for (x=[0, 1*SIDE + 2*OFFS])
 			translate([x, 0, 0])
 				rotate([-90, x == 0 ? 0 : 90, 0])
-				hinge(cols, x!=0, x!=0, xthick=x==0, ythick=x!=0);
+				hinge(cols, invert=x!=0, latch=false, xthick=x==0, ythick=x!=0);
 	}
 	closed = closed ? 1 : 0;
 	preview_only()
@@ -302,19 +308,20 @@ module right(stl=false, rows=3, invert=false) {
 	if (stl) {
 		import("stl/right.boardbox.stl");
 	} else {
-		grid(rows, 1, invert);
+		translate([0, 0, -THICK])
+			grid(rows, 1, invert);
 		for (y=[0])
 			translate([0, y, 0])
 				rotate([0, 90, 0])
 				rotate([0, 0, y == 0 ? 0 : -90])
-				hinge(rows, invert=(y==0));
+				hinge(rows, ythick=true, xthick=true, invert=(y==0), sunken=true);
 		for (y=[SIDE + 2 * OFFS])
-			translate([0, y, THICK])
+			translate([0, y, 0])
 				rotate([0, 90, 0])
 				rotate([0, 0, y == 0 ? 0 : -90])
 				clamp_hinge(rows, xthick=true, ythick=true);
 		for (x=[0, 3 * SIDE + 2 * OFFS])
-			translate([x, 0, THICK])
+			translate([x, 0, 0])
 				// rotate([-90, 90, 0])
 				rotate([-90, x == 0 ? 0 : 90, 0])
 				clamp_hinge(1, xthick=x==0, ythick=x==0);
