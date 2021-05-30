@@ -53,3 +53,7 @@ autostl-%:
 
 view:
 	open stl
+
+dot-%: 
+	dot -Tsvg -O $(*).dot \
+		&& open $(*).dot.svg

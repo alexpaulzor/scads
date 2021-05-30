@@ -1,0 +1,237 @@
+digraph {
+	rankdir=LR;
+
+	subgraph cluster_acdc {
+		label="acdc";
+		dc_5v [color=yellow];
+		dc_gnd [color=dimgray];
+		ac24v_line [color=blue];
+		ac24v_neutral [color=brown];
+	}
+
+	subgraph cluster_24v {
+		label="24v";
+
+		subgraph cluster_in_valve {
+			label="IN valve";
+			in_valve_red [color=red, label="pool"];
+			in_valve_white [style=dashed, label="spa"];
+			in_valve_black [label="com"];
+		}
+		subgraph cluster_out_valve {
+			label="OUT valve";
+			out_valve_red [color=red, label="pool"];
+			out_valve_white [style=dashed, label="spa"];
+			out_valve_black [label="com"];
+		}
+
+		in_switch;
+		out_switch;
+
+		stop_switch [color=orange];
+		pump_stop [color=orange];
+
+		in_valve_black -> ac24v_neutral [style=dashed, color=brown];
+		out_valve_black -> ac24v_neutral [style=dashed, color=brown];
+		ac24v_line -> stop_switch [style=dashed, color=blue];
+		stop_switch -> pump_stop [style=dashed, color=orange];
+		stop_switch -> in_switch [style=dashed, color=orange];
+		stop_switch -> out_switch [style=dashed, color=orange];
+		in_switch -> in_valve_red [style=dotted, color=red];
+		in_switch -> in_valve_white [style=dotted];
+		out_switch -> out_valve_red [style=dotted, color=red];
+		out_switch -> out_valve_white [style=dotted];
+		pump_stop -> ac24v_neutral [style=dashed, color=brown];
+	}
+
+	subgraph cluster_5v {
+		label="5v";
+		subgraph cluster_arduino {
+			label="arduino";
+			// pin_d1;
+			// pin_d2;
+			// pin_d3;
+			pin_d4 [color=purple, label="sda (d4)"];
+			pin_d5 [color=purple, label="scl (d5)"];
+			// pin_d6;
+			// pin_d7;
+			pin_d8 [color=orange, label="stop (d8)"];
+			pin_d9 [color=red, label="in_pool (d9)"];
+			pin_d10 [style=dashed, label="in_spa (d10)"];
+			pin_d11 [color=red, label="out_pool (d11)"];
+			pin_d12 [style=dashed, label="out_spa (d12)"];
+			pin_a0 [color=green, label="flow (a0)"];
+			// pin_a1;
+			// pin_a2;
+			// pin_a3;
+			// pin_a4;
+			// pin_a5;
+			// pin_a6;
+			pin_vcc [color=yellow];
+			pin_gnd [color=dimgray];
+		}
+
+		flow_switch [color=green];
+
+		subgraph  cluster_i2c {
+			label="i2c";
+			color=purple;
+			sda [color=purple];
+			scl [color=purple];
+		}
+		pin_d4 -> sda [color=purple];
+		sda -> pin_d4 [color=purple];
+		pin_d5 -> scl [color=purple];
+		
+
+		dc_5v -> flow_switch [color=yellow];
+	
+		dc_5v -> pin_vcc [color=yellow];
+		pin_gnd -> dc_gnd [color=dimgray];
+		flow_switch -> pin_a0 [style=dotted, color=green];
+	}
+
+	subgraph cluster_relay_0 {
+		label="relay 0";
+		r0_dc_in [color=yellow];
+		r0_dc_gnd [color=dimgray];
+
+		subgraph cluster_r0ch0 {
+			label="flow (ch0)";
+			r0_in_0 [color=green, label="in_0"];
+			r0_com_0 [color=green, label="com_0"];
+			r0_no_0 [color=green, label="no_0"];
+			r0_nc_0 [color=green, label="nc_0"];
+		}
+		subgraph cluster_r0ch1 {
+			label="stop (ch1)";
+			r0_in_1 [color=orange, label="in_1"];
+			r0_com_1 [color=orange, label="com_1"];
+			r0_no_1 [color=orange, label="no_1"];
+			r0_nc_1 [color=orange, label="nc_1"];
+		}
+		// subgraph cluster_r0ch2 {
+		// 	label="ch1";
+		// 	r0_in_2;
+		// 	r0_com_2;
+		// 	r0_no_2;
+		// 	r0_nc_2;
+		
+		// }
+		// subgraph cluster_r0ch3 {
+		// 	label="ch3";
+		// 	r0_in_3;
+		// 	r0_com_3;
+		// 	r0_no_3;
+		// 	r0_nc_3;
+		// }
+		# ch0 is flow switch
+		r0_com_0 -> r0_nc_0 [color=green, style=dashed, penwidth=2];
+		r0_com_0 -> r0_no_0 [color=green, style=dashed];
+		r0_in_0 -> r0_com_0 [color=green, style=dotted];
+		
+		# ch2 is pump_stop
+		r0_com_1 -> r0_nc_1 [color=orange, style=dashed, penwidth=2];
+		r0_com_1 -> r0_no_1 [color=orange, style=dashed];
+		r0_in_1 -> r0_com_1 [color=orange, style=dotted];
+		
+		// r0_com_2 -> r0_nc_2 [style=dashed, penwidth=2];
+		// r0_com_2 -> r0_no_2 [style=dashed];
+		// r0_in_2 -> r0_com_2 [style=dotted];
+		
+		// r0_com_3 -> r0_nc_3 [style=dashed, penwidth=2];
+		// r0_com_3 -> r0_no_3 [style=dashed];
+		// r0_in_3 -> r0_com_3 [style=dotted];
+
+	}
+
+	subgraph cluster_relay_1 {
+		label="relay 1";
+		r1_dc_in [color=yellow];
+		r1_dc_gnd [color=dimgray];
+
+		subgraph cluster_r1ch0 {
+			label="in_pool (ch1)";
+			r1_in_0 [color=red, label="in_0"];
+			r1_com_0 [color=red, label="com_0"];
+			r1_no_0 [color=red, label="no_0"];
+			r1_nc_0 [color=red, label="nc_0"];
+		}
+		subgraph cluster_r1ch1 {
+			label="in_spa (ch1)";
+			r1_in_1 [style=dashed, label="in_1"];
+			r1_com_1 [style=dashed, label="com_1"];
+			r1_no_1 [style=dashed, label="no_1"];
+			r1_nc_1 [style=dashed, label="nc_1"];
+		}
+		subgraph cluster_r1ch2 {
+			label="out_pool (ch3)";
+			r1_in_2 [color=red, label="in_2"];
+			r1_com_2 [color=red, label="com_2"];
+			r1_no_2 [color=red, label="no_2"];
+			r1_nc_2 [color=red, label="nc_2"];
+		}
+		subgraph cluster_r1ch3 {
+			label="out_spa (ch3)";
+			r1_in_3 [style=dashed, label="in_3"];
+			r1_com_3 [style=dashed, label="com_3"];
+			r1_no_3 [style=dashed, label="no_3"];
+			r1_nc_3 [style=dashed, label="nc_3"];
+		}
+		// ch0 is in valve red (pool)
+		r1_com_0 -> r1_nc_0 [color=red, style=dashed, penwidth=2];
+		r1_com_0 -> r1_no_0 [color=red, style=dashed];
+		r1_in_0 -> r1_com_0 [color=red, style=dotted];
+		
+		// ch1 is in valve white (spa)
+		r1_com_1 -> r1_nc_1 [style=dashed, penwidth=2];
+		r1_com_1 -> r1_no_1 [style=dashed];
+		r1_in_1 -> r1_com_1 [style=dotted];
+		
+		// ch2 is out red (pool)
+		r1_com_2 -> r1_nc_2 [color=red, style=dashed, penwidth=2];
+		r1_com_2 -> r1_no_2 [color=red, style=dashed];
+		r1_in_2 -> r1_com_2 [color=red, style=dotted];
+		
+		// ch3 is out white (spa)
+		r1_com_3 -> r1_nc_3 [style=dashed, penwidth=2];
+		r1_com_3 -> r1_no_3 [style=dashed];
+		r1_in_3 -> r1_com_3 [style=dotted];
+
+		// Partial feedback for exclusive operation
+		r1_nc_0 -> r1_com_1 [style=dashed];
+		r1_nc_2 -> r1_com_3 [style=dashed];
+
+		r1_dc_in -> r1_dc_gnd -> 
+			r1_in_0 -> r1_in_1 -> 
+			r1_in_2 -> r1_in_3 [style=invis];
+		r1_nc_0 -> r1_com_0 -> r1_no_0 -> 
+			r1_nc_1 -> r1_com_1 -> r1_no_1 -> 
+			r1_nc_2 -> r1_com_2 -> r1_no_2 -> 
+			r1_nc_3 -> r1_com_3 -> r1_no_3 [style=invis];
+	}
+
+	dc_5v -> r0_dc_in [color=yellow];
+	r0_dc_gnd -> dc_gnd [color=dimgray];
+	dc_5v -> r1_dc_in [color=yellow];
+	r1_dc_gnd -> dc_gnd [color=dimgray];
+
+	pin_d8 -> r0_in_1 [style=dotted];
+	pin_d9 -> r1_in_0 [style=dotted, color=red];
+	pin_d10 -> r1_in_1 [style=dotted];
+	pin_d11 -> r1_in_2 [style=dotted, color=red];
+	pin_d12 -> r1_in_3 [style=dotted];
+	
+	r1_no_0 -> in_valve_red [style=dashed, color=red];
+	r1_no_1 -> in_valve_white [style=dashed];
+	r1_no_2 -> out_valve_red [style=dashed, color=red];
+	r1_no_3 -> out_valve_white [style=dashed];
+
+	ac24v_line -> r0_com_0 [style=dashed, color=blue];
+	flow_switch -> r0_in_0 [style=dotted, color=green];
+	r0_nc_0 -> r1_com_0 [style=dashed];
+	r0_nc_0 -> r1_com_2 [style=dashed];
+
+	ac24v_line -> r0_com_1 [style=dashed, color=blue];
+	r0_no_1 -> pump_stop [style=dashed, color=orange];
+}
