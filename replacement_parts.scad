@@ -60,4 +60,58 @@ module knob_text(t, theta) {
 			text(str(t), halign="center", size=12);
 }
 
-stove_knob();
+// stove_knob();
+
+grill_knob_shaft_od = 1/4 * IN_MM;
+grill_knob_shaft_notch_d = 3/16 * IN_MM;
+grill_knob_h = 1/2 * IN_MM;
+grill_knob_or = 3/4 * IN_MM;
+
+
+module grill_shaft() {
+	difference() {
+		translate([0, 0, 0])
+			cylinder(r=grill_knob_shaft_od/2, h=grill_knob_h);
+		translate([grill_knob_shaft_notch_d, 0, grill_knob_h/2])
+			cube([grill_knob_shaft_od, grill_knob_shaft_od, grill_knob_h+1], center=true);
+	
+	}
+}
+
+module grill_knob() {
+	difference() {
+		union() {
+			// cylinder(r1=grill_knob_or, r2=grill_knob_or-5, h=grill_knob_h + 2);
+			sphere(r=grill_knob_or);
+			translate([0, -2, 0])
+				cube([grill_knob_or + 4, 4, grill_knob_h + 2]);
+		}
+		difference() {
+			// cylinder(r=grill_knob_or - 2, h=grill_knob_h);
+			sphere(r=grill_knob_or-2);
+			cylinder(r=grill_knob_shaft_od, h=grill_knob_or);
+			cube([2*grill_knob_or, 3, 2*grill_knob_or], center=true);
+			cube([3, 2*grill_knob_or, 2*grill_knob_or], center=true);
+		}
+		grill_shaft();
+		translate([0, 0, -30])
+			cube([60, 60, 60], center=true);
+	}
+
+}
+
+// grill_knob();
+
+
+cu_spacer_od = 7/8 * IN_MM;
+cu_spacer_id = 5/8 * IN_MM + 0.4;
+cu_spacer_h = 3/4 * IN_MM;
+
+module copper_hinge_spacer() {
+	difference() {
+		cylinder(r=cu_spacer_od/2, h=cu_spacer_h, $fn=128);
+		cylinder(r=cu_spacer_id/2, h=cu_spacer_h+1, $fn=128);
+	}
+}
+
+copper_hinge_spacer();
