@@ -55,5 +55,6 @@ view:
 	open stl
 
 dot-%: 
-	fdp -Tsvg -O $(*).dot \
+	# fdp also works ok
+	dot -Tsvg -O $(*).dot \
 		&& open $(*).dot.svg

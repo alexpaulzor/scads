@@ -3,9 +3,9 @@ digraph {
 
 	// subgraph cluster_110v {
 	// 	label="AC 110v"
-		ac110v_line1 [color=orangered];
-		ac110v_line2 [color=orangered, style=dashed];
-		ac110v_neutral [style=dashed];
+		clean_line1 [color=orangered];
+		clean_line2 [color=orangered, style=dashed];
+		// ac110v_neutral [style=dashed];
 
 		// vsp_pump;
 		cleaner_pump;
@@ -15,11 +15,19 @@ digraph {
 
 	subgraph cluster_acdc {
 		label="acdc";
-		dc_5v [color=yellow];
-		dc_gnd [color=dimgray];
-		ac24v_line [color=blue];
-		ac24v_neutral [color=brown];
+		todo;
 	}
+
+	// subgraph cluster_terminal_block {
+		// label="terminal block";
+		dc_5v [shape=Msquare, color=yellow];
+		dc_gnd [shape=Msquare, color=dimgray];
+		ac24v_line [shape=Msquare, color=blue];
+		ac24v_neutral [shape=Msquare, color=brown];
+		pump_stop [shape=Msquare, color=orange];
+		flow_stopped [shape=Msquare, color=green];
+
+	// }
 
 	// subgraph cluster_24v {
 	// 	label="AC 24v";
@@ -28,7 +36,7 @@ digraph {
 			label="IN valve";
 			in_valve_red [color=red, label="pool"];
 			in_valve_white [style=dashed, label="spa"];
-			in_valve_black [label="com"];
+			in_valve_black [label="COM"];
 			in_valve_red -> in_valve_black [color=red];
 			in_valve_white -> in_valve_black [style=dashed];
 		}
@@ -36,7 +44,7 @@ digraph {
 			label="OUT valve";
 			out_valve_red [color=red, label="pool"];
 			out_valve_white [style=dashed, label="spa"];
-			out_valve_black [label="com"];
+			out_valve_black [label="COM"];
 			out_valve_red -> out_valve_black [color=red, style=dotted];
 			out_valve_white -> out_valve_black [style=dotted];
 		}
@@ -45,7 +53,7 @@ digraph {
 			label="IN switch";
 			in_switch_red [color=red, label="pool"];
 			in_switch_white [style=dashed, label="spa"];
-			in_switch_com [label="com"];
+			in_switch_com [label="COM"];
 
 			in_switch_com -> in_switch_red [color=red, style=dotted];
 			in_switch_com -> in_switch_white [style=dotted];
@@ -54,7 +62,7 @@ digraph {
 			label="OUT switch";
 			out_switch_red [color=red, label="pool"];
 			out_switch_white [style=dashed, label="spa"];
-			out_switch_com [label="com"];
+			out_switch_com [label="COM"];
 
 			out_switch_com -> out_switch_red [color=red, style=dotted];
 			out_switch_com -> out_switch_white [style=dotted];
@@ -62,21 +70,21 @@ digraph {
 
 		subgraph cluster_stop_switch {
 			label="stop_switch";
-			stop_switch_com [label="com", color=orange];
-			stop_switch_no [label="no", color=orange];
+			stop_switch_com [label="COM", color=orange];
+			stop_switch_no [label="NO", color=orange];
 
 			stop_switch_com -> stop_switch_no [style=dotted, color=orange];
 		}
 		subgraph cluster_heater_switch {
 			label="heater_switch";
-			heater_switch_com [label="com"];
+			heater_switch_com [label="COM"];
 			heater_switch_spa [style=dashed, label="spa"];
 			heater_switch_pool [color=red, label="pool"];
 
 			heater_switch_com -> heater_switch_pool [color=red, style=dotted];
 			heater_switch_com -> heater_switch_spa [style=dotted];
 		}
-		pump_stop [color=orange];
+		
 
 		// wires DONE:
 		in_valve_black -> ac24v_neutral [style=dashed, color=brown];
@@ -89,37 +97,48 @@ digraph {
 		in_switch_white -> in_valve_white [style=dashed];
 		out_switch_red -> out_valve_red [style=dashed, color=red];
 		out_switch_white -> out_valve_white [style=dashed];
-		pump_stop -> ac24v_neutral [style=dashed, color=brown, weight=0];
+		// pump_stop -> pump -> ac24v_neutral [style=dashed, color=brown, weight=0];
 	// }
 
 	// subgraph cluster_5v {
 		// label="DC 5v";
 		// subgraph cluster_arduino {
 			// label="arduino";
-		
-			// pin_d1;
-			// pin_d2;
-			// pin_d3;
-			// pin_d4;
-			// pin_d5;
-			// pin_d6;
-			pin_d7 [color=orangered, label="cleaner_pump (d7)"];
-			pin_d8 [color=orange, label="stop (d8)"];
-			pin_d9 [color=red, label="in_pool (d9)"];
-			pin_d10 [style=dashed, label="in_spa (d10)"];
-			pin_d11 [color=red, label="out_pool (d11)"];
-			pin_d12 [style=dashed, label="out_spa (d12)"];
-			pin_a0 [color=green, label="flow (a0)"];
-			pin_a1 [label="valve current sens (a1)"];
-			// pin_a2;
-			// pin_a3;
-			pin_a4 [color=purple, label="sda (a4)"];
-			pin_a5 [color=purple, label="scl (a5)"];
-			// pin_a6;
-			// pin_a7;
-			pin_vcc [color=yellow];
-			pin_gnd [color=dimgray];
-		// }
+		arduino [shape=plaintext, label=<<table>
+			<tr><td colspan="2"><b>arduino</b></td></tr>
+			<tr><td port="p1">p1</td><td port="vin" bgcolor="yellow">vin</td></tr>
+			<tr><td port="p0">p0</td><td port="gnd0" bgcolor="dimgray">gnd0</td></tr>
+			<tr><td port="rst1">rst1</td><td port="rst0">rst0</td></tr>
+			<tr>
+				<td port="gnd1" bgcolor="dimgray">gnd1</td>
+				<td port="v5" bgcolor="yellow">v5</td></tr>
+			<tr><td port="p2">p2</td><td port="a7">a7</td></tr>
+			<tr><td port="p3">p3</td><td port="a6">a6</td></tr>
+			<tr><td port="p4">p4</td><td port="a5" bgcolor="purple">a5</td></tr>
+			<tr><td port="p5">p5</td><td port="a4" bgcolor="purple">a4</td></tr>
+			<tr><td port="p6">p6</td><td port="a3">a3</td></tr>
+			<tr><td port="p7">p7</td><td port="a2">a2</td></tr>
+			<tr><td port="p8" bgcolor="orange">p8</td><td port="a1" bgcolor="aquamarine">a1</td></tr>
+			<tr><td port="p9" bgcolor="red">p9</td><td port="a0" bgcolor="green">a0</td></tr>
+			<tr><td port="p10">p10</td><td port="aref">aref</td></tr>
+			<tr><td port="p11" bgcolor="red">p11</td><td port="v33">v33</td></tr>
+			<tr><td port="p12">p12</td><td port="p13" bgcolor="orangered">p13</td></tr>
+			</table>>];
+			// arduino:d8 [color=orange, label="stop (d8)"];
+			// arduino:d9 [color=red, label="in_pool (d9)"];
+			// arduino:d10 [style=dashed, label="in_spa (d10)"];
+			// arduino:d11 [color=red, label="out_pool (d11)"];
+			// arduino:d12 [style=dashed, label="out_spa (d12)"];
+			// arduino:a0 [color=green, label="flow (a0)"];
+			// arduino:a1 [label="valve current sens (a1)"];
+			// // arduino:a2;
+			// // arduino:a3;
+			// arduino:a4 [color=purple, label="sda (a4)"];
+			// arduino:a5 [color=purple, label="scl (a5)"];
+			// // arduino:a6;
+			// // arduino:a7;
+			// arduino:vcc [color=yellow];
+			// arduino:gnd [color=dimgray];
 
 		flow_switch [color=green];
 
@@ -131,205 +150,229 @@ digraph {
 
 			RTC [color=purple];
 			lcd_display [color=purple];
-			rotary_encoder [color=purple, style=dotted];
+			rotary_encoder [color=purple];
 
-			sda -> lcd_display [color=purple, style=dotted];
-			scl -> lcd_display [color=purple, style=dotted];
-			RTC, rotary_encoder -> sda [color=purple, style=dotted];
-			RTC, rotary_encoder -> scl [color=purple, style=dotted];
+			sda -> lcd_display [color=purple];
+			scl -> lcd_display [color=purple];
+			RTC, rotary_encoder -> sda [color=purple];
+			RTC, rotary_encoder -> scl [color=purple];
 		}
-		pin_a4 -> sda [color=purple, style=dotted];
-		sda -> pin_a4 [color=purple, style=dotted];
-		pin_a5 -> scl [color=purple, style=dotted];
-		// scl -> pin_a5 [color=purple, style=dotted];
+		arduino:a4 -> sda [color=purple];
+		arduino:a5 -> scl [color=purple];
+		// scl -> arduino:a5 [color=purple, style=dotted];
 		
 
 		dc_5v -> flow_switch [color=yellow, weight=0];
 	
-		// dc_5v -> pin_vcc [color=yellow];
-		// pin_gnd -> dc_gnd [color=dimgray];
-		flow_switch -> pin_a0 [style=dotted, color=green, weight=0];
+		// dc_5v -> arduino:vcc [color=yellow];
+		// arduino:gnd -> dc_gnd [color=dimgray];
+		arduino:a0 -> relay0:in_2  [color=green, weight=0];
 	// }
 
+	relay0 [shape=plaintext, label=<<table>
+		<tr><td colspan="2"><b>relay0</b></td></tr>
+		<tr><td></td><td port="nc_1" bgcolor="orange">NC_1</td></tr>
+		<tr><td></td><td port="com_1" bgcolor="orange">COM_1</td></tr>
+		<tr><td></td><td port="no_1" bgcolor="orange">NO_1</td></tr>
+		<tr><td></td><td port="nc_2" bgcolor="green">NC_2</td></tr>
+		<tr><td></td><td port="com_2" bgcolor="green">COM_2</td></tr>
+		<tr><td></td><td port="no_2" bgcolor="green">NO_2</td></tr>
+		<tr><td port="vcc" bgcolor="yellow">vcc</td><td port="nc_3">NC_3</td></tr>
+		<tr><td port="gnd" bgcolor="dimgray">gnd</td><td port="com_3">COM_3</td></tr>
+		<tr><td port="in_1" bgcolor="orange">IN_1</td><td port="no_3">NO_3</td></tr>
+		<tr><td port="in_2" bgcolor="green">IN_2</td><td port="nc_4">NC_4</td></tr>
+		<tr><td port="in_3">IN_3</td><td port="com_4">COM_4</td></tr>
+		<tr><td port="in_4">IN_4</td><td port="no_4">NO_4</td></tr>
+		</table>>];
 	// subgraph cluster_relay_0 {
 		// label="relay 0";
-		// r0_dc_in [color=yellow];
-		// r0_dc_gnd [color=dimgray];
+		// relay0:dc_in [color=yellow];
+		// relay0:dc_gnd [color=dimgray];
 
-		subgraph cluster_r0ch0 {
-			label="stop (r0ch0)";
-			r0_in_0 [color=orange, label="in_0"];
-			r0_com_0 [color=orange, label="com_0"];
-			r0_no_0 [color=orange, label="no_0"];
-			r0_nc_0 [color=orange, label="nc_0"];
-		}
-		subgraph cluster_r0ch1 {
-			label="flow (r0ch1, active low)";
-			r0_in_1 [color=green, label="in_1"];
-			r0_com_1 [color=green, label="com_1"];
-			r0_no_1 [color=green, label="no_1"];
-			r0_nc_1 [color=green, label="nc_1"];
-		}
+		// subgraph cluster_r0ch0 {
+		// 	label="stop (r0ch0)";
+		// 	relay0:in_0 [color=orange, label="in_0"];
+		// 	relay0:com_0 [color=orange, label="com_0"];
+		// 	relay0:no_0 [color=orange, label="no_0"];
+		// 	relay0:nc_0 [color=orange, label="nc_0"];
+		// }
+		// subgraph cluster_r0ch1 {
+		// 	label="flow (r0ch1, active low)";
+		// 	relay0:in_1 [color=green, label="in_1"];
+		// 	relay0:com_1 [color=green, label="com_1"];
+		// 	relay0:no_1 [color=green, label="no_1"];
+		// 	relay0:nc_1 [color=green, label="nc_1"];
+		// }
 		
 		// subgraph cluster_r0ch2 {
 		// 	label="ch1";
-		// 	r0_in_2;
-		// 	r0_com_2;
-		// 	r0_no_2;
-		// 	r0_nc_2;
+		// 	relay0:in_2;
+		// 	relay0:com_2;
+		// 	relay0:no_2;
+		// 	relay0:nc_2;
 		
 		// }
 		// subgraph cluster_r0ch3 {
 		// 	label="ch3";
-		// 	r0_in_3;
-		// 	r0_com_3;
-		// 	r0_no_3;
-		// 	r0_nc_3;
+		// 	relay0:in_3;
+		// 	relay0:com_3;
+		// 	relay0:no_3;
+		// 	relay0:nc_3;
 		// }
 		
-		# ch0 is pump_stop
-		r0_com_0 -> r0_nc_0 [color=orange, style=dashed, penwidth=2];
-		r0_com_0 -> r0_no_0 [color=orange, style=dashed];
-		r0_in_0 -> r0_com_0 [color=orange, style=dotted];
+		// # ch0 is pump_stop
+		// relay0:com_0 -> relay0:nc_0 [color=orange, style=dashed, penwidth=2];
+		// relay0:com_0 -> relay0:no_0 [color=orange, style=dashed];
+		// relay0:in_0 -> relay0:com_0 [color=orange, style=dotted];
 		
 
-		# ch1 is flow switch
-		r0_com_1 -> r0_nc_1 [color=green, style=dashed, penwidth=2];
-		r0_com_1 -> r0_no_1 [color=green, style=dashed];
-		r0_in_1 -> r0_com_1 [color=green, style=dotted];
+		// # ch1 is flow switch
+		// relay0:com_1 -> relay0:nc_1 [color=green, style=dashed, penwidth=2];
+		// relay0:com_1 -> relay0:no_1 [color=green, style=dashed];
+		// relay0:in_1 -> relay0:com_1 [color=green, style=dotted];
 		
-		// r0_com_2 -> r0_nc_2 [style=dashed, penwidth=2];
-		// r0_com_2 -> r0_no_2 [style=dashed];
-		// r0_in_2 -> r0_com_2 [style=dotted];
+		// ch2 eventually will be pump speed relay 0
+		// relay0:com_2 -> relay0:nc_2 [style=dashed, penwidth=2];
+		// relay0:com_2 -> relay0:no_2 [style=dashed];
+		// relay0:in_2 -> relay0:com_2 [style=dotted];
 		
-		// r0_com_3 -> r0_nc_3 [style=dashed, penwidth=2];
-		// r0_com_3 -> r0_no_3 [style=dashed];
-		// r0_in_3 -> r0_com_3 [style=dotted];
+		// ch3 eventually will be pump speed relay 1
+		// relay0:com_3 -> relay0:nc_3 [style=dashed, penwidth=2];
+		// relay0:com_3 -> relay0:no_3 [style=dashed];
+		// relay0:in_3 -> relay0:com_3 [style=dotted];
 
 	// }
 
+	relay1 [shape=plaintext, label=<<table>
+		<tr><td colspan="2"><b>relay1</b></td></tr>
+		<tr><td></td><td port="nc_1" bgcolor="red">NC_1</td></tr>
+		<tr><td></td><td port="com_1" bgcolor="green">COM_1</td></tr>
+		<tr><td></td><td port="no_1" bgcolor="red">NO_1</td></tr>
+		<tr><td></td><td port="nc_2">NC_2</td></tr>
+		<tr><td></td><td port="com_2">COM_2</td></tr>
+		<tr><td></td><td port="no_2">NO_2</td></tr>
+		<tr><td port="vcc" bgcolor="yellow">vcc</td><td port="nc_3" bgcolor="red">NC_3</td></tr>
+		<tr><td port="gnd" bgcolor="dimgray">gnd</td><td port="com_3" bgcolor="green">COM_3</td></tr>
+		<tr><td port="in_1" bgcolor="red">IN_1</td><td port="no_3" bgcolor="red">NO_3</td></tr>
+		<tr><td port="in_2">IN_2</td><td port="nc_4">NC_4</td></tr>
+		<tr><td port="in_3" bgcolor="red">IN_3</td><td port="com_4">COM_4</td></tr>
+		<tr><td port="in_4">IN_4</td><td port="no_4">NO_4</td></tr>
+	</table>>];
 	// subgraph cluster_relay_1 {
 	// 	label="relay 1";
 		// r1_dc_in [color=yellow];
 		// r1_dc_gnd [color=dimgray];
 
-		subgraph cluster_r1ch0 {
-			label="in_pool (r1ch0)";
-			r1_in_0 [color=red, label="in_0"];
-			r1_com_0 [color=red, label="com_0"];
-			r1_no_0 [color=red, label="no_0"];
-			r1_nc_0 [color=red, label="nc_0"];
-		}
-		subgraph cluster_r1ch1 {
-			label="in_spa (r1ch1)";
-			r1_in_1 [style=dashed, label="in_1"];
-			r1_com_1 [style=dashed, label="com_1"];
-			r1_no_1 [style=dashed, label="no_1"];
-			r1_nc_1 [style=dashed, label="nc_1"];
-		}
-		subgraph cluster_r1ch2 {
-			label="out_pool (r1ch2)";
-			r1_in_2 [color=red, label="in_2"];
-			r1_com_2 [color=red, label="com_2"];
-			r1_no_2 [color=red, label="no_2"];
-			r1_nc_2 [color=red, label="nc_2"];
-		}
-		subgraph cluster_r1ch3 {
-			label="out_spa (r1ch3)";
-			r1_in_3 [style=dashed, label="in_3"];
-			r1_com_3 [style=dashed, label="com_3"];
-			r1_no_3 [style=dashed, label="no_3"];
-			r1_nc_3 [style=dashed, label="nc_3"];
-		}
-		// ch0 is in valve red (pool)
-		r1_com_0 -> r1_nc_0 [color=red, style=dashed, penwidth=2];
-		r1_com_0 -> r1_no_0 [color=red, style=dashed];
-		r1_in_0 -> r1_com_0 [color=red, style=dotted];
+		// subgraph cluster_r1ch0 {
+		// 	label="in_pool (r1ch0)";
+		// 	r1_in_0 [color=red, label="in_0"];
+		// 	r1_com_0 [color=red, label="com_0"];
+		// 	r1_no_0 [color=red, label="no_0"];
+		// 	r1_nc_0 [color=red, label="nc_0"];
+		// }
+		// subgraph cluster_r1ch1 {
+		// 	label="in_spa (r1ch1)";
+		// 	r1_in_1 [style=dashed, label="in_1"];
+		// 	r1_com_1 [style=dashed, label="com_1"];
+		// 	r1_no_1 [style=dashed, label="no_1"];
+		// 	r1_nc_1 [style=dashed, label="nc_1"];
+		// }
+		// subgraph cluster_r1ch2 {
+		// 	label="out_pool (r1ch2)";
+		// 	r1_in_2 [color=red, label="in_2"];
+		// 	r1_com_2 [color=red, label="com_2"];
+		// 	r1_no_2 [color=red, label="no_2"];
+		// 	r1_nc_2 [color=red, label="nc_2"];
+		// }
+		// subgraph cluster_r1ch3 {
+		// 	label="out_spa (r1ch3)";
+		// 	r1_in_3 [style=dashed, label="in_3"];
+		// 	r1_com_3 [style=dashed, label="com_3"];
+		// 	r1_no_3 [style=dashed, label="no_3"];
+		// 	r1_nc_3 [style=dashed, label="nc_3"];
+		// }
+		// // ch0 is in valve red (pool)
+		// r1_com_0 -> r1_nc_0 [color=red, style=dashed, penwidth=2];
+		// r1_com_0 -> r1_no_0 [color=red, style=dashed];
+		// r1_in_0 -> r1_com_0 [color=red, style=dotted];
 		
-		// ch1 is in valve white (spa)
-		r1_com_1 -> r1_nc_1 [style=dashed, penwidth=2];
-		r1_com_1 -> r1_no_1 [style=dashed];
-		r1_in_1 -> r1_com_1 [style=dotted];
+		// // ch1 is in valve white (spa)
+		// r1_com_1 -> r1_nc_1 [style=dashed, penwidth=2];
+		// r1_com_1 -> r1_no_1 [style=dashed];
+		// r1_in_1 -> r1_com_1 [style=dotted];
 		
-		// ch2 is out red (pool)
-		r1_com_2 -> r1_nc_2 [color=red, style=dashed, penwidth=2];
-		r1_com_2 -> r1_no_2 [color=red, style=dashed];
-		r1_in_2 -> r1_com_2 [color=red, style=dotted];
+		// // ch2 is out red (pool)
+		// r1_com_2 -> r1_nc_2 [color=red, style=dashed, penwidth=2];
+		// r1_com_2 -> r1_no_2 [color=red, style=dashed];
+		// r1_in_2 -> r1_com_2 [color=red, style=dotted];
 		
-		// ch3 is out white (spa)
-		r1_com_3 -> r1_nc_3 [style=dashed, penwidth=2];
-		r1_com_3 -> r1_no_3 [style=dashed];
-		r1_in_3 -> r1_com_3 [style=dotted];
+		// // ch3 is out white (spa)
+		// r1_com_3 -> r1_nc_3 [style=dashed, penwidth=2];
+		// r1_com_3 -> r1_no_3 [style=dashed];
+		// r1_in_3 -> r1_com_3 [style=dotted];
 
 		// Partial feedback for exclusive operation
-		r1_nc_0 -> r1_com_1 [style=dashed];
-		r1_nc_2 -> r1_com_3 [style=dashed];
+		relay1:nc_1 -> relay1:com_2 [color=pink];
+		relay1:nc_3 -> relay1:com_4 [color=pink];
 	// }
 
-	subgraph cluster_relay_2 {
-		label="relay 2";
-		// r2_dc_in [color=yellow];
-		// r2_dc_gnd [color=dimgray];
+	relay2 [shape=plaintext label=<<table>
+		<tr><td colspan="2"><b>relay2</b></td></tr>
+		<tr><td></td><td port="nc_1">NC_1</td></tr>
+		<tr><td port="gnd" bgcolor="dimgray">gnd</td><td port="com_1">COM_1</td></tr>
+		<tr><td port="in_1">IN_1</td><td port="no_1">NO_1</td></tr>
+		<tr><td port="in_2">IN_2</td><td port="nc_2">NC_2</td></tr>
+		<tr><td port="vcc" bgcolor="yellow">vcc</td><td port="com_2">COM_2</td></tr>
+		<tr><td></td><td port="no_2">NO_2</td></tr>
+		</table>>];
 
-		subgraph cluster_r2ch0 {
-			label="cleaner_pump_l1 (r2ch0)";
-			r2_in_0 [color=orangered, label="in_0"];
-			r2_com_0 [color=orangered, label="com_0"];
-			r2_no_0 [color=orangered, label="no_0"];
-			r2_nc_0 [color=orangered, label="nc_0"];
-		}
-		subgraph cluster_r2ch1 {
-			label="cleaner_pump_l2 (r2ch1)";
-			r2_in_1 [color=orangered, label="in_1"];
-			r2_com_1 [color=orangered, label="com_1"];
-			r2_no_1 [color=orangered, label="no_1"];
-			r2_nc_1 [color=orangered, label="nc_1"];
-		}
-		// subgraph cluster_r2ch2 {
-		// 	label="ch1";
-		// 	r2_in_2;
-		// 	r2_com_2;
-		// 	r2_no_2;
-		// 	r2_nc_2;
-		
+	// subgraph cluster_relay_2 {
+	// 	label="relay 2";
+		// relay2:dc_in [color=yellow];
+		// relay2:dc_gnd [color=dimgray];
+
+		// subgraph cluster_r2ch0 {
+		// 	label="cleaner_pump_l1 (r2ch0)";
+		// 	relay2:in_0 [color=orangered, label="in_0"];
+		// 	relay2:com_0 [color=orangered, label="com_0"];
+		// 	relay2:no_0 [color=orangered, label="no_0"];
+		// 	relay2:nc_0 [color=orangered, label="nc_0"];
 		// }
-		// subgraph cluster_r2ch3 {
-		// 	label="ch3";
-		// 	r2_in_3;
-		// 	r2_com_3;
-		// 	r2_no_3;
-		// 	r2_nc_3;
+		// subgraph cluster_r2ch1 {
+		// 	label="cleaner_pump_l2 (r2ch1)";
+		// 	relay2:in_1 [color=orangered, label="in_1"];
+		// 	relay2:com_1 [color=orangered, label="com_1"];
+		// 	relay2:no_1 [color=orangered, label="no_1"];
+		// 	relay2:nc_1 [color=orangered, label="nc_1"];
 		// }
-		# ch0 is flow switch
-		r2_com_0 -> r2_nc_0 [color=orangered, style=dashed, penwidth=2];
-		r2_com_0 -> r2_no_0 [color=orangered, style=dashed];
-		r2_in_0 -> r2_com_0 [color=orangered, style=dotted];
+	// # ch0 is flow switch
+	// relay2:com_1 -> relay2:nc_1 [color=orangered, style=dashed, penwidth=2];
+	// relay2:com_1 -> relay2:no_1 [color=orangered, style=dashed];
+	// relay2:in_1 -> relay2:com_1 [color=orangered, style=dotted];
+	
+	// # ch2 is pump_stop
+	// relay2:com_2 -> relay2:nc_2 [color=orangered, style=dashed, penwidth=2];
+	// relay2:com_2 -> relay2:no_2 [color=orangered, style=dashed];
+	// relay2:in_2 -> relay2:com_2 [color=orangered, style=dotted];
 		
-		# ch2 is pump_stop
-		r2_com_1 -> r2_nc_1 [color=orangered, style=dashed, penwidth=2];
-		r2_com_1 -> r2_no_1 [color=orangered, style=dashed];
-		r2_in_1 -> r2_com_1 [color=orangered, style=dotted];
-		
-		// r2_com_2 -> r2_nc_2 [style=dashed, penwidth=2];
-		// r2_com_2 -> r2_no_2 [style=dashed];
-		// r2_in_2 -> r2_com_2 [style=dotted];
-		
-		// r2_com_3 -> r2_nc_3 [style=dashed, penwidth=2];
-		// r2_com_3 -> r2_no_3 [style=dashed];
-		// r2_in_3 -> r2_com_3 [style=dotted];
 
-	}
+	// subgraph cluster_valve_current_sensor {
+	// 	label="valve_current_sensor";
+	// 	valve_cur_sens_a;
+	// 	valve_cur_sens_b;
+	// 	valve_cur_sens_gnd [color=dimgray];
+	// 	valve_cur_sens_vcc [color=yellow];
+	// 	valve_cur_sens_out;
+	// }
+	valve_cur_sens [shape=plaintext, label=<<table>
+		<tr><td colspan="2"><b>Valve Current</b></td></tr>
+		<tr><td port="gnd" bgcolor="dimgray">gnd</td><td port="a" bgcolor="green">a</td></tr>
+		<tr><td port="out" bgcolor="aquamarine">out</td>
+			<td port="b" bgcolor="green">b</td></tr>
+		<tr><td port="vcc" bgcolor="yellow">vcc</td><td></td></tr>
+		</table>>];
 
-	subgraph cluster_valve_current_sensor {
-		label="valve_current_sensor";
-		valve_cur_sens_a;
-		valve_cur_sens_b;
-		valve_cur_sens_gnd [color=dimgray];
-		valve_cur_sens_vcc [color=yellow];
-		valve_cur_sens_out;
-	}
-
-	valve_cur_sens_out -> pin_a1 [style=dotted];
+	valve_cur_sens:out -> arduino:a1 [color=aquamarine];
 
 	// ac110v_line1 -> transformer [style=dashed];
 	// transformer -> ac110v_neutral [style=dashed];
@@ -338,42 +381,43 @@ digraph {
 
 	// cleaner_pump -> ac110v_neutral [style=dashed];
 
-	// dc_5v -> r0_dc_in [color=yellow];
-	// r0_dc_gnd -> dc_gnd [color=dimgray];
+	// dc_5v -> relay0:dc_in [color=yellow];
+	// relay0:dc_gnd -> dc_gnd [color=dimgray];
 	// dc_5v -> r1_dc_in [color=yellow];
 	// r1_dc_gnd -> dc_gnd [color=dimgray];
 
-	pin_d8 -> r0_in_0 [style=dotted];
-	pin_d9 -> r1_in_0 [style=dotted, color=red];
-	pin_d10 -> r1_in_1 [style=dotted];
-	pin_d11 -> r1_in_2 [style=dotted, color=red];
-	pin_d12 -> r1_in_3 [style=dotted];
+	arduino:p8 -> relay0:in_1 [color=orange];
+	arduino:p9 -> relay1:in_1 [color=red];
+	arduino:p10 -> relay1:in_2 [style=dotted];
+	arduino:p11 -> relay1:in_3 [color=red];
+	arduino:p12 -> relay1:in_4 [style=dotted];
 	
-	r1_no_0 -> in_switch_red [style=dashed, color=red];
-	r1_no_1 -> in_switch_white [style=dashed];
-	r1_no_2 -> out_switch_red [style=dashed, color=red];
-	r1_no_3 -> out_switch_white [style=dashed];
+	relay1:no_1 -> in_valve_red [style=dashed, color=red];
+	relay1:no_2 -> in_valve_white [style=dashed];
+	relay1:no_3 -> out_valve_red [style=dashed, color=red];
+	relay1:no_4 -> out_valve_white [style=dashed];
 
-	stop_switch_no -> r0_com_1 [style=dashed, color=orange];
-	flow_switch -> r0_in_1 [style=dotted, color=green, weight=0];
-	r0_no_1 -> valve_cur_sens_a [style=dashed, color=green];
+	pump_stop -> relay0:com_2 [style=dashed, color=orange];
+	flow_switch -> arduino:a0 [color=green];
+	relay0:no_2 -> valve_cur_sens:a [style=dashed, color=green];
 
-	stop_switch_com -> r0_com_0 [style=dashed, color=blue];
-	r0_no_0 -> stop_switch_no [style=dashed, color=orange];
+	ac24v_line -> relay0:com_1 [style=dashed, color=blue];
+	relay0:no_1 -> pump_stop [style=dashed, color=orange];
 	// stop_switch_no -> valve_cur_sens_a [style=dashed, color=orange];
-	valve_cur_sens_b -> in_switch_com [style=dashed, color=green];
-	in_switch_com -> out_switch_com [style=dashed, color=green];
-	in_switch_com -> r1_com_0 [style=dashed, color=green];
-	out_switch_com -> r1_com_2 [style=dashed, color=green];
+	valve_cur_sens:b -> flow_stopped [style=dashed, color=green];
+	relay1:com_1 -> in_switch_com [style=dashed, color=green];
+	relay1:com_3 -> out_switch_com [style=dashed, color=green];
+	flow_stopped -> relay1:com_1 [style=dashed, color=green];
+	flow_stopped -> relay1:com_3 [style=dashed, color=green];
 	// r1_com_0 -> r1_com_2 [color=green, style=dashed];
 
 	// pump_stop -> vsp_pump [style=dotted, color=orange, weight=0];
-	ac110v_line1 -> r2_com_0 [style=dashed, color=orangered];
-	ac110v_line2 -> r2_com_1 [style=dashed, color=orangered];
-	r2_in_0 -> r2_in_1 [style=dotted, color=orangered];
-	r2_no_0 -> cleaner_pump [color=orangered, style=dashed];
-	r2_no_1 -> cleaner_pump [color=orangered, style=dashed];
-	cleaner_pump -> ac110v_neutral [style=dashed];
+	clean_line1 -> relay2:com_1 [style=dashed, color=orangered, penwidth=5];
+	clean_line2 -> relay2:com_2 [style=dashed, color=orangered, penwidth=5];
+	relay2:in_1 -> relay2:in_2 [color=orangered];
+	relay2:no_1 -> cleaner_pump [color=orangered, style=dashed, penwidth=5];
+	relay2:no_2 -> cleaner_pump [color=orangered, style=dashed, penwidth=5];
+	// cleaner_pump -> ac110v_neutral [style=dashed, penwidth=5];
 
-	pin_d7 -> r2_in_0 [style=dotted, color=orangered];
+	arduino:p13 -> relay2:in_1 [color=orangered];
 }
