@@ -1,4 +1,16 @@
 
+IN_MM = 25.4;
+
+tall_standoff_h = 55;
+tall_standoff_threads = 6;
+tall_standoff_or = 3;
+
+module tall_standoff() {
+	cylinder(r=tall_standoff_or, h=tall_standoff_h);
+	translate([0, 0, -tall_standoff_threads])
+		cylinder(r=tall_standoff_or/2, h=tall_standoff_threads);
+}
+
 acdc_w = 26;
 acdc_h = 51;
 acdc_d = 26;
@@ -155,6 +167,175 @@ module relay4() {
 
 // ! relay4();
 
+toggle_sw_body = [19, 34, 28];
+toggle_or = 13/2;
+toggle_thread_h = 13;
+toggle_top_h = 30;
+toggle_top_or = 3;
+
+module toggle_switch() {
+	translate([0, 0, -toggle_sw_body[2]/2])
+		cube(toggle_sw_body, center=true);
+	cylinder(r=toggle_or, h=toggle_thread_h);
+	cylinder(r=toggle_top_or, h=toggle_top_h);
+}
+
+// ! toggle_switch();
+
+module toggle_cage() {
+	difference() {
+		translate([-17/2, -6-8, 0])
+			cube([17, 41, 2], center=false);
+		* translate([-17/2, -6-8-6, 0])
+			cube([17, 47, 30], center=false);
+		toggle_switch();
+
+	}
+}
+
+module stop_sw_face() {
+	difference() {
+		union() {
+			translate([0, 0, relay4_th/2])
+				cube([relay4_w, relay4_h, relay4_th], center=true);
+			
+		}
+		translate([-13, 0, 0]) {
+			# toggle_switch();
+			% translate([0, 0, relay4_th])
+				toggle_cage();
+			translate([0, -15, -1])
+				linear_extrude(4)
+				text(
+					"HEAT", 
+					font="Helvetica:style=Negreta", 
+					size=6, halign="center", valign="top");
+			translate([-10, 10, -1])
+				linear_extrude(4)
+				text(
+					"HIGH", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="right", valign="center");
+			translate([-10, -10, -1])
+				linear_extrude(4)
+				text(
+					"LOW", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="right", valign="center");
+			translate([-10, 0, -1])
+				linear_extrude(4)
+				text(
+					"OFF", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="right", valign="center");
+		}
+		translate([13, 0, 0]) {
+			# toggle_switch();
+			% translate([0, 0, relay4_th])
+				toggle_cage();
+			translate([0, -15, -1])
+				linear_extrude(4)
+				text(
+					"PUMP", 
+					font="Helvetica:style=Negreta", 
+					size=6, halign="center", valign="top");
+			translate([10, -10, -1])
+				linear_extrude(4)
+				text(
+					"RUN", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="left", valign="center");
+			translate([9, 10, -1])
+				linear_extrude(4)
+					text(
+					"STOP", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="left", valign="center");
+		}
+		relay4_holes();
+	}
+	% translate([0, 0, -tall_standoff_h - tall_standoff_threads+1]) {
+		relay4();
+		electronics_mount(relay4_hole_c_c);
+	}
+}
+
+
+module valve_sw_face() {
+	difference() {
+		union() {
+			translate([0, 0, relay4_th/2])
+				cube([relay4_w, relay4_h, relay4_th], center=true);
+			
+		}
+		translate([-11, 0, 0]) {
+			# toggle_switch();
+			% translate([0, 0, relay4_th])
+				toggle_cage();
+			translate([0, -15, -1])
+				linear_extrude(4)
+				text(
+					"IN", 
+					font="Helvetica:style=Negreta", 
+					size=6, halign="center", valign="top");
+			translate([-10, 10, -1])
+				linear_extrude(4)
+				text(
+					"SPA", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="right", valign="center");
+			translate([-10, -10, -1])
+				linear_extrude(4)
+				text(
+					"POOL", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="right", valign="center");
+			translate([-10, 0, -1])
+				linear_extrude(4)
+				text(
+					"AUTO", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="right", valign="center");
+		}
+		translate([11, 0, 0]) {
+			# toggle_switch();
+			% translate([0, 0, relay4_th])
+				toggle_cage();
+			translate([0, -15, -1])
+				linear_extrude(4)
+				text(
+					"OUT", 
+					font="Helvetica:style=Negreta", 
+					size=6, halign="center", valign="top");
+			translate([10, -10, -1])
+				linear_extrude(4)
+				text(
+					"POOL", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="left", valign="center");
+			translate([9, 10, -1])
+				linear_extrude(4)
+					text(
+					"SPA", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="left", valign="center");
+			translate([9, 0, -1])
+				linear_extrude(4)
+				text(
+					"AUTO", 
+					font="Helvetica:style=Negreta", 
+					size=4, halign="left", valign="center");
+		}
+		relay4_holes();
+	}
+	% translate([0, 0, -tall_standoff_h - tall_standoff_threads+1]) {
+		relay4();
+		electronics_mount(relay4_hole_c_c);
+	}
+}
+
+// ! stop_sw_face();
+
 lcd_2004_w = 99;
 lcd_2004_h = 60;
 lcd_2004_d = 10;
@@ -162,7 +343,7 @@ lcd_2004_clr = 15;
 lcd_2004_th = 2;
 lcd_2004_face_h = 40;
 lcd_2004_hole_c_c = [93, 55];
-lcd_2004_hole_ir = 3.5/2;
+lcd_2004_hole_ir = 3/2; //3.5/2;
 
 module lcd_2004_holes() {
 	for (x=[-0.5, 0.5])
@@ -170,7 +351,9 @@ module lcd_2004_holes() {
 		translate([
 			x*lcd_2004_hole_c_c[0],
 			y*lcd_2004_hole_c_c[1], -10])
-		cylinder(h=20, r=lcd_2004_hole_ir, center=false, $fn=20);
+		cylinder(h=60, r=lcd_2004_hole_ir, center=true, $fn=20);
+	translate([0, 0, 20])
+		cube([76, 26, 20], center=true);
 }
 
 module lcd_2004() {
@@ -180,6 +363,14 @@ module lcd_2004() {
 				cube([lcd_2004_w, lcd_2004_h, lcd_2004_th], center=true);
 			translate([0, 0, lcd_2004_d/2])
 				cube([lcd_2004_w, lcd_2004_face_h, lcd_2004_d], center=true);
+			translate([-lcd_2004_w/2+8, lcd_2004_h/2-20, -10])
+				cube([47, 19, 10]);
+			translate([-lcd_2004_w/2-10, lcd_2004_h/2-15, -10])
+				cube([20, 10, 11]);
+			// pins: 9mm to 49mm, 5mm tall, 1mm wide, 2.5mm in from long side
+			translate([-lcd_2004_w/2+9, lcd_2004_h/2-3, 2])
+				cube([40, 1, 6]);
+				// TODO: pins are 5 mm, not 6 tall
 		}
 		lcd_2004_holes();
 	}
@@ -187,15 +378,122 @@ module lcd_2004() {
 
 // ! lcd_2004();
 
+module cordgrip() {
+	translate([-62, -30, 0])
+		rotate([-90, 0, 0]) {
+			cylinder(r=13/2, h=50, $fn=64, center=true);
+			cylinder(r=21/2, h=5, $fn=6);
+	}
+}
+
+module cordgrip_wrap() {
+	difference() {
+		translate([-62, -28, 0])
+			rotate([-90, 0, 0])
+			cylinder(r=22/2, h=8, $fn=64, center=true);
+		// # cordgrip();	
+		translate([-62, -25, -9])
+			cube([24, 10, 20], center=true);
+	}
+}
+
+module display_front_face() {
+	difference() {
+		union() {
+			translate([-11, 0, 6])
+				cube([126, 64, 10], center=true);
+			cordgrip_wrap();
+		}
+		lcd_2004();
+		lcd_2004_holes();
+		translate([-62, 2, 0])
+			cube([22, 56, 20], center=true);
+		translate([0, -25, 5])
+			cube([99, 8, 10], center=true);
+		translate([0, 25, 5])
+			cube([99, 8, 10], center=true);
+		// % translate([-63, 0, 0])
+		// 	cube([19, 27, 11], center=true);
+		translate([-62, 0, 0])
+			cylinder(r=7/2, h=60, center=true);
+		cordgrip();
+	}
+}
+
+// ! display_front_face();
+
+module display_back_face() {
+	difference() {
+		union() {
+			translate([-11, 0, -5])
+				cube([126, 64, 12], center=true);
+		
+		}
+		lcd_2004();
+		lcd_2004_holes();
+		translate([0, 0, -5])
+			cube([96, 56, 10], center=true);
+		translate([-62, 2, 0])
+			cube([22, 56, 20], center=true);
+		cordgrip_wrap();
+		cordgrip();
+
+
+	}
+}
+
+! display_back_face();
+
+module display_design() {
+	// color(alpha=0.2) 
+		display_front_face();
+	// display_front_face_short();
+	// color(alpha=0.2) 
+		display_back_face();
+	// display_back_face_short();
+	// % lcd_2004();
+}
+
+! display_design();
+
+module display_front_face_short() {
+	intersection() {
+		display_front_face();
+		translate([0, 0, 10])
+			cube([200, 200, 1], center=true);
+	}
+}
+
+// ! display_front_face_short();
+
+module display_back_face_short() {
+	intersection() {
+		display_back_face();
+		translate([0, 0, 0])
+			cube([200, 200, 1], center=true);
+	}
+}
+
+// ! display_back_face_short();
+
 bbox_size = [250, 150, 100];
 
+// bbox_holes = [
+// 	[-64, 10],
+// 	[64, 10],
+// 	[-197/2, 112],
+// 	[197/2, 112],
+// 	[-30, 112],
+// 	[30, 112],
+// ];
+
 bbox_holes = [
-	[-64, 10],
-	[64, 10],
-	[-197/2, 112],
-	[197/2, 112],
-	[-30, 112],
-	[30, 112],
+	[-64, 1/2 * IN_MM],
+	[64, 1/2 * IN_MM],
+	[-7.75*IN_MM/2, 4.5 * IN_MM],
+	[7.75*IN_MM/2, 4.5 * IN_MM],
+	[-(2+3/8)*IN_MM/2, 4.5 * IN_MM],
+	[(2+3/8)*IN_MM/2, 4.5 * IN_MM],
 ];
 bbox_hole_r = 5/2;
 
@@ -250,9 +548,9 @@ module breaker_box_mount() {
 			translate([-85, 11.5, 0])
 				cube([170, 10, bbox_mount_th], center=false);
 			translate([-62, -50, bbox_mount_th/2])
-				cube([10, 30, bbox_mount_th], center=true);
+				cube([10, 35, bbox_mount_th], center=true);
 			translate([62, -50, bbox_mount_th/2])
-				cube([10, 30, bbox_mount_th], center=true);
+				cube([10, 35, bbox_mount_th], center=true);
 			
 		}
 		breaker_box_holes();
@@ -260,72 +558,6 @@ module breaker_box_mount() {
 }
 
 // breaker_box_mount();
-
-// intermatic_w = 123;
-// intermatic_l = 150;
-// intermatic_d = 30;
-// intermatic_h = 70;
-// intermatic_th = 2;
-// notch_w = 5;
-// notch_h = 20;
-
-// module intermatic_face() {
-// 	difference() {
-// 		cube([intermatic_w, intermatic_l, intermatic_th]);
-// 		for (x=[0, intermatic_w]) 
-// 			for (y=[0, intermatic_l])
-// 				translate([x, y, intermatic_th/2-1])
-// 				rotate([0, 0, 45])
-// 					cube([notch_h, notch_h, intermatic_th+3], center=true);
-// 		translate([intermatic_w - notch_w, intermatic_l - 78 - notch_h, -1])
-// 			cube([notch_w, notch_h, intermatic_th+2]);
-// 		translate([0, intermatic_l - 78 - notch_h, -1])
-// 			cube([notch_w, notch_h, intermatic_th+2]);
-// 		translate([21, intermatic_l - notch_w, -1])
-// 			cube([30, notch_w, intermatic_th+2]);
-// 		// translate([intermatic_w/2, intermatic_l/2, intermatic_th/2-1])
-// 		// 	cube([104, 130, intermatic_th+3], center=true);
-// 	}
-// }
-
-// module front_face() {
-// 	difference() {
-// 		translate([-intermatic_w/2, -intermatic_l/2, 0])
-// 		intermatic_face();
-// 		translate([0, 40, -lcd_2004_th]) {
-// 			# lcd_2004();
-// 			lcd_2004_holes();
-// 		}
-// 	}
-// }
-
-// module back_face() {
-// 	difference() {
-// 		translate([-intermatic_w/2, -intermatic_l/2, 0])
-// 		intermatic_face();
-// 		translate([-relay4_h/2-1, -relay4_w/2-1, intermatic_th+relay4_clr])
-// 			rotate([0, 0, 90]) {
-// 				% relay4();
-// 				relay4_holes();
-// 			}
-// 		translate([relay4_h/2+1, -8, intermatic_th+relay4_clr])
-// 			rotate([0, 0, 90]) {
-// 				% relay4();
-// 				relay4_holes();
-// 			}
-// 		translate([-relay2_h/2-1, relay2_w/2+1, intermatic_th+relay2_clr])
-// 			rotate([0, 0, 90]) {
-// 				% relay2();
-// 				relay2_holes();
-// 			}
-// 		// translate([acdc_h/2, acdc_w/2, intermatic_th])
-// 		translate([acdc_h/2+1, -60, intermatic_th+acdc_clr])
-// 			rotate([0, 0, 90]) {
-// 				% acdc();
-// 				acdc_holes();
-// 			}
-// 	}
-// }
 
 module electronics() {
 	translate(valve_relay_offset)
@@ -352,8 +584,9 @@ electronics_holes = [
 electronics_hole_r = 3/2;
 
 module electronics_holes(p, ir=electronics_hole_r) {
-	translate([p[0]/2, p[1]/2, 5/2])
+	translate([p[0]/2, p[1]/2, 5/2]) {
 		cylinder(r=ir, h=6, center=true, $fn=32);
+	}
 	translate([p[0]/2, -p[1]/2, 5/2])
 		cylinder(r=ir, h=6, center=true, $fn=32);
 	translate([-p[0]/2, p[1]/2, 5/2])
@@ -365,24 +598,36 @@ module electronics_holes(p, ir=electronics_hole_r) {
 module electronics_mount(p, ir=electronics_hole_r, or=5) {
 	difference() {
 		union() {
-			translate([p[0]/2, p[1]/2, 5/2])
+			translate([p[0]/2, p[1]/2, 5/2]) {
+				% translate([0, 0, 2.5])
+					tall_standoff();
 				cylinder(r1=or, r2=ir+1, h=5, center=true, $fn=32);
-			translate([-p[0]/2, p[1]/2, 5/2])
+			}
+			translate([-p[0]/2, p[1]/2, 5/2]) {
+				% translate([0, 0, 2.5])
+					tall_standoff();
 				cylinder(r1=or, r2=ir+1, h=5, center=true, $fn=32);
-			translate([p[0]/2, -p[1]/2, 5/2])
+			}
+			translate([p[0]/2, -p[1]/2, 5/2]) {
+				% translate([0, 0, 2.5])
+					tall_standoff();
 				cylinder(r1=or, r2=ir+1, h=5, center=true, $fn=32);
-			translate([-p[0]/2, -p[1]/2, 5/2])
+			}
+			translate([-p[0]/2, -p[1]/2, 5/2]) {
+				% translate([0, 0, 2.5])
+					tall_standoff();
 				cylinder(r1=or, r2=ir+1, h=5, center=true, $fn=32);
+			}
 		}
-		# electronics_holes(p);
+		electronics_holes(p);
 	}
 }
 
-acdc_offset = [0, -8, 0];
-tblock_offset = [0, -57, 0];
-arduino_offset = [-25, 46, 0];
-pump_relay_offset = [52.5, -8, 0];
-valve_relay_offset = [-52.5, -8, 0];
+acdc_offset = [0, -10, 0];
+tblock_offset = [0, -60, 0];
+arduino_offset = [-25, 44, 0];
+valve_relay_offset = [52.5, -10, 0];
+pump_relay_offset = [-52.5, -10, 0];
 clean_relay_offset = [36, 40, 0];
 clean_relay_rotation = [0, 0, 90];
 
@@ -436,8 +681,16 @@ module box_plate() {
 	// 	cube([intermatic_w, intermatic_l, intermatic_h]);
 }
 
-box_plate();
-// % breaker_box();
+module design() {
+	box_plate();
+	// % breaker_box();
+	translate(pump_relay_offset + [0, 0, 10])
+		stop_sw_face();
+	translate(valve_relay_offset + [0, 0, 10])
+		valve_sw_face();
+}
+
+design();
 
 module box_plate_short() {
 	intersection() {
@@ -448,6 +701,3 @@ module box_plate_short() {
 }
 
 // box_plate_short();
-
-// TODO: measure toggle switch
-// TODO: model face plate
