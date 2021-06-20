@@ -351,9 +351,7 @@ module lcd_2004_holes() {
 		translate([
 			x*lcd_2004_hole_c_c[0],
 			y*lcd_2004_hole_c_c[1], -10])
-		cylinder(h=60, r=lcd_2004_hole_ir, center=true, $fn=20);
-	translate([0, 0, 20])
-		cube([76, 26, 20], center=true);
+		cylinder(h=60, r=lcd_2004_hole_ir, center=true, $fn=32);
 }
 
 module lcd_2004() {
@@ -361,53 +359,89 @@ module lcd_2004() {
 		union() {
 			translate([0, 0, lcd_2004_th/2])
 				cube([lcd_2004_w, lcd_2004_h, lcd_2004_th], center=true);
-			translate([0, 0, lcd_2004_d/2])
+			translate([0, 0, lcd_2004_d/2 + lcd_2004_th])
 				cube([lcd_2004_w, lcd_2004_face_h, lcd_2004_d], center=true);
 			translate([-lcd_2004_w/2+8, lcd_2004_h/2-20, -10])
-				cube([47, 19, 10]);
-			translate([-lcd_2004_w/2-10, lcd_2004_h/2-15, -10])
-				cube([20, 10, 11]);
+				cube([47, 20, 10]);
+			translate([-lcd_2004_w/2-10, lcd_2004_h/2-16, -10])
+				cube([20, 12, 11]);
 			// pins: 9mm to 49mm, 5mm tall, 1mm wide, 2.5mm in from long side
 			translate([-lcd_2004_w/2+9, lcd_2004_h/2-3, 2])
 				cube([40, 1, 6]);
 				// TODO: pins are 5 mm, not 6 tall
 		}
 		lcd_2004_holes();
+		// translate([0, 0, 20])
+		// 	cube([76, 26, 20], center=true);
 	}
 }
 
 // ! lcd_2004();
 
 module cordgrip() {
-	translate([-62, -30, 0])
+	translate([-62, -30, 6])
 		rotate([-90, 0, 0]) {
-			cylinder(r=13/2, h=50, $fn=64, center=true);
-			cylinder(r=21/2, h=5, $fn=6);
+			cylinder(r=13/4, h=50, $fn=64, center=true);
+			// cylinder(r=21/2, h=5, $fn=6);
 	}
 }
 
-module cordgrip_wrap() {
-	difference() {
-		translate([-62, -28, 0])
-			rotate([-90, 0, 0])
-			cylinder(r=22/2, h=8, $fn=64, center=true);
-		// # cordgrip();	
-		translate([-62, -25, -9])
-			cube([24, 10, 20], center=true);
+// module cordgrip_wrap() {
+// 	difference() {
+// 		translate([-62, -28, 0])
+// 			rotate([-90, 0, 0])
+// 			cylinder(r=22/2, h=8, $fn=64, center=true);
+// 		// # cordgrip();	
+// 		translate([-62, -25, -9])
+// 			cube([24, 10, 20], center=true);
+// 	}
+// }
+
+module display_seam() {
+	intersection() {
+		translate([-74, 31, 0])
+			rotate([45, 0, 0])
+			cube([125, 2, 2]);
+		translate([-74, 30, 0])
+			cube([125, 1, 1]);
+	}
+	intersection() {
+		translate([-74, -31, 0])
+			rotate([45, 0, 0])
+			cube([125, 2, 2]);
+		translate([-74, -31, 0])
+			cube([125, 1, 1]);
+	}
+	intersection() {
+		translate([50, -31, 1])
+			rotate([0, 45, 0])
+			cube([2, 62, 2]);
+		translate([50, -31, 0])
+			cube([1, 62, 1]);
+	}
+	intersection() {
+		translate([-74, -31, 0])
+			rotate([0, -45, 0])
+			cube([2, 62, 2]);
+		translate([-74, -31, 0])
+			cube([1, 62, 1]);
 	}
 }
 
 module display_front_face() {
 	difference() {
 		union() {
-			translate([-11, 0, 6])
-				cube([126, 64, 10], center=true);
-			cordgrip_wrap();
+			translate([-11.5, 0, 7])
+				cube([125, 62, 12], center=true);
+			// cordgrip_wrap();
+			display_seam();
 		}
 		lcd_2004();
+		translate([0, 0, 20])
+			cube([76, 26, 20], center=true);
 		lcd_2004_holes();
-		translate([-62, 2, 0])
-			cube([22, 56, 20], center=true);
+		translate([-62, 0, 0])
+			cube([22, 60, 20], center=true);
 		translate([0, -25, 5])
 			cube([99, 8, 10], center=true);
 		translate([0, 25, 5])
@@ -415,7 +449,7 @@ module display_front_face() {
 		// % translate([-63, 0, 0])
 		// 	cube([19, 27, 11], center=true);
 		translate([-62, 0, 0])
-			cylinder(r=7/2, h=60, center=true);
+			cylinder(r=7/2, h=60, center=true, $fn=64);
 		cordgrip();
 	}
 }
@@ -425,30 +459,34 @@ module display_front_face() {
 module display_back_face() {
 	difference() {
 		union() {
-			translate([-11, 0, -5])
-				cube([126, 64, 12], center=true);
+			translate([-11.5, 0, -5])
+				cube([125, 62, 12], center=true);
 		
 		}
+		mirror([0, 1, 0])
+			display_seam();
 		lcd_2004();
 		lcd_2004_holes();
 		translate([0, 0, -5])
 			cube([96, 56, 10], center=true);
 		translate([-62, 2, 0])
 			cube([22, 56, 20], center=true);
-		cordgrip_wrap();
-		cordgrip();
+		// cordgrip_wrap();
+		// cordgrip();
 
 
 	}
 }
 
-! display_back_face();
+// ! display_back_face();
 
-module display_design() {
-	// color(alpha=0.2) 
+module display_design(explode=15) {
+	// color(alpha=0.2)
+	translate([0, 0, explode]) 
 		display_front_face();
 	// display_front_face_short();
 	// color(alpha=0.2) 
+	translate([0, 0, -explode])
 		display_back_face();
 	// display_back_face_short();
 	// % lcd_2004();
