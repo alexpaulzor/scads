@@ -1,15 +1,22 @@
+#include <Wire.h>
+// #include <LiquidCrystal_I2C.h>
+#include "LCD03.h"
 #define ENCODER_OPTIMIZE_INTERRUPTS
 #include <Encoder.h>
 #include "poolbot.h"
 
+LCD03 lcd(0x27);
+
 Encoder i_enc(PIN_INPUT_CLK, PIN_INPUT_DT);
 long last_position = 0;
-long input_delta = 0;
+long adjustment_value = 0;
 long edit_multiplier = 1;
 t_edit_fn edit_show_fn = NULL;
 t_edit_fn edit_save_fn = NULL;
 
 long cur_time = 0;
+long cur_speed = 0;
+long override_until = 0;
 
 t_port in_valve_port = UNKOWN;
 t_port out_valve_port = UNKOWN;
@@ -19,7 +26,8 @@ t_menu_item * cur_menu_item = &root_menu_item;
 int selected_menu_idx = 0;
 bool button_was_pressed = false;
 
-t_schedule_item * next_schedule_item = NULL;
+
+// t_schedule_item * next_schedule_item = NULL;
 
 
 
@@ -30,15 +38,11 @@ t_schedule_item * next_schedule_item = NULL;
 
 void configure_menu_item(
 		t_menu_item* item, 
-		String name, 
-		t_menu_fn menu_fn, 
-		t_menu_item** children) {
-	item->name = name;
-	Serial.println("Configuring " + item->name);
-	item->menu_fn = menu_fn;
-	int num_children = sizeof(children);
-	if (num_children != 0) 
-		num_children = num_children / sizeof(children[0]);
+		t_menu_item** children,
+		int num_children) {
+	Serial.println("Configuring " + item->name + 
+		" (" + String(num_children) + " children)");
+	item->num_children = num_children;
 	for (int i = 0; i < MENU_MAX_CHILDREN; i++) {
 		if (i < num_children) {
 			item->children[i] = children[i];
@@ -50,41 +54,96 @@ void configure_menu_item(
 }
 
 void setup_menus() {
-	t_menu_item* set_time_menu_children[] = {
-		&set_time_menu_item,
-		&root_menu_item,
-	};
+	t_menu_item* no_children[] = {};
+	
 	configure_menu_item(
 		&set_time_menu_item, 
-		"Set Time",
-		&menu_set_time,
-		set_time_menu_children);
+		no_children,
+		0);
+	configure_menu_item(
+		&set_speed_menu_item,
+		no_children,
+		0);
+	configure_menu_item(
+		&set_duration_menu_item,
+		no_children,
+		0);
+	configure_menu_item(
+		&spa_menu_item, 
+		no_children,
+		0);
+	configure_menu_item(
+		&pool_menu_item, 
+		no_children,
+		0);
+	configure_menu_item(
+		&wfall_menu_item, 
+		no_children,
+		0);
+	configure_menu_item(
+		&clean_menu_item, 
+		no_children,
+		0);
+	configure_menu_item(
+		&stop_menu_item, 
+		no_children,
+		0);
 
 	t_menu_item* root_menu_children[] = {
+		&set_speed_menu_item,
+		&set_duration_menu_item,
 		&spa_menu_item,
 		&pool_menu_item,
 		&wfall_menu_item,
 		&clean_menu_item,
 		&stop_menu_item,
-		&edit_schedule_menu_item,
+		// &edit_schedule_menu_item,
 		&set_time_menu_item,
 	};
 	configure_menu_item(
 		&root_menu_item, 
-		"Return",
-		&menu_root,
-		root_menu_children);
-}
-
-void populate_schedule() {
-	// TODO: fill in default schedule
+		root_menu_children,
+		8);
 }
 
 void menu_root() {
-	if (next_schedule_item == NULL) {
-		populate_schedule();
-	}
+	// TODO: fill in default schedule
 }
+
+void show_duration(long time) {
+	int minutes = time / 1000 / 60;
+	Serial.println(String(minutes) + " minutes");
+}
+
+void set_duration(long duration) {
+	override_until = millis() + adjustment_value;
+}
+
+void menu_set_duration() {
+	adjustment_value = override_until - millis();
+	if (adjustment_value <= 0)
+		adjustment_value = 3 * 60 * 60 * 1000; // 3h default
+	edit_multiplier = 1000 * 60 * 15; // 15 minutes per click
+	edit_show_fn = show_duration;
+	edit_save_fn = set_duration;
+}
+
+void show_speed(long speed) {
+	Serial.println(String(speed) + " rpm");
+}
+
+void set_speed(long speed) {
+	// TODO: set speed
+	cur_speed = speed;
+}
+
+void menu_set_speed() {
+	adjustment_value = cur_speed;
+	edit_multiplier = 100;
+	edit_show_fn = show_speed;
+	edit_save_fn = set_speed;
+}
+
 void menu_spa() {
 	
 }
@@ -101,14 +160,16 @@ void menu_stop() {
 	stop_cleaner();
 	stop_pump();
 }
-void menu_edit_schedule() {
+// void menu_edit_schedule() {
 	
-}
+// }
 
 void show_time(long time) {
 	int hr = time / 1000 / 60 / 60;
 	int minutes = time / 1000 / 60 % 60;
-	Serial.println(String(hr) + ":" + String(minutes));
+	char buffer[21];
+	sprintf(buffer, "%02d:%02d");
+	Serial.println(buffer);
 }
 
 void set_time(long time) {
@@ -117,12 +178,12 @@ void set_time(long time) {
 }
 
 void menu_set_time() {
+	// TODO: interface with rtc
 	cur_time = millis();
-	input_delta = cur_time;
+	adjustment_value = cur_time;
 	edit_multiplier = 1000 * 60 * 15; // 15 minutes per click
 	edit_show_fn = show_time;
 	edit_save_fn = set_time;
-	input_var = &cur_time;
 }
 
 bool is_flow_detected() {
@@ -182,11 +243,13 @@ void print_display() {
 	} else 
 		return;
 
-	if (input_var != NULL) {
-		edit_show_fn(input_var);
+	if (edit_show_fn != NULL) {
+		Serial.println("Adjusting value: " + String(adjustment_value));
+		edit_show_fn(adjustment_value);
 		return;
 	}
-
+	Serial.println("In menu " + cur_menu_item->name + 
+		"; idx = " + String(selected_menu_idx));
 	int di = 0;
 	if (selected_menu_idx > 3)
 		di = 4;
@@ -215,6 +278,9 @@ void print_display() {
 		io += "?";
 	Serial.println(io);
 
+	// Serial.println(
+	// 	"Position: " + String(i_enc.read()) + 
+	// 	"; Button: " + String(button_was_pressed));
 	// TODO: print RPM
 	// TODO: print time remaining
 }
@@ -265,47 +331,61 @@ void stop_cleaner() {
 	digitalWrite(PIN_CLEANER_PUMP, LOW);
 }
 
-void handle_input(long delta_position) {
+void handle_input() {
+	bool refresh = false;
 	long new_position = i_enc.read();
-	long delta_position = new_position - last_position;
+	long delta_position = (new_position - last_position) / 3;
 	if (delta_position != 0) {
-		if (input_var != NULL)
-			input_var += delta_position;
+		if (edit_show_fn != NULL)
+			adjustment_value += abs(delta_position) / delta_position * edit_multiplier;
 		else {
-			selected_menu_idx += delta_position;
-			if (selected_menu_idx < 0)
-				selected_menu_idx = 0;
-			while (
-					cur_menu_item->children[selected_menu_idx] == NULL 
-					&& selected_menu_idx > 0)
-				selected_menu_idx--;
+			selected_menu_idx -= abs(delta_position) / delta_position;
+			selected_menu_idx = constrain(selected_menu_idx, 0, cur_menu_item->num_children - 1);
 		}
-		print_display();
+		// print_display();
+		refresh = true;
 	}
 	last_position = new_position;
 
-	bool button_pressed = (digitalRead(PIN_UI_SW) == HIGH);
+	bool button_pressed = (digitalRead(PIN_UI_SW) == LOW);
 	if (button_pressed && !button_was_pressed) {
-		if (input_var != NULL) {
-			// Finished updating var
-			input_var = NULL;
-
+		Serial.println("Detected button press");
+		if (edit_save_fn != NULL) {
+			Serial.println("Saving adjustment");
+			edit_save_fn(adjustment_value);
+			edit_show_fn = NULL;
+			edit_save_fn = NULL;
 		} else {
 			t_menu_item* next_menu_item = cur_menu_item->children[selected_menu_idx];
-			selected_menu_idx = 0;
-			cur_menu_item = next_menu_item;
+			// selected_menu_idx = 0;
+			Serial.println("Selecting menu item " + next_menu_item->name);
 			next_menu_item->menu_fn();
+			if (next_menu_item->num_children > 0) {
+				cur_menu_item = next_menu_item;
+				selected_menu_idx = constrain(selected_menu_idx, 0, cur_menu_item->num_children - 1);
+				Serial.println("Entering menu item " + cur_menu_item->name);
+			}
 		}
-		print_display();
+	// 	// print_display();
+		refresh = true;
+	} else if (button_pressed != button_was_pressed) {
+		Serial.println("Detected button release");
+		refresh = true;
 	}
 	button_was_pressed = button_pressed;
+	if (refresh)
+		print_display();
 }
 
 void setup() {
-	IF_SERIAL Serial.begin(115200);
+	lcd.begin(20, 4);
+	lcd.backlight();
+	lcd.print("Hello, world!");
+	// IF_SERIAL Serial.begin(9600);
+	// Serial.println("setup begin");
 	pinMode(PIN_FLOW_SWITCH, INPUT);
 	pinMode(PIN_VALVE_CURRENT, INPUT);
-	pinMode(PIN_UI_SW, INPUT);
+	pinMode(PIN_UI_SW, INPUT_PULLUP);
 	pinMode(PIN_STOP_PUMP, OUTPUT);
 	pinMode(PIN_VALVE_IN_POOL, OUTPUT);
 	pinMode(PIN_VALVE_IN_SPA, OUTPUT);
@@ -313,11 +393,14 @@ void setup() {
 	pinMode(PIN_VALVE_OUT_SPA, OUTPUT);
 	pinMode(PIN_CLEANER_PUMP, OUTPUT);
 
-	last_position = i_enc.read();
+	
 
-	// TODO: setup i2c
+	
+	// lcd.display();
 
-	setup_menus();
+	// last_position = i_enc.read();
+
+	// setup_menus();
 
 	stop_valve(IN);
 	stop_valve(OUT);
@@ -326,13 +409,21 @@ void setup() {
 
 	// TODO: stop pumps
 	// TODO: wiggle valves to determine state
-	print_display();
+	// print_display();
+	// Serial.println("setup complete");
 }
 
 void loop() {
-	handle_input();
+	// lcd.print("Hello, world!");
+	// delay(1000);
+	// Serial.println("loop begin");
+	// handle_input();
 
 	// update_display();
+	// lcd.print("Hello, world!");
+	// lcd.display();
+	// delay(100);
+	// Serial.println("loop complete");
 }
 
 

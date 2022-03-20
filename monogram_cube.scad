@@ -195,6 +195,8 @@ module gkm() {
 module ojm() {
     emblem_cube("O", "M", "J", emblem_x=48);
 }
+
+ ! ojm();
 module zpm() {
     emblem_cube("Z", "M", "P", emblem_x=48);
 }

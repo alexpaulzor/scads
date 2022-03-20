@@ -4,14 +4,11 @@
 #define POOLBOT_H
 
 #define IF_SERIAL if (true) // if (false)
-// TODO: i2c library
 // TODO: RTC library
-// TODO: LCD library
-// #include <Encoder.h>
-// TODO: rotary encoder library
 
-#define PIN_INPUT_CLK 2
-#define PIN_INPUT_DT 3
+
+#define PIN_INPUT_DT 2
+#define PIN_INPUT_CLK 3
 #define PIN_UI_SW 4
 #define PIN_CLEANER_PUMP 13
 
@@ -53,49 +50,20 @@ typedef void (*t_edit_fn)(long);
 
 typedef void (*t_schedule_fn)(void); 
 
-typedef struct t_schedule_item {
-	long time;
-	t_schedule_fn schedule_fn;
-	struct t_schedule_item * next;
-} t_schedule_item;
+// typedef struct t_schedule_item {
+// 	long time;
+// 	t_schedule_fn schedule_fn;
+// 	struct t_schedule_item * next;
+// } t_schedule_item;
 
 typedef struct t_menu_item {
 	String name;
-	struct t_menu_item * children[MENU_MAX_CHILDREN];
 	t_menu_fn menu_fn;
+	int num_children;
+	struct t_menu_item * children[MENU_MAX_CHILDREN];
 } t_menu_item;
 
-
-void menu_root();
-void menu_spa();
-void menu_pool();
-void menu_wfall();
-void menu_clean();
-void menu_stop();
-void menu_edit_schedule();
-void menu_set_time();
-
-t_menu_item root_menu_item;
-t_menu_item spa_menu_item;
-t_menu_item pool_menu_item;
-t_menu_item wfall_menu_item;
-t_menu_item clean_menu_item;
-t_menu_item stop_menu_item;
-t_menu_item edit_schedule_menu_item;
-t_menu_item set_time_menu_item;
-
-void configure_menu_item(
-		t_menu_item* item, 
-		String name, 
-		t_menu_fn menu_fn, 
-		int num_children, 
-		t_menu_item** children);
-
-void setup_menus();
-
 /*
-MENUS
-
 Root:
   1 3 5 7 901 3 5 7 90
   --------------------
@@ -108,39 +76,90 @@ A|>All Stop           |
 B| Edit schedule      |
 C| Set time           |
 D|                    |
+*/
+void menu_root();
+t_menu_item root_menu_item = {
+	"Return",
+	&menu_root
+};
 
+/*
 Spa:
   1 3 5 7 901 3 5 7 90
   --------------------
 A|>Return   |     S->S|
 B| Set Speed| xxxx rpm|
-C| Set Time |yy:zz rem|
+C| Set Dur. |yy:zz rem|
 D|          |         |
+*/
 
-Pool -> set_duration ->
+void menu_spa();
+t_menu_item spa_menu_item = {
+	"Spa",
+	&menu_spa
+};
+
+void menu_set_speed();
+t_menu_item set_speed_menu_item = {
+	"Set Speed",
+	&menu_set_speed
+};
+
+void menu_set_duration();
+t_menu_item set_duration_menu_item = {
+	"Set Duration",
+	&menu_set_duration
+};
+
+/*
+Pool
   1 3 5 7 901 3 5 7 90
   --------------------
-A| Spa     |      i->o|
-B|>Return  |  xxxx rpm|
-C| WFall   | yy:zz rem|
-D| Clean   |          |
+A|>Return   |     P->P|
+B| Set Speed| xxxx rpm|
+C| Set Dur. |yy:zz rem|
+D|          |         |
+*/
 
+void menu_pool();
+t_menu_item pool_menu_item = {
+	"Pool",
+	&menu_pool
+};
+
+/*
 WFall -> set_duration ->
   1 3 5 7 901 3 5 7 90
   --------------------
-A| Spa     |      i->o|
-B| Pool    |  xxxx rpm|
-C|>Return  | yy:zz rem|
-D| Clean   |          |
+A|>Return   |     P->S|
+B| Set Speed| xxxx rpm|
+C| Set Dur. |yy:zz rem|
+D|          |         |
+*/
 
-Clean -> set_duration -> set_boost_duration (default=same) ->
+void menu_wfall();
+t_menu_item wfall_menu_item = {
+	"W Fall",
+	&menu_wfall
+};
+
+/*
+Clean 
   1 3 5 7 901 3 5 7 90
   --------------------
-A| Spa     |      i->o|
-B| Pool    |  xxxx rpm|
-C| WFall   | yy:zz rem|
-D|>Return  |          |
+A|>Return   |     P->P|
+B| Set Speed| xxxx rpm|
+C| Set Dur. |yy:zz rem|
+D|          |         |
+*/
 
+void menu_clean();
+t_menu_item clean_menu_item = {
+	"Clean",
+	&menu_clean
+};
+
+/*
 All Stop:
   1 3 5 7 901 3 5 7 90
   --------------------
@@ -148,7 +167,15 @@ A|>Return
 B|
 C|
 D|
+*/
 
+void menu_stop();
+t_menu_item stop_menu_item = {
+	"Stop",
+	&menu_stop
+};
+
+/*
 Edit schedule:
   1 3 5 7 901 3 5 7 90
   --------------------
@@ -156,13 +183,28 @@ A| Clean (hh:mm)
 B| BotOff (hh:mm)
 C| Stop (hh:mm)
 D| Waterfall (hh:mm)
-
-Set Time -> set_duration (default=now) -> Root
-
-
-End * -> Root
-Return -> Root
 */
+// void menu_edit_schedule();
+// t_menu_item edit_schedule_menu_item = {
+// 	"Edit Schedule",
+// 	&menu_edit_schedule
+// };
+
+/*
+Set Time -> set_duration (default=now) -> Root
+*/
+void menu_set_time();
+t_menu_item set_time_menu_item = {
+	"Set Time",
+	&menu_set_time
+};
+
+void configure_menu_item(
+		t_menu_item* item, 
+		t_menu_item** children,
+		int num_children);
+
+void setup_menus();
 
 
 # endif // POOLBOT_H
