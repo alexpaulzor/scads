@@ -44,4 +44,34 @@ module rev_a_tray() {
     }
 }
 
-rev_a_tray();
+// rev_a_tray();
+
+
+bearing_h = 7;
+bearing_ir = 4;
+bearing_or = 11;
+module bearing(clr=0.2) {
+    // difference() {
+        # cylinder(r2=bearing_or, r1=bearing_or + clr, h=bearing_h+1, center=true, $fn=128);
+        // cylinder(r=bearing_ir, h=bearing_h*2, center=true);
+    // }
+}
+
+roller_or = 25;
+
+module roller() {
+    difference() {
+        union() {
+            rotate_extrude($fn=64) {
+                translate([roller_or - bearing_h/2, 0, 0])
+                    circle(r=bearing_h/2, $fn=64);
+            }
+            translate([0, 0, -bearing_h/2 + 1])
+                cylinder(r=roller_or - bearing_h/2, h=2, center=true);
+            cylinder(r=bearing_or + 2, h=bearing_h, center=true);
+        }
+        bearing();
+    }
+}
+
+// ! roller();

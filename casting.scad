@@ -37,14 +37,21 @@ module big_flask() {
 module draft_cube(dims, center=false, draft_angle=draft_angle, invert=false) {
     translate(center ? [0, 0, 0] : dims/2)
         rotate(invert ? [180, 0, 0] : [0, 0, 0])
-		_draft_cube(dims, draft_angle=draft_angle);
+		_draft_cube(dims, draft_angle=[draft_angle, draft_angle]);
 	
 }
 
-module _draft_cube(dims, draft_angle=draft_angle) {
+module draft_cube2(dims, center=false, draft_angle=[draft_angle, draft_angle], invert=false) {
+    translate(center ? [0, 0, 0] : dims/2)
+        rotate(invert ? [180, 0, 0] : [0, 0, 0])
+        _draft_cube(dims, draft_angle=draft_angle);
+    
+}
+
+module _draft_cube(dims, draft_angle=[draft_angle, draft_angle]) {
 	draft_dims = [
-		dims[0] - dims[2] * sin(draft_angle),
-		dims[1] - dims[2] * sin(draft_angle),
+		dims[0] - dims[2] * sin(draft_angle[0]),
+		dims[1] - dims[2] * sin(draft_angle[1]),
 		dims[2]];
 	hull() {
         translate([0,0,-dims[2]/2])
