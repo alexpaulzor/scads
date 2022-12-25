@@ -46,19 +46,20 @@ module dw_sign() {
 module clip(clr=0) {
     difference() {
         draft_cube2([
-            clip_w + clr, sign_th, handle_od
+            clip_w + clr, sign_th * 2, handle_od
             ], center=true, draft_angle=[10, 0]);
-        translate([0, -sign_th/2, 
-                handle_od/2 - sign_th - clr/2])
-            cube([clip_w*2, sign_th, 
-                sign_th/4], center=true); 
-
-        translate([0, -sign_th, handle_od/2 - sign_th/2])
-            rotate([-45, 0, 0])
-            cube([clip_w*2, sign_th, handle_od-sign_th*2], center=true);
-        translate([0, -sign_th, 0])
-            rotate([-10, 0, 0])
-            cube([clip_w*2, sign_th, handle_od-sign_th*2], center=true);
+        // *translate([0, -sign_th/2, 
+        //         handle_od/2 - sign_th - clr/2])
+        //     cube([clip_w*2, sign_th, 
+        //         sign_th/4], center=true); 
+        for (dz=[0:handle_od/3:handle_od - sign_th]) {
+            translate([0, -sign_th, handle_od/2 - sign_th/2 - dz])
+                rotate([-45, 0, 0])
+                cube([clip_w*2, sign_th, handle_od/1.7-sign_th*2 - dz], center=true);
+            translate([0, -sign_th, -dz])
+                rotate([-10, 0, 0])
+                cube([clip_w*2, sign_th, handle_od-sign_th*2], center=true);
+        }
     }
     
 
