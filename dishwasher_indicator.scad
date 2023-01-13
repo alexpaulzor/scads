@@ -7,7 +7,7 @@ font = "Times:style=Bold";
 // font = "neo latina:style=Regular";
 tsize = 14;
 clip_w = 8;
-clr = 1;
+clr = 2;
 
 
 module handle() {
@@ -52,7 +52,7 @@ module clip(clr=0) {
         //         handle_od/2 - sign_th - clr/2])
         //     cube([clip_w*2, sign_th, 
         //         sign_th/4], center=true); 
-        for (dz=[0:handle_od/3:handle_od - sign_th]) {
+        for (dz=[0:handle_od/1:handle_od - sign_th]) {
             translate([0, -sign_th, handle_od/2 - sign_th/2 - dz])
                 rotate([-45, 0, 0])
                 cube([clip_w*2, sign_th, handle_od/1.7-sign_th*2 - dz], center=true);
@@ -69,7 +69,7 @@ module clip(clr=0) {
 
 module clip_design() {
     // % clip(-1);
-    % clip(1);
+    % clip(clr);
     clip();
 }
 
@@ -169,7 +169,8 @@ module square_design() {
 
 module design() {
     dirty_side_round();
-    clean_side_round();
+    translate([0, 0, 10])
+        # clean_side_round();
     // % dw_sign();    
 }
 

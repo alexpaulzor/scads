@@ -6,7 +6,7 @@ flap_w = 20;
 wing_l = frame_l / 2;
 corner_r = 5;
 hole_ir = 3/2;
-FOLD_DEG = 45;
+FOLD_DEG = 90;
 
 mesh_hole = 10;
 mesh_wall = 3;
@@ -18,15 +18,17 @@ chain_w = 15;
 
 num_frames = 18;
 
-finger_l = 3;
+finger_d = 4;
 finger_w = 6;
 
 m3_d = 2.5;
 m3_w = 5.5;
+m3_or = 3/2;
+screw_l = 10;
 
 module mesh() {
     difference() {
-        square([frame_l - finger_l*2, frame_l - finger_l*2], center=true);
+        square([frame_l - finger_d*2, frame_l - finger_d*2], center=true);
         for (x=[
                 -frame_l/2:
                 mesh_dx:
@@ -259,180 +261,217 @@ module get_dxf(f=1) {
 
 // get_dxf();
 
-// module flap_holes() {
-//     // for (x=[flap_w:flap_w:wing_l - flap_w]) {
-//     translate([wing_l - flap_w/2, flap_w/2, 0])
-//         cylinder(r=hole_ir, h=2*th, center=true, $fn=64);
-//     // }
-// }
 
-// module frame_wing_flap(fold_deg=FOLD_DEG) {
-//     flap_deg = fold_deg == 0 ? 0 : 35;
-//     difference() {
-//         translate([0, 0, -th/2])
-//             cube([wing_l, frame_l, th], center=false);
-//         translate([0, 0, -th])
-//             rotate([0, 0, 60])
-//             cube([wing_l*2, frame_l, th*2], center=false);
-//         translate([wing_l, 0, -th])
-//             rotate([0, 0, 30])
-//             cube([wing_l*2, frame_l*2, th*2], center=false);
-//     }
-//     rotate([flap_deg, 0, 60])
-//         difference() {
-//             translate([0, 0, -th/2])
-//                 cube([wing_l, flap_w, th], center=false);
-//             rotate([0, 0, 30])
-//                 translate([0, -1, -th])
-//                 cube([wing_l, flap_w, 2*th], center=false);
-            
-//             for (x=[20:20:wing_l]) {
-//                 translate([x, 0, -th])
-//                 cube([5, 1, th * 2]);
-//             }
-//             flap_holes();
-//             // # rotate([0, 0, 0])
-//             //     cube([chain_w, chain_h, 100], center=true);
-//         }
-    
-// }
-
-// ! frame_wing_flap();
-// ! frame_wing_flap(fold_deg=0);
-
-// module frame_wing_folded(fold_deg=FOLD_DEG) {
-//     wing_deg = fold_deg == 0 ? 0 : 35;
-//     difference() {
-//         translate([0, 0, -th/2])
-//             cube([wing_l, frame_l, th], center=false);
-//         flap_holes();
-//         for (y=[20:20:frame_l]) {
-//             translate([0, y, -th])
-//             cube([1, 5, th * 2]);
-//         }
-//         for (x=[20:20:wing_l]) {
-//             translate([x, frame_l - 1, -th])
-//                 cube([5, 1, th * 2]);
-//         }
-//     }
-//     translate([0, frame_l, 0])
-//         rotate([wing_deg, 0, 0])
-//         frame_wing_flap(fold_deg=fold_deg);
-// }
-
-// ! frame_wing_folded();
-// ! frame_wing_folded(fold_deg=0);
-
-module fingers(l=frame_l/2 - finger_w * 2) {
+module screws(l=frame_l - finger_w * 4) {
     for (y=[
-            0:
-            2 * finger_w:
-            l]) {
+            (l == 0 ? 0 : 4 * finger_w):
+            4 * finger_w:
+            (l == 0 ? finger_w : l/2 - finger_w)]) {
         for (i=[-1, 1])
-            translate([0, i * y, 0])
-                cube([finger_l, finger_w, th], center=true);
+            translate([0, i * y, -th/2]) {
+                translate([0, 0, -th])
+                    cylinder(
+                    r=m3_or, h=screw_l + th, center=false, $fn=64);
+                translate([0, 0, screw_l/2 + th/2])
+                    cube([m3_w, m3_or * 2, screw_l - th], center=true);
+                translate([0, 0, 2.5 * th])
+                    cube([m3_w,  m3_w, m3_d], center=true);
+                // translate([0, 0, -(finger_d - th)/2])
+                //     cube([m3_w, m3_or * 2, finger_d - th], center=true);
+            }
     }
 }
+
+// ! screws();
+
+// module center_finger(include_screws=true, include_screw_hole=false) {
+//     difference() {
+//         // translate([(-finger_d/2 + th/2), 0, -(finger_d - th)/2]) {
+//         //     cube([
+//         //         finger_d, 
+//         //         finger_w, 
+//         //         finger_d], center=true);
+//         // }
+//         if (include_screw_hole) {
+//             screws(0);
+//         }
+//     }
+//     if (include_screws) {
+//         screws(0);
+//     }
+// }
+
+// ! finger();
+
+module fingers(l=frame_l - finger_w * 4, include_screws=true) {
+    difference() {
+            for (y=[
+                2 * finger_w:
+                2 * finger_w:
+                l/2]) {
+            // if (y % (6 * finger_w) != 0)
+            for (i=[-1, 1])
+                translate([(-finger_d/2 + th/2), i * y, -(finger_d - th)/2]) {
+                    cube([
+                        finger_d, 
+                        finger_w, 
+                        finger_d], center=true);
+                }
+        }
+        if (!include_screws) {
+            screws(l);
+        }
+    }
+    if (include_screws) {
+        screws(l);
+    }
+}
+
+// ! fingers();
 
 module frame_fingers() {
-    for (r=[0:90:359]) {
-        rotate([0, 0, r])
-            translate([frame_l/2 - finger_l/2, 0, 0])
-            fingers();
+    for (r=[0:90:90]) {
+        rotate([0, 0, r]) {
+            translate([frame_l/2 - finger_d + th/2, 0, 0])
+                rotate([0, -90, 0])
+                fingers();
+            translate([frame_l/2 - finger_d + th/2, 0, 0])
+                rotate([0, 0, 0])
+                screws(0);
+                // center_finger(true);
+        }
     }
 }
 
-module chain_holes() {
-    for (i=[-1, 1, -1.2, 1.2])
-        translate([0, i * (frame_l/2 - chain_h/2 - finger_l), 0])
-        cube([chain_w, chain_h, th], center=true);
+module frame_wing(include_screws=false) {
+    difference() {
+        union() {
+            fingers(include_screws=include_screws);
+            translate([
+                    (frame_l - finger_d)/2 + th/2, -finger_d/2, 0])
+                cube([
+                    frame_l - finger_d, 
+                    frame_l - finger_d, th], center=true);
+
+            translate([
+                    frame_l/2 - finger_d/2, 
+                    frame_l / 2 - finger_d + th/2, 0])
+                rotate([0, 0, -90])
+                fingers(include_screws=include_screws);
+        }
+        translate([chain_w, -frame_l/2 + chain_h/2, 0])
+            rotate([45, 0, 0])
+            cube([chain_w, chain_h, 100], center=true);
+        translate([0, 0, 0])
+            rotate([0, 90, 0])
+            screws(0);
+            // center_finger();
+        translate([
+                frame_l/2 - finger_d/2, 
+                frame_l / 2 - finger_d + th/2, 0])
+            rotate([90, 90, 0])
+            screws(0);
+            // center_finger();
+    }
+    
 }
 
-module frame_wing() {
-    fingers();
-    translate([finger_l/2 + flap_w/2, 0, 0])
-        cube([flap_w, frame_l - finger_l*2, th], center=true);
+// ! 
+//     // projection()
+    // ! frame_wing();
 
-    translate([finger_l/2 + flap_w/2, frame_l / 2 - finger_l/2, 0])
-        rotate([0, 0, 90])
-        fingers(flap_w - finger_w * 2);
-    translate([finger_l/2 + flap_w/2, -frame_l / 2 + finger_l/2, 0])
-        rotate([0, 0, 90])
-        fingers(flap_w - finger_w * 2);
-}
-
-// ! projection()
-    // frame_wing();
-
-module frame_cap() {
+module frame_cap(include_screws=false) {
     difference() {
         union() {
             rotate([0, 0, 90])
-                fingers();
-            translate([0, finger_l/2 + flap_w/ sqrt(2)/2, 0])
+                fingers(include_screws=include_screws);
+            translate([0, frame_l/2 + th/2 - finger_d/2, 0])
                 cube([
-                    frame_l + flap_w * sqrt(2), 
-                    flap_w / sqrt(2), th], center=true);
+                    frame_l, 
+                    frame_l - finger_d, th], center=true);
         }
-        translate([frame_l/2 + th / sqrt(2), finger_l/2, -th])
-            rotate([0, 0, -45])
-            cube([flap_w*2, flap_w*2, th*2]);
         translate([
-                frame_l/2 + flap_w * sqrt(2)/4, 
-                finger_l/2 + flap_w * sqrt(2)/4, 0])
-            rotate([0, 0, -45])
-            fingers(flap_w - finger_w * 2);
-        
-
+                frame_l/2 - finger_d + th/2, 
+                frame_l/2 - finger_d/2, 0])
+            rotate([0, -90, 0])
+                fingers(include_screws=true);
+        translate([-frame_l/2 + chain_h/2, chain_w])
+            rotate([0, -45, 0])
+            cube([chain_h, chain_w, 100], center=true);
+        translate([0, 0, 0])
+            rotate([-90, -90, 0])
+            screws(0);
+            // center_finger();
         translate([
-                -frame_l/2 - th / sqrt(2), 
-                finger_l/2, -th])
-            rotate([0, 0, 135])
-            cube([flap_w*2, flap_w*2, th*2]);
-        translate([
-                -frame_l/2 - flap_w * sqrt(2)/4, 
-                finger_l/2 + flap_w * sqrt(2)/4, 0])
-            rotate([0, 0, 45])
-            fingers(flap_w - finger_w * 2);
+                frame_l/2 - finger_d + th/2, 
+                frame_l / 2 - finger_d + th/2, 0])
+            rotate([0, 0, 180])
+            screws(0);
+            // center_finger();
     }
 }
 
-// ! projection()
-    // frame_cap();
+// ! 
+//     // projection()
+//     // # 
+    // ! frame_cap();
 
-module offs_chain_holes() {
-    translate([-frame_l/2 + flap_w, 0, 0])
-        chain_holes();
-}
+// module offs_chain_holes() {
+//     translate([-frame_l/2 + flap_w, 0, 0])
+//         chain_holes();
+// }
 
 module frame_base() {
     difference() {
         cube([frame_l, frame_l, th], center=true);
         frame_fingers();
-        offs_chain_holes();
+        // offs_chain_holes();
     }
 }
 
 // ! frame_base();
 
 module frame_folded(fold_deg=FOLD_DEG) {
-    frame_base();
-    if (fold_deg != 0) {
-    for (r=[0, 180])
-        rotate([0, 0, r]) {
-            translate([frame_l/2 - finger_l/2 + 0, 0, 0])
-                rotate([0, -fold_deg, 0])
-                translate([0.5, 0, 0])
-                frame_wing();
-            translate([0, frame_l/2 - finger_l/2, 0])
-                rotate([2 * fold_deg, 0, 0])
-                frame_cap();
-        }
-    }
+    offs = fold_deg == 0 ? finger_d*2 : 0;
+    color([1, 0, 0, 0.5])
+        frame_base();
+    // if (fold_deg != 0) {
+    color([0, 1, 0, 0.5])
+        translate([frame_l/2 - finger_d + th/2 + offs, 0, 0])
+        rotate([0, -fold_deg, 0])
+        frame_wing();
+    color([0, 0, 1, 0.5])
+        translate([0, frame_l/2 - finger_d + th/2 + offs, 0])
+        rotate([fold_deg, 0, 0])
+        frame_cap();
+    // }
 }
 
-frame_folded();
-// frame_folded(fold_deg=0);
+
+// frame_folded();
+projection()
+frame_folded(fold_deg=0);
+
+module plate_base() {
+    projection() 
+        frame_base();
+}
+
+// ! plate_base();
+
+module plate_wing() {
+    projection() 
+        frame_wing();
+}
+
+// ! plate_wing();
+
+module plate_cap() {
+    projection() 
+        frame_cap();
+}
+
+// ! plate_cap();
 
 module stock_panel() {
     % translate([-3 * IN_MM, -3 * IN_MM, -1/16 * IN_MM])
