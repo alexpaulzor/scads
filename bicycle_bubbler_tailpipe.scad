@@ -4,15 +4,27 @@ include <lib/metric.scad>;
 drive_teeth = 11;
 axle_od = 6;
 
-rotor_arm_w = 4;
+straw_ir = 1;
+curve_ir = 5;
+straw_l = 30;
+straw_fn = 5;
+straw_dl = 10;
+straw_dl1 = straw_dl;
+straw_dl2 = straw_dl;
+straw_dl3 = straw_dl;
+straw_dr = 360 / 10 / 2;
+
+
+rotor_arm_w = 2 * (straw_ir + 1);
 rotor_pitch = 40;
 bubbler_or = 15;
 bubbler_ir = 10;
 bubbler_h = 2;
 bubbler_vane_w = 1;
-bubbler_num_vanes = 36;
+bubbler_num_vanes = 24;
 basin_th = 2;
 basin_extrude_angle = 360;
+
 
 rt = 180 * $t;
 
@@ -32,6 +44,8 @@ module bubbler_head() {
 
 
 // ! bubbler_head();
+
+/*
 
 module rotor() {
    
@@ -186,4 +200,116 @@ module design() {
     basin();
 }
 
-design();
+// design();
+*/
+
+
+
+module straw(l=50, center=true) {
+    difference() {
+        rotate([0, 0, -straw_dr])
+            cylinder(h=l, r=straw_ir + 1, center=false, $fn=straw_fn);
+        if (center)
+            rotate([0, 0, -straw_dr])
+            cylinder(h=l, r=straw_ir, center=false, $fn=straw_fn);
+    }
+}
+
+// ! straw();
+module straw_xsection() {
+    difference() {
+        union() {
+            translate([curve_ir, 0, 0])
+                rotate([0, 0, straw_dr])
+                circle(r=straw_ir + 1, $fn=straw_fn);
+            translate([0, -(straw_ir + 1) * cos(360 / 5 / 2), 0])
+                square([curve_ir + straw_ir, 1]);
+        }
+        translate([curve_ir, 0, 0])
+            rotate([0, 0, straw_dr])
+            circle(r=straw_ir, $fn=straw_fn);
+    }
+}
+
+// ! straw_xsection();
+
+module straw_curve(th=180) {
+    rotate_extrude(angle=th) {
+        straw_xsection();
+    }
+    // % translate([0, 0, -straw_ir - 1])
+    //     cylinder(r=curve_ir+1, h=2);
+}
+
+// ! straw_curve();
+
+module siphon_straw() {
+    // translate([
+    //         -straw_l/sqrt(2),
+    //         0,
+    //         -straw_l/sqrt(2)
+    //     ])
+    //     rotate([90, -135, 0])
+    //     straw_curve(th=45);
+    translate([-curve_ir * 2, 0, -straw_l - straw_dl1])
+            straw(straw_l + straw_dl1, center=true);
+    translate([
+            -curve_ir, 
+            0, 0])
+        rotate([90, 0, 0])
+        straw_curve();
+    translate([
+            0, 
+            0, -straw_l])
+        straw(straw_l);
+    translate([
+            curve_ir * 2, 
+            0, -straw_l])
+        straw(straw_l + straw_dl2);
+    translate([
+            curve_ir, 
+            0, -straw_l])
+        rotate([90, 180, 0])
+            straw_curve();
+    translate([
+            curve_ir * 3, 
+            0, 
+            straw_dl2])
+        rotate([90, 0, 0])
+            straw_curve();
+    translate([
+            curve_ir * 4, 
+            0, -straw_l - straw_dl3 - straw_dl1])
+        straw(straw_l + straw_dl1 + straw_dl2 + straw_dl3);
+}
+
+// ! siphon_straw();
+
+module self_siphon() {
+    * translate([
+            -straw_l/sqrt(2) - curve_ir - straw_ir,
+            0,
+            -straw_l/sqrt(2) - bubbler_or
+        ]) {
+        rotate([90, 0, 0])
+            bubbler_head();
+        * % difference() {
+            sphere(r=bubbler_or+1);
+            sphere(r=bubbler_or);
+            rotate([90, 0, 0])
+                cylinder(r=bubbler_ir, h=bubbler_or * 3, center=true);
+
+            rotate([0, 45, 0]) {
+                straw(bubbler_or+1, center=false);
+                
+            }
+
+            if ($preview)
+                cube([100, 100, 100]);  // TODO: comment
+
+        }
+    }
+    siphon_straw();
+}
+
+self_siphon();
