@@ -63,6 +63,8 @@ def parse_args():
     p.add_argument("--pocket-gap", type=float, default=6,
                    help="feeder rails stop this far short of the pickup point")
     p.add_argument("--post-d", type=float, default=4)
+    p.add_argument("--station-pitch", type=float, default=40,
+                   help="solder jig station spacing along one lap")
     p.add_argument("--margin", type=float, default=4,
                    help="extra vertical room between stacked laps")
     p.add_argument("--arc-step", type=float, default=7.5, help="degrees")
@@ -207,6 +209,23 @@ def main():
                     worst = (dz, (round(xi, 1), round(yi, 1)))
 
     hs = headings(p.pts)
+
+    # Solder jig stations around one lap, starting where the first lap starts.
+    # Stop a station short of the seam: the lap's two ends overlap in plan.
+    stations = []
+    t = svals[first_lap]
+    i = first_lap
+    while t < svals[first_lap] + lap_len - a.station_pitch / 2:
+        while svals[i + 1] < t:
+            i += 1
+        f = (t - svals[i]) / (svals[i + 1] - svals[i])
+        x = p.pts[i][0] + (p.pts[i + 1][0] - p.pts[i][0]) * f
+        y = p.pts[i][1] + (p.pts[i + 1][1] - p.pts[i][1]) * f
+        dx, dy = p.pts[i + 1][0] - p.pts[i][0], p.pts[i + 1][1] - p.pts[i][1]
+        d = math.hypot(dx, dy)
+        stations.append((x, y, zs[i] + (zs[i + 1] - zs[i]) * f, dx / d, dy / d,
+                         p.seg_style[i]))
+        t += a.station_pitch
     # right-hand side of travel (outside of the left turns)
     rights = [(hy, -hx) for hx, hy in hs]
 
@@ -260,7 +279,12 @@ def main():
             for x, y, z, hx, hy, st, mo, ta in clips) + "];\n")
         f.write("// [x, y, height]\npoc_posts = [\n" + ",\n".join(
             f"  [{x}, {y}, {h:.1f}]" for (x, y), h in posts.items()) + "];\n")
+        f.write("// one lap's solder jig stations: [x, y, z, heading_x, heading_y, style]\n"
+                "poc_lap_stations = [\n" + ",\n".join(
+            f'  [{x:.3f}, {y:.3f}, {z:.3f}, {hx:.5f}, {hy:.5f}, "{st}"]'
+            for x, y, z, hx, hy, st in stations) + "];\n")
 
+    print(f"lap jig: {len(stations)} stations, {a.station_pitch} mm apart")
     n_mount = {}
     for c in clips:
         n_mount[c[6]] = n_mount.get(c[6], 0) + 1

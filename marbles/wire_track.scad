@@ -12,8 +12,7 @@ Parts:
               the marble side. Open styles are a single U "saddle"; enclosed
               styles add a "cap" that pins/zip-ties to the saddle's ears.
               Printable (3D) or laser-cuttable (2D, kerf-compensated).
-* jig_comb  - laser-cut plywood comb + slotted base board that holds rails at
-              exact positions while you solder permanent ties between combs.
+* (solder jig moved to wire_jig.scad: two-piece wooden stations, no snap)
 * tie_former- form to bend tie wires so they touch every rail and clear
               the marble.
 
@@ -36,7 +35,6 @@ Clip mounts (`mount`, tab points at `tab_a`, 0 = straight down):
 Render from the command line, e.g.:
   openscad -o clip.stl     -D 'part="clip_plate"' -D 'style="tube4"' marbles/wire_track.scad
   openscad -o clip.svg     -D 'part="clip_laser"' marbles/wire_track.scad
-  openscad -o jig.svg      -D 'part="jig_laser"'  marbles/wire_track.scad
   openscad -o former.stl   -D 'part="tie_former"' marbles/wire_track.scad
 
 Other files can `use <wire_track.scad>` and call saddle(style=...),
@@ -89,10 +87,8 @@ ear_pin_d = wire_od + clr;
 kerf = 0.1;
 sheet_th = 3;
 
-// Solder jig
+// Solder jig (wire_jig.scad)
 jig_clr = 0.15;
-n_combs = 3;
-comb_pitch = 40;
 jig_tie_room = 3;
 jig_tab_w = 6;
 
@@ -433,73 +429,6 @@ module tie_former_laser(style=style) {
 // ! tie_former_laser();
 
 
-// Solder jig: combs stand in a base board; rails thread through (or drop
-// into, for open styles) the combs; solder ties in the gaps between combs.
-comb_hole_r = seat_r + jig_clr;
-function comb_x(rs) = max([for (rl=rs) abs(rail_pt(rl)[0])]) + seat_r + wall + 2;
-function comb_top(rs) = max([for (rl=rs) rail_pt(rl)[1]]) + seat_r + wall;
-// Base board surface, leaving room under the track for the ties
-function comb_bot(rs) = -(former_r_max(rs) + wire_od + jig_tie_room);
-function comb_tab_x(rs) = comb_x(rs) - jig_tab_w/2 - 2;
-
-module jig_comb_2d(style=style) {
-    rs = track_rails(style);
-    cx = comb_x(rs);
-    ct = comb_top(rs);
-    cb = comb_bot(rs);
-    difference() {
-        union() {
-            translate([-cx, cb])
-                square([2 * cx, ct - cb]);
-            for (s=[-1, 1])
-                translate([s * comb_tab_x(rs) - jig_tab_w/2, cb - sheet_th])
-                    square([jig_tab_w, sheet_th + 1]);
-        }
-        for (rl=rs) {
-            c = rail_pt(rl);
-            translate(c)
-                circle(r=comb_hole_r, $fn=base_fn/2);
-            // open styles: drop rails in from above
-            if (!has_cap_of(rs))
-                translate([c[0] - comb_hole_r, c[1]])
-                    square([2 * comb_hole_r, ct - c[1] + 1]);
-        }
-    }
-}
-
-// ! jig_comb_2d();
-
-function jig_base_w(rs) = 2 * comb_x(rs) + 10;
-
-module jig_base_2d(style=style) {
-    rs = track_rails(style);
-    bw = jig_base_w(rs);
-    difference() {
-        translate([-bw/2, -10])
-            square([bw, (n_combs - 1) * comb_pitch + 20]);
-        for (i=[0:n_combs-1], s=[-1, 1])
-            translate([s * comb_tab_x(rs), i * comb_pitch])
-                square([jig_tab_w, sheet_th], center=true);
-    }
-}
-
-// ! jig_base_2d();
-
-module jig_laser(style=style) {
-    rs = track_rails(style);
-    cx = comb_x(rs);
-    offset(delta=kerf/2) {
-        jig_base_2d(style);
-        for (i=[0:n_combs-1])
-            translate([jig_base_w(rs)/2 + cx + 4 + i * (2 * cx + 4),
-                    -comb_bot(rs) + sheet_th])
-                jig_comb_2d(style);
-    }
-}
-
-// ! jig_laser();
-
-
 module design(style=style) {
     track_l = 100;
     // track along +y, gravity along -z
@@ -521,8 +450,5 @@ else if (part == "saddle") saddle();
 else if (part == "cap") cap();
 else if (part == "clip_plate") clip_plate();
 else if (part == "clip_laser") clip_laser();
-else if (part == "jig_laser") jig_laser();
-else if (part == "jig_comb") jig_comb_2d();
-else if (part == "jig_base") jig_base_2d();
 else if (part == "tie_former") tie_former();
 else if (part == "tie_former_laser") tie_former_laser();
