@@ -31,16 +31,16 @@ Change height with `--z-exit` (and `z_exit` in `spiral_lift.scad`; `poc_run.scad
 asserts they match). Taller runs just add laps and coil turns.
 
 Build order:
-1. Print one clip and a short mandrel segment first; tune `grip_ratio`/`lip_clr`
-   and `mandrel_k` (coil springback) before printing in bulk.
+1. Cut a short straight `wire_jig.scad` set and print one mandrel segment
+   first; check the rail fit and `kerf`, and tune `mandrel_k` (coil springback).
 2. Board, feet, posts, bushing, motor mount, coupler, rod.
 3. Wind the coil, fit both hubs, check it spins true; add lift post, channel
    clips, channel rails, top arm.
-4. Bend laps against the etched template, clip them to the posts, tune slope
-   by sliding clips on the posts.
-5. Solder each lap in `poc_lap_jig.scad` (all laps share the plan), then mount
-   it on the posts. The printed clips in the assembly stand in for soldered
-   ties/brackets.
+4. Bend a lap against the etched template, lay it in `poc_lap_jig.scad` (all
+   laps share the plan), roll marbles on it with the keepers off, then band
+   the keepers on and solder ties between stations.
+5. Mount the laps on the posts. The printed clips in the assembly stand in
+   for however you attach them (soldered tabs to brass posts, for example).
 
 Measure before trusting: N20 motor dimensions, `mandrel_k`, laser `kerf`.
 The board is exactly the laser's 300 mm Y travel; cut it slightly smaller or
