@@ -3,6 +3,7 @@
 | File | What |
 |---|---|
 | `marbles.scad`, `marbles2.scad` | Earlier ring / 2020 guide experiments |
+| `pegwall.scad` | **Modular run on steel pegboard**: hook-on plywood fins, straights, C-turns, wall lift, cut sheets |
 | `wire_track.scad` | Rail cross-sections (open, guarded, enclosed tube), tie former, printed snap clips (experimental: the snap lips are necessarily thin) |
 | `wire_jig.scad` | Laser-cut wooden solder jig: two-piece (open) or core + outer pieces (tube) stations, half-depth notches, rubber band, no snap |
 | `poc_lap_jig.scad` | Wooden solder jig for one lap of the proof-of-concept run: ring base following the curve, every station cut to its height on the slope |
@@ -10,6 +11,44 @@
 | `poc_layout.py` | Lays out the proof-of-concept run and writes `poc_path.scad` (generated) |
 | `poc_run.scad` | Whole proof-of-concept: board, posts, laps, clips, lift; board cut/etch layers |
 | `launcher_calc.py` | Feasibility numbers for a spring-launcher lift instead of the coil |
+
+## Pegboard wall (`pegwall.scad`)
+
+Modular run for 1" grid steel pegboard: two 13 x 30 hole panels side by
+side. Everything on the board hangs from laser-cut plywood **fins**: a plate
+standing straight out from the board with a hook tongue + lip in one hole
+and an anti-tip pin in the hole below. Push it in level, let it drop, and it
+locks; lift and pull to remove. Each fin carries a two-piece rail station
+(comb + banded keeper), so the fins hold the track on the wall and double as
+the solder jig: solder ties between fins in place, or don't.
+
+Modules meet at ports (marble center 1.5" off the board, x on a half column,
+y on a 1/4" grid); each module starts 0.5 mm below the port it enters by.
+
+- **straight**: open 2-rail, any length, drops in 1/4" steps
+- **C-turn**: enclosed 4-rail half loop in the board's plane; drops one level
+  and reverses. All C-turns are the same part (a left one is a right one
+  turned around), built in one flat jig (`wall_part="cturn_jig"`).
+- **lift**: wire-coil spiral lift standing in front of the board on
+  half-lapped collars; its channel rails bend over into the top level.
+
+The default layout is 10 switchback levels with the lift up the left side.
+`pegwall.scad` checks that no two fins want the same hole and that the
+C-turns keep the marble in.
+
+```bash
+openscad -o wall.png marbles/pegwall.scad                                    # echoes the checks
+openscad -o hook_test.svg -D 'wall_part="hook_test"' marbles/pegwall.scad    # cut this first
+openscad -o fins0.svg      -D 'wall_part="fins"' -D 'sheet=0' marbles/pegwall.scad   # sheets 0..N-1
+openscad -o fins0_etch.svg -D 'wall_part="fins_etch"' -D 'sheet=0' marbles/pegwall.scad
+openscad -o cjig_base.svg   -D 'wall_part="cturn_jig_base"'   marbles/pegwall.scad
+openscad -o cjig_pieces.svg -D 'wall_part="cturn_jig_pieces"' marbles/pegwall.scad
+```
+
+Fin labels (etch layer) give the column and hook row, counted from the
+bottom-left hole as c0 r0. Measure before cutting in bulk: `peg_hole_d`,
+`peg_sheet_t`, plywood `sheet_th`, and `kerf` are guesses; the hook test
+coupon has three tongue sizes to try in your panel.
 
 ## Proof-of-concept run
 
