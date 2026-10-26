@@ -3,6 +3,7 @@
 | File | What |
 |---|---|
 | `marbles.scad`, `marbles2.scad` | Earlier ring / 2020 guide experiments |
+| `wire_bender.scad` | Manual wire straightener + bender on one 2020 beam: V-wheel straighteners, sliding-pivot bend head, stop disc, mandrels |
 | `pegwall.scad` | **Modular run on steel pegboard**: hook-on plywood fins, straights, C-turns, wall lift, cut sheets |
 | `wire_track.scad` | Rail cross-sections (open, guarded, enclosed tube), tie former, printed snap clips (experimental: the snap lips are necessarily thin) |
 | `wire_jig.scad` | Laser-cut wooden solder jig: two-piece (open) or core + outer pieces (tube) stations, half-depth notches, rubber band, no snap |
