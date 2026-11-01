@@ -531,7 +531,7 @@ tab_out = 1.5;
 // curves down to 3 o'clock, the radius growing by arc_dr on the way to
 // stretch the omega, and ends in a divot one wire radius back toward the
 // center that the bridge catches in.
-arc_r = 8;
+arc_r = 12.7;
 arc_dr = 1.2;
 arc_divot = om_r;
 // seated bridge: at 3 o'clock, in the divot
@@ -588,7 +588,7 @@ d_r = rail_rr + lace_dr;
 chan_i = 5;
 chan_w = rail_d + 0.6;
 d_corner = 3;
-peg_y0 = 8.4;
+peg_y0 = 6;
 function peg_hole_y(k) = peg_y0 - k * peg_step;
 d_y0 = peg_hole_y(peg_variants - 1) - peg_hole_d / 2 - 3;
 d_y1 = peg_hole_y(0) + arc_r + slot_w / 2 + 3.5;
@@ -600,10 +600,16 @@ module d_outline_2d() {
     }
 }
 // k: tab height; dr: arc tension; gin: groove depth (window past the wire
-// centers); top_d: diameter of the uppermost board-side lacing hole (hole
-// size test -- that one is rarely used)
+// centers); holes: [[lacing index, diameter], ...] to cut some lacing holes
+// at test sizes (use the upper board-side ones -- rarely needed)
 top_lace_i = 9;
-module drib_2d(k, dr=arc_dr, gin=groove_in, top_d=lace_d) {
+// a lacing hole is left out of a rib where the arc slot passes too close
+arc_web = 1.5;
+function lace_ok(k, i) = let(yh = peg_hole_y(k), c = [track_d, 0] + sup_lace(i))
+    min([for (q=arc_path(yh)) norm(q - c)]) >= lace_d / 2 + slot_w / 2 + arc_web;
+echo(lace_holes_dropped=[for (k=[0:peg_variants-1]) [k, [for (i=[0:sup_n-1]) if (!lace_ok(k, i)) i]]]);
+function hole_d_of(i, holes) = let(m = [for (h=holes) if (h[0] == i) h[1]]) len(m) > 0 ? m[0] : lace_d;
+module drib_2d(k, dr=arc_dr, gin=groove_in, holes=[]) {
     yh = peg_hole_y(k);
     difference() {
         union() {
@@ -613,8 +619,8 @@ module drib_2d(k, dr=arc_dr, gin=groove_in, top_d=lace_d) {
         translate([track_d, 0]) {
             circle(r=rail_rr + gin, $fn=96);
             for (i=[0:sup_n-1]) translate(sup_notch(i)) circle(r=notch_r, $fn=24);
-            for (i=[0:sup_n-1]) if (i != chan_i)
-                translate(sup_lace(i)) circle(d=i == top_lace_i ? top_d : lace_d, $fn=24);
+            for (i=[0:sup_n-1]) if (i != chan_i && lace_ok(k, i))
+                translate(sup_lace(i)) circle(d=hole_d_of(i, holes), $fn=24);
             rotate([0, 0, chan_i * sup_step])
                 translate([-chan_w / 2, -(d_r + 2)]) square([chan_w, d_r + 2 - rail_rr]);
         }
@@ -656,6 +662,57 @@ module straight_slot_2d(l) {
 echo(omega_wire_length=omega_wire_l);
 
 
+// ===== single test rib, cut from scrap =====
+//
+// One rib plus the omega form slot and omega length slot, cut into the
+// leftover stock beside it (no outline of their own), each at least
+// jig_margin from the rib and from the edge of the scrap. The two upper
+// board-side lacing holes are cut at test sizes; every test value is
+// engraved next to its feature.
+jig_margin = 12.7;
+test_k = 0;
+test_holes = [[9, rail_d + 0.6], [10, rail_d + 1.0]];
+form_w = 2 * (form_c + om_foot * cos(spring_a)) + form_ch;
+form_h = form_c + form_ch / 2 + om_leg_free + om_foot * sin(spring_a) + form_ch / 2;
+// rib outline extents (tab included)
+tr_x0 = -(panel_t + tab_out);
+tr_x1 = track_d + d_r;
+tr_y0 = min(d_y0, -d_r);
+tr_y1 = max(d_y1, d_r);
+// length slot: vertical, beside the rib's rounded end
+len_x = tr_x1 + jig_margin + form_ch / 2;
+len_y = -omega_wire_l / 2;
+// form slot: below the rib, U up
+form_x = track_d - 10;
+form_y = tr_y0 - jig_margin - (form_c + form_ch / 2);
+test_scrap = [[tr_x0 - jig_margin, form_y - form_h - jig_margin],
+              [len_x + form_ch / 2 + jig_margin, tr_y1 + jig_margin]];
+echo(omega_form_slot_size=[form_w, form_h], omega_wire_length=omega_wire_l,
+    test_scrap_min_size=test_scrap[1] - test_scrap[0], test_holes=test_holes);
+assert(len_y > tr_y0 - 1 && len_y + omega_wire_l < tr_y1 + 1, "length slot sticks out past the rib");
+
+module test_rib_cut_2d() {
+    drib_2d(test_k, arc_dr, groove_in, test_holes);
+    translate([len_x, len_y]) omega_length_slot_2d();
+    translate([form_x, form_y]) omega_form_slot_2d();
+}
+module test_rib_etch_2d() {
+    // test hole sizes: wire + clearance
+    // (on the band between the lacing holes and the window, so it stays on
+    // the rib)
+    for (h=concat(test_holes, [[14, lace_d]])) let(dir = sup_lace(h[0]) / norm(sup_lace(h[0])))
+        translate([track_d, 0] + dir * (rail_rr + notch_r + 2.6))
+            text(str("w+", round((h[1] - rail_d) * 10) / 10), size=1.6, halign="center", valign="center");
+    // arc slot values
+    translate([arc_r * 0.55, peg_hole_y(test_k) + 2.5])
+        text(str("r", arc_r, " +", arc_dr), size=1.8, halign="center");
+    // groove depth past the wire centers
+    translate([8, -11]) text(str("g", groove_in), size=2.2, halign="center", valign="center");
+    translate([3, tr_y0 + 3]) text(str("k", test_k), size=2.5);
+    translate([len_x + 2.5, 0]) rotate([0, 0, 90]) text("cut length", size=2.2, halign="center");
+    translate([form_x, form_y - form_h - 4]) text("omega", size=2.5, halign="center");
+}
+
 // ===== demo sheet: 300 x 295 =====
 //
 // Every part is a rib you can use on the wall. The 30 ribs are three full
@@ -689,7 +746,7 @@ assert(strip_x + 20 <= sheet_x && rib_rows * (rib_h + rib_gap) + 2 <= sheet_y, "
 
 module sheet_cut_2d() {
     for (i=[0:n_ribs-1]) translate(rib_at_sheet(i))
-        drib_2d(rib_k(i), groups[rib_g(i)][0], groups[rib_g(i)][1], rib_top_d(i));
+        drib_2d(rib_k(i), groups[rib_g(i)][0], groups[rib_g(i)][1], [[top_lace_i, rib_top_d(i)]]);
     // scrap strip: the slots are cut into the leftover, which you keep
     sx = (strip_x + sheet_x) / 2;
     translate([sx - 6, 14]) straight_slot_2d(sheet_y - 28);
@@ -738,4 +795,6 @@ else if (hy_part == "support") offset(delta=kerf / 2) support_2d();
 else if (hy_part == "rib") offset(delta=kerf / 2) drib_2d(0);
 else if (hy_part == "rib_demo") rib_demo(0);
 else if (hy_part == "sheet") offset(delta=kerf / 2) sheet_cut_2d();
+else if (hy_part == "test_rib") offset(delta=kerf / 2) test_rib_cut_2d();
+else if (hy_part == "test_rib_etch") test_rib_etch_2d();
 else if (hy_part == "sheet_etch") sheet_etch_2d();
