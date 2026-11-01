@@ -32,21 +32,21 @@ does the rolling and the hanging.
   lacing hole below bottom center for feeding wire through. The window is
   a bit bigger than the ring, so each notch is a shallow groove the wire
   drops into.
-- **Hook-in supports** (`hy_part="peg_variants"`): no back plate. A tab on
-  the support's back edge goes into a pegboard hole, locked by a wire
-  **omega**: feet behind the steel, legs forward through the hole either
-  side of the tab, bridge across the support through a curved slot above
-  the tab. Omega in first, then the tab wedges its legs apart; drop the
-  support 2 mm and the slot pulls the bridge out, drawing the feet tight.
-  The omega wire must pass beside a 3 mm tab in a 1/4" hole: about 1.6 mm
-  max (16 ga steel), not the 2.05 mm rail wire. Supports come in 10 tab
-  heights 2.54 mm apart, then repeat one hole row down.
-- **Sampler sheet** (`hy_part="sampler"` + `"sampler_etch"`, one 300 x 300):
-  all 10 hook-in supports, the 3-layer omega bending jig, the C-turn rail
-  forms (inner x3, outer base), a C-turn rib, and test coupons: 9 snap
-  coupons (cam over-travel x pull), a groove comb (groove depth x notch
-  clearance), a hole gauge (lacing / omega hole sizes), a kerf square, and a
-  290 mm wire straightness gauge.
+- **Hook-in ribs** (`hy_part="rib"`): a bumpy D, flat back on the steel, no
+  back plate. A tab on the back goes into a pegboard hole, locked by a wire
+  **omega** (feet flared behind the steel, legs either side of the tab,
+  bridge in a J slot above the tab). The legs pull toward the hole center,
+  so the J's stem rises going in (stretching the omega) and hooks back down
+  toward the tab; the bridge snaps into the tip. Lacing positions are holes
+  between the marble and the board, grooves on the outer curve, plus one
+  open channel above 3 o'clock for slipping wire in sideways. 10 tab
+  heights 2.54 mm apart. Omega wire about 1.6 mm max (16 ga steel).
+- **Demo sheet** (`hy_part="sheet"` + `"sheet_etch"`, 300 x 295): 30 ribs =
+  three cycles of the 10 tab heights, each cycle an experiment group
+  (A/B/C: J lip 0.5/0.8/1.1 mm, groove depth 0.35/0.5/0.65 mm); the
+  uppermost board-side hole steps through 5 sizes. Leftover strip on the
+  right carries the omega form slot, omega length slot and wire
+  straightness slot (cut into the scrap, no outline of their own).
 - **Straight rails zig-zag**: each wire leaves a support on the 2nd notch
   out from bottom center, arrives at the next one on the 3rd, passes through
   the wide notch, runs across the far face to the narrow notch and sets off

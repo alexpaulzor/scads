@@ -501,338 +501,232 @@ module module_parts_2d(m) {
     }
 }
 
-// ===== hook-in support: omega wire + tab, no back plate =====
+// ===== hook-in rib: omega wire + tab, no back plate =====
 //
-// The support's back edge sits flat on the steel. A tab on that edge goes
-// into one pegboard hole; a small wire OMEGA locks it:
-//   - feet: behind the steel, turned outward past the hole edge
+// The rib's flat back sits on the steel. A tab on the back goes into one
+// pegboard hole and a small wire OMEGA locks it:
+//   - feet: behind the steel, flared out sideways past the hole edge
 //   - legs: forward through the hole, one each side of the tab
-//   - bridge: across the support, through a curved slot above the tab
-// Hang it: push the omega's feet through the hole (legs pinched together),
-// push the support's tab into the hole between the legs -- the tab wedges
-// them apart so the feet can't slip back out -- with the bridge entering
-// the slot mouth at the back edge, then push the support down om_drop.
-// The bridge stays at one height while the support slides past it, so the
-// slot is a cam: it pushes the bridge out (away from the board) past the
-// seat by om_over, the point of most tension, then curls back toward the
-// board into a pocket at the top. Seated, the legs pull the bridge toward
-// the board and the support's weight pushes it up into the pocket, so it
-// snaps in and stays; lift the support back over the peak to take it off.
+//   - bridge: across the rib, in a J slot above the tab
+// The legs always pull the bridge toward the center of the hole. Hang it:
+// feet through the hole first (legs pinched), then push the rib's tab in
+// between the legs -- it wedges them apart so the feet can't slip back --
+// with the bridge entering the J's stem at the back edge. The stem rises
+// as it goes in, stretching the omega; at the end the J hooks back down
+// toward the tab and the legs snap the bridge into the tip. To get out the
+// bridge has to climb back up the hook against the pull.
 //
-// Hole rows are 1" apart but each span sinks seg_drop, so supports come in
+// Hole rows are 1" apart but each span sinks seg_drop, so ribs come in
 // peg_variants versions with the tab 25.4 / peg_variants lower each time;
 // after the last one the sequence repeats one hole row down.
 
 om_d = 1.6;
 om_r = om_d / 2;
-om_drop = 2;
-// legs slack at the slot mouth by om_pull; tight by om_pull when seated
-om_pull = 1.5;
-// over-center bump past the seat
-om_over = 0.8;
-// fraction of the drop where the bump peaks
-om_peak = 0.6;
 om_foot = 4;
 peg_variants = 10;
 peg_step = peg_p / peg_variants;
 tab_out = 1.5;
-// hole center relative to the ring center, variant 0
-peg_y0 = 9;
-// bridge seat above the hole center, and out from the board
+// bridge seat (J tip) above the hole center, and out from the board: far
+// enough out that a straight leg crosses the steel near the hole's middle
 om_rise = 6.5;
-// far enough out that a straight leg from the bridge crosses the steel
-// within the hole's widest part (the omega is flat, so it bends in a slot jig)
 om_out = 6;
-slot_w = om_d + 0.3;
+slot_w = om_d + 0.2;
 // omega legs sit beside the tab
 om_c = sheet_th / 2 + om_r + 0.05;
-peg_tab_h = peg_hole_d - om_drop - 0.6;
-
-function peg_hole_y(k) = peg_y0 - k * peg_step;
-// bridge path in the support's frame, seated at (om_out, yb): x out from
-// the board as the support slides down past it (u = 0 at the mouth)
-function smooth(t) = t * t * (3 - 2 * t);
-function om_cam_x(u, over=om_over, pull=om_pull) = u < om_peak
-    ? (om_out - pull) + (pull + over) * smooth(u / om_peak)
-    : (om_out + over) - over * smooth((u - om_peak) / (1 - om_peak));
-function om_cam(yb, n=16, over=om_over, pull=om_pull) =
-    [for (i=[0:n]) let(u = i / n) [om_cam_x(u, over, pull), yb - om_drop + u * om_drop]];
+peg_tab_h = peg_hole_d - 0.6;
+// seated, the legs are stretched this much
+om_pull = 1.0;
+// J: wood between the stem and the tip (snap strength), tip length back
+// toward the tab, and how much the stem rises from mouth to hook
+j_lip = 0.8;
+j_tip = 0.8;
+j_rise = 2;
 
 // Flat omega: legs run straight from the bridge, through the middle of the
 // steel at the hole, to the feet behind it. In (y, z) around the hole:
 om_B = [om_rise, om_out];
-om_H = [0, -panel_t / 2];
-om_k = (om_B[0] - om_H[0]) / (om_B[1] - om_H[1]);
+om_Hz = [0, -panel_t / 2];
+om_k = (om_B[0] - om_Hz[0]) / (om_B[1] - om_Hz[1]);
 om_zf = -(panel_t + om_r + 0.3);
-om_F = [om_H[0] + (om_zf - om_H[1]) * om_k, om_zf];
+om_F = [om_Hz[0] + (om_zf - om_Hz[1]) * om_k, om_zf];
 om_leg = norm(om_B - om_F);
-// where the leg crosses the front and back of the steel, and the room
-// beside the tab there
-om_cross = [for (z=[0, -panel_t]) om_H[0] + (z - om_H[1]) * om_k];
+// as bent: legs om_pull short, so the seat stretches them tight
+om_leg_free = om_leg - om_pull;
+om_cross = [for (z=[0, -panel_t]) om_Hz[0] + (z - om_Hz[1]) * om_k];
 om_gap = min([for (y=om_cross) sqrt(peg_hole_d * peg_hole_d / 4 - y * y)]) - sheet_th / 2;
-echo(omega_leg=om_leg, omega_feet_y=om_F[0], leg_crosses_steel_at=om_cross,
+echo(omega_leg=om_leg, omega_leg_free=om_leg_free, leg_crosses_steel_at=om_cross,
     room_beside_tab=om_gap, omega_d=om_d);
 assert(om_gap >= om_d, "omega legs don't fit beside the tab where they cross the steel");
 
-// tab + cam slot for a support whose hole center is at yh (support frame)
+// J slot, rib frame (x out from the board, y up), hole center at y = yh
+function j_H(yh) = [-panel_t / 2, yh];
+function j_S(yh) = [om_out, yh + om_rise];
+function j_A(yh, lip) = j_S(yh) + [j_tip, slot_w + lip];
+function j_path(yh, lip=j_lip) = let(S = j_S(yh), A = j_A(yh, lip))
+    [[-1, A[1] - j_rise], [A[0], A[1]], [A[0] + 0.3, A[1] - (A[1] - S[1]) / 2], S];
+function j_stretch(lip) = let(L = norm(j_S(0) - j_H(0)) - om_pull)
+    [for (q=j_path(0, lip)) norm(q - j_H(0)) - L];
+echo(j_stretch_mouth_hook_tip=j_stretch(j_lip));
+
 module peg_tab_2d(yh) {
     translate([-(panel_t + tab_out), yh - peg_hole_d / 2 + 0.1])
         square([panel_t + tab_out + 0.01, peg_tab_h]);
 }
-module peg_slot_2d(yh, over=om_over, pull=om_pull) {
-    yb = yh + om_rise;
-    pts = concat([[-1, yb - om_drop]], om_cam(yb, 16, over, pull));
+module j_slot_2d(yh, lip=j_lip) {
+    pts = j_path(yh, lip);
     for (i=[0:len(pts)-2])
         hull() for (q=[pts[i], pts[i + 1]]) translate(q) circle(d=slot_w, $fn=20);
 }
-echo(peg_step=peg_step, om_d=om_d, gap_beside_tab=(peg_hole_d - sheet_th) / 2,
-    peg_hole_y=[for (k=[0:peg_variants-1]) peg_hole_y(k)]);
-assert(om_c + om_r <= peg_hole_d / 2, "omega wire too thick to pass beside the tab");
-assert(peg_hole_y(peg_variants - 1) - peg_hole_d / 2 - 3 > -sup_bot
-    && peg_hole_y(0) + om_rise + slot_w / 2 + 3 < sup_top, "tab/slot range doesn't fit the support");
 
-// Support in its own plane (x = out from the board, y = up), seated:
-// back edge on the steel at x = 0, ring center at (track_d, 0), tab in the
-// hole centered at y = peg_hole_y(k).
-module peg_support_2d(k) {
+// --- the rib: a bumpy D ---
+// Flat back on the board, the rest one rounded outline around the marble.
+// Lacing positions are holes where they fall between the marble and the
+// board, open grooves where they fall on the outer curve. One open channel
+// (lacing position chan_i) runs from the window to the outside so a wire
+// can be slipped in sideways instead of threaded.
+d_r = rail_rr + lace_dr;
+chan_i = 5;
+chan_w = rail_d + 0.6;
+d_corner = 3;
+peg_y0 = 8.4;
+function peg_hole_y(k) = peg_y0 - k * peg_step;
+d_y0 = peg_hole_y(peg_variants - 1) - peg_hole_d / 2 - 3;
+d_y1 = peg_hole_y(0) + om_rise + slot_w + 1.4 + slot_w / 2 + 3.5;
+module d_outline_2d() {
+    hull() {
+        translate([track_d, 0]) circle(r=d_r, $fn=128);
+        translate([0, d_y0]) square([0.01, d_y1 - d_y0]);
+        for (y=[d_y0 + d_corner, d_y1 - d_corner]) translate([d_corner, y]) circle(r=d_corner, $fn=32);
+    }
+}
+// k: tab height; lip: J snap; gin: groove depth (window past the wire
+// centers); top_d: diameter of the uppermost board-side lacing hole (hole
+// size test -- that one is rarely used)
+top_lace_i = 9;
+module drib_2d(k, lip=j_lip, gin=groove_in, top_d=lace_d) {
     yh = peg_hole_y(k);
-    yb = yh + om_rise;
     difference() {
         union() {
-            translate([0, -sup_bot]) square([track_d + sup_side, sup_bot + sup_top]);
-            // tab rests on the bottom of the hole
+            d_outline_2d();
             peg_tab_2d(yh);
         }
         translate([track_d, 0]) {
-            circle(r=sup_win, $fn=96);
+            circle(r=rail_rr + gin, $fn=96);
             for (i=[0:sup_n-1]) translate(sup_notch(i)) circle(r=notch_r, $fn=24);
-            for (i=[0:sup_n-1]) translate(sup_lace(i)) circle(d=lace_d, $fn=24);
+            for (i=[0:sup_n-1]) if (i != chan_i)
+                translate(sup_lace(i)) circle(d=i == top_lace_i ? top_d : lace_d, $fn=24);
+            rotate([0, 0, chan_i * sup_step])
+                translate([-chan_w / 2, -(d_r + 2)]) square([chan_w, d_r + 2 - rail_rr]);
         }
-        // bridge slot: straight in from the back edge, then the cam
-        peg_slot_2d(yh);
+        j_slot_2d(yh, lip);
     }
 }
 
-module peg_support_etch_2d(k) {
-    translate([track_d - sup_ring + 4, -sup_bot + 3]) text(str(k), size=4);
+// --- omega jig + gauges: slots cut into leftover stock, no outline ---
+// Length slot: lay the omega wire in, cut it flush at both ends.
+// Form slot: the omega's flat shape as a channel, the finger inside the U
+// left standing. Press the wire in with the strip that drops out of the
+// channel (on the table). Over-bent a little so it springs: the U is
+// spring_w narrower than a rib, the feet folded spring_a past square.
+spring_w = 0.4;
+spring_a = 10;
+form_ch = om_d + 0.25;
+form_c = (sheet_th - spring_w) / 2 + om_r;
+function form_path(sx) = let(foot = [sx * cos(spring_a), sin(spring_a)] * om_foot)
+    [[sx * form_c, 0], [sx * form_c, -om_leg_free], [sx * form_c, -om_leg_free] + foot];
+function poly_len(p) = len(p) < 2 ? 0 : norm(p[1] - p[0]) + poly_len([for (i=[1:len(p)-1]) p[i]]);
+omega_wire_l = 2 * poly_len(form_path(1)) + PI * form_c;
+module omega_form_slot_2d() {
+    for (sx=[-1, 1]) let(pp = form_path(sx))
+        for (i=[0:len(pp)-2]) hull() for (q=[pp[i], pp[i + 1]]) translate(q) circle(d=form_ch, $fn=16);
+    difference() {
+        circle(r=form_c + form_ch / 2, $fn=48);
+        circle(r=form_c - form_ch / 2, $fn=48);
+        translate([-20, -40]) square([40, 40]);
+    }
+}
+module omega_length_slot_2d() {
+    translate([-form_ch / 2, 0]) square([form_ch, omega_wire_l]);
+}
+// Straightness gauge: rail wire that drops into this along its length is
+// straight enough to lay through the ribs.
+module straight_slot_2d(l) {
+    translate([-(rail_d + 0.4) / 2, 0]) square([rail_d + 0.4, l]);
+}
+echo(omega_wire_length=omega_wire_l);
+
+
+// ===== demo sheet: 300 x 295 =====
+//
+// Every part is a rib you can use on the wall. The 30 ribs are three full
+// cycles of the 10 tab heights; each cycle is one experiment group, and
+// the uppermost board-side hole size steps through hole_tests in every
+// group. The right-hand strip of leftover stock carries the omega jig,
+// the omega length slot and the straightness gauge.
+sheet_x = 300;
+sheet_y = 295;
+rib_x0 = -(panel_t + tab_out);
+rib_w = track_d + d_r - rib_x0;
+rib_y0 = min(d_y0, -d_r);
+rib_h = max(d_y1, d_r) - rib_y0;
+rib_gap = 1.5;
+rib_cols = 5;
+rib_rows = floor((sheet_y - 2) / (rib_h + rib_gap));
+// [lip, groove_in] per group
+groups = [[0.5, 0.35], [0.8, 0.5], [1.1, 0.65]];
+hole_tests = [for (dd=[0.3, 0.6, 1.0, 1.5, 2.0]) rail_d + dd];
+function rib_k(i) = i % peg_variants;
+function rib_g(i) = floor(i / peg_variants) % len(groups);
+function rib_top_d(i) = hole_tests[i % len(hole_tests)];
+n_ribs = min(rib_cols * rib_rows, peg_variants * len(groups));
+function rib_at_sheet(i) = [2 - rib_x0 + (i % rib_cols) * (rib_w + rib_gap),
+                            2 - rib_y0 + floor(i / rib_cols) * (rib_h + rib_gap)];
+strip_x = 2 + rib_cols * (rib_w + rib_gap);
+echo(rib_size=[rib_w, rib_h], ribs=n_ribs, rows=rib_rows, scrap_strip=[strip_x, sheet_x]);
+echo(demo_spans=n_ribs - 1, demo_track_mm=(n_ribs - 1) * seg_cols * peg_p,
+    demo_drop_mm=(n_ribs - 1) * seg_drop);
+assert(strip_x + 20 <= sheet_x && rib_rows * (rib_h + rib_gap) + 2 <= sheet_y, "demo sheet overflows");
+
+module sheet_cut_2d() {
+    for (i=[0:n_ribs-1]) translate(rib_at_sheet(i))
+        drib_2d(rib_k(i), groups[rib_g(i)][0], groups[rib_g(i)][1], rib_top_d(i));
+    // scrap strip: the slots are cut into the leftover, which you keep
+    sx = (strip_x + sheet_x) / 2;
+    translate([sx - 6, 14]) straight_slot_2d(sheet_y - 28);
+    translate([sx + 6, sheet_y - 12]) rotate([0, 0, 180]) omega_form_slot_2d();
+    translate([sx + 6, 14]) omega_length_slot_2d();
+}
+module sheet_etch_2d() {
+    for (i=[0:n_ribs-1]) translate(rib_at_sheet(i)) {
+        translate([3, peg_hole_y(rib_k(i)) - 7]) text(str(rib_k(i)), size=3.5);
+        translate([track_d, d_r - 5.5]) text(str("ABC"[rib_g(i)]), size=3, halign="center");
+        translate([track_d, -d_r + 2.5]) text(str(round(rib_top_d(i) * 10) / 10), size=2.2, halign="center");
+    }
+    sx = (strip_x + sheet_x) / 2;
+    translate([sx + 6, 14 + omega_wire_l + 2]) text("cut", size=2.5, halign="center");
+    translate([sx + 12, 120]) rotate([0, 0, 90]) text("straightness", size=3, halign="center");
+}
+// sheet border, for previews only
+module sheet_border_2d() {
+    difference() { square([sheet_x, sheet_y]); translate([0.3, 0.3]) square([sheet_x - 0.6, sheet_y - 0.6]); }
 }
 
-// omega, in board coordinates around its hole (hole center at the origin,
-// board face at z = 0), seated
+// one rib + omega hung in a patch of board
 function omega_pts(k) = let(F = om_F, B = om_B)
     [[-(om_c + om_foot), F[0], F[1]], [-om_c, F[0], F[1]], [-om_c, B[0], B[1]],
      [om_c, B[0], B[1]], [om_c, F[0], F[1]], [om_c + om_foot, F[0], F[1]]];
-echo(omega_wire_length=rail_len(omega_pts(0)));
-
-module omega_3d(k) {
-    color("gold") for (i=[0:len(omega_pts(k))-2])
-        hull() for (q=[omega_pts(k)[i], omega_pts(k)[i + 1]]) translate(q) sphere(d=om_d, $fn=10);
-}
-
-// one support + omega hung in a patch of board
-module peg_demo(k=0) {
+module rib_demo(k=0) {
     color("slategray") translate([-30, -40, -panel_t]) difference() {
         cube([60, 80, panel_t]);
         for (c=[-1:1], r=[-1:2]) translate([30 + c * peg_p, 40 + r * peg_p, -1]) cylinder(d=peg_hole_d, h=3, $fn=24);
     }
-    // support plane: x -> z, y -> y, centered on x = 0
     translate([0, -peg_hole_y(k), 0])
         multmatrix([[0, 0, 1, -sheet_th / 2], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1]])
-        color("burlywood") linear_extrude(sheet_th) peg_support_2d(k);
-    omega_3d(k);
+        color("burlywood") linear_extrude(sheet_th) drib_2d(k);
+    color("gold") for (i=[0:len(omega_pts(k))-2])
+        hull() for (q=[omega_pts(k)[i], omega_pts(k)[i + 1]]) translate(q) sphere(d=om_d, $fn=10);
     % translate([0, -peg_hole_y(k), track_d]) sphere(r=marble_r, $fn=48);
 }
-
-// all variants on one sheet
-module peg_variants_2d(etch=false) {
-    for (k=[0:peg_variants-1])
-        translate([(k % 5) * (track_d + sup_side + panel_t + tab_out + 4) + panel_t + tab_out + 2,
-                   floor(k / 5) * (sup_bot + sup_top + 4) + sup_bot + 2])
-            if (etch) peg_support_etch_2d(k);
-            else offset(delta=kerf / 2) peg_support_2d(k);
-}
-
-// ===== omega bending jig =====
-//
-// Three glued layers: a solid base, then two layers with the omega's flat
-// shape cut as a 6 mm deep channel. A 3 mm steel pin (M3 bolt, 1/8" nail)
-// through the base is the only narrow part: the bridge wraps it, so the U
-// comes out one support-thickness wide. Every other bend wraps a big
-// block of wood. Wrap the wire over the pin, push both legs down their
-// channels, fold the feet out along theirs, clip at the engraved marks.
-// Leg-to-leg is open below the pin -- nothing thin to snap off.
-
-ojig_w = 64;
-ojig_h = 52;
-ojig_pin_d = 3.1;
-ojig_ch = om_d + 0.35;
-// flat pattern: pin at the origin, legs down -y, feet out to the edges
-ojig_top = 14;
-function ojig_path(sx) = [[sx * (ojig_w / 2 + 1), -om_leg], [sx * om_c, -om_leg], [sx * om_c, 0]];
-module ojig_outline() {
-    translate([-ojig_w / 2, -ojig_h + ojig_top]) square([ojig_w, ojig_h]);
-}
-module ojig_layer_2d(layer) {
-    difference() {
-        ojig_outline();
-        if (layer == 0) circle(d=ojig_pin_d, $fn=24);
-        else {
-            for (sx=[-1, 1]) let(pp = ojig_path(sx))
-                for (i=[0:len(pp)-2]) hull() for (q=[pp[i], pp[i + 1]]) translate(q) circle(d=ojig_ch, $fn=16);
-            // bridge channel around the pin
-            difference() {
-                circle(r=om_c + ojig_ch / 2, $fn=48);
-                circle(r=om_c - ojig_ch / 2, $fn=48);
-                translate([-ojig_w, -ojig_w]) square([2 * ojig_w, ojig_w]);
-            }
-            // open between the legs below the pin
-            translate([-om_c, -om_leg]) square([2 * om_c, om_leg]);
-        }
-        // glue alignment: 3 mm holes for nails / dowels through all three
-        // layers; the foot channels split each channel layer into an upper
-        // and a lower block, both glued to the solid base
-        for (sx=[-1, 1], y=[ojig_top - 7, -ojig_h + ojig_top + 6])
-            translate([sx * (ojig_w / 2 - 6), y]) circle(d=3, $fn=16);
-    }
-}
-module ojig_etch_2d(layer) {
-    if (layer == 2) {
-        // clip marks at the foot length
-        for (sx=[-1, 1]) translate([sx * (om_c + om_foot) - 0.2, -om_leg + ojig_ch / 2 + 0.5]) square([0.4, 3]);
-        translate([0, ojig_top - 6]) text("OMEGA", size=4, halign="center");
-        translate([0, -om_leg - 9]) text("clip", size=3, halign="center");
-    } else translate([0, ojig_top - 6]) text(str("layer ", layer), size=3.5, halign="center");
-}
-
-
-// ===== test coupons =====
-
-// Snap coupon: just the back edge of a support -- tab + cam slot -- to hang
-// in the steel with an omega and feel the snap. [over, pull] per coupon.
-snap_tests = [for (o=[0.4, 0.8, 1.2], pl=[1.0, 1.5, 2.0]) [o, pl]];
-snap_w = om_out + 1.2 + 6;
-snap_y0 = -peg_hole_d / 2 - 5;
-snap_y1 = om_rise + slot_w + 4;
-module snap_coupon_2d(t) {
-    difference() {
-        union() {
-            translate([0, snap_y0]) square([snap_w, snap_y1 - snap_y0]);
-            peg_tab_2d(0);
-        }
-        peg_slot_2d(0, t[0], t[1]);
-    }
-}
-module snap_coupon_etch_2d(t) {
-    translate([snap_w - 1, snap_y0 + 1.5]) rotate([0, 0, 90]) text(str("o", t[0], " p", t[1]), size=2.2);
-}
-
-// Groove comb: notches along a straight edge with the wire center groove_in
-// inside the edge, like the support window. Columns: groove_in; rows of
-// teeth: notch clearance. Drop the rail wire in; pick the snug one.
-groove_ins = [0.2, 0.35, 0.5, 0.65, 0.8];
-notch_clrs = [0.1, 0.15, 0.2];
-gc_pitch = 9;
-gc_w = len(groove_ins) * len(notch_clrs) * gc_pitch + 6;
-gc_h = 16;
-function gc_items() = [for (c=notch_clrs, g=groove_ins) [g, c]];
-module groove_comb_2d() {
-    difference() {
-        square([gc_w, gc_h]);
-        for (i=[0:len(gc_items())-1]) let(g = gc_items()[i][0], c = gc_items()[i][1])
-            translate([6 + i * gc_pitch, gc_h + g]) circle(r=rail_d / 2 + c, $fn=24);
-    }
-}
-module groove_comb_etch_2d() {
-    for (i=[0:len(gc_items())-1]) let(g = gc_items()[i][0], c = gc_items()[i][1])
-        translate([6 + i * gc_pitch, 2]) {
-            text(str(g), size=1.8, halign="center");
-            translate([0, 4]) text(str(c), size=1.8, halign="center");
-        }
-    translate([1, gc_h - 14]) text("in", size=1.6);
-    translate([1, gc_h - 10]) text("c", size=1.6);
-}
-
-// Hole gauge: lacing / pass-through holes for both wires
-hole_tests = concat([for (dd=[0.3, 0.6, 1.0, 1.5, 2.0]) rail_d + dd], [for (dd=[0.2, 0.4, 0.8]) om_d + dd]);
-hg_w = len(hole_tests) * 8 + 4;
-hg_h = 16;
-module hole_gauge_2d() {
-    difference() {
-        square([hg_w, hg_h]);
-        for (i=[0:len(hole_tests)-1]) translate([6 + i * 8, 10]) circle(d=hole_tests[i], $fn=32);
-    }
-}
-module hole_gauge_etch_2d() {
-    for (i=[0:len(hole_tests)-1]) translate([6 + i * 8, 2.5])
-        text(str(round(hole_tests[i] * 10) / 10), size=1.7, halign="center");
-}
-
-// Kerf square: measure the 20 mm square and the 10 mm hole with calipers
-module kerf_square_2d() {
-    difference() {
-        square([20, 20]);
-        translate([10, 10]) circle(d=10, $fn=64);
-    }
-}
-
-// Straightness gauge: a long slot one wire + 0.4 wide. A rail wire that
-// drops in along its length is straight enough for the supports.
-sg_l = 290;
-module straight_gauge_2d() {
-    difference() {
-        square([sg_l, 10]);
-        translate([5, 5 - (rail_d + 0.4) / 2]) square([sg_l - 10, rail_d + 0.4]);
-    }
-}
-
-
-// ===== sampler: one 300 x 300 sheet =====
-
-sup_pw = track_d + sup_side + panel_t + tab_out;
-sup_ph = sup_bot + sup_top;
-// [x, y] of each piece's own origin on the sheet
-sm_gap = 3;
-sm_rows = [3, 3 + 10 + sm_gap, 3 + 10 + sm_gap + gc_h + sm_gap];
-sm_snap_y = sm_rows[2] - snap_y0;
-sm_sup_y0 = sm_rows[2] + (snap_y1 - snap_y0) + sm_gap;
-function sm_sup(k) = [3 + panel_t + tab_out + (k % 5) * (sup_pw + 2), sm_sup_y0 + sup_bot + floor(k / 5) * (sup_ph + sm_gap)];
-sm_jig_y = sm_sup_y0 + 2 * (sup_ph + sm_gap) + ojig_h - ojig_top;
-sm_crib_x = 3 + gc_w + sm_gap + hg_w + sm_gap + 20 + sm_gap;
-echo(sampler_top=sm_jig_y + ojig_top, sampler_right=[3 + 5 * (sup_pw + 2), 3 + 3 * (ojig_w + 2), sm_crib_x + c_rib_zmax]);
-assert(sm_jig_y + ojig_top <= max_part - 2 && 3 + 5 * (sup_pw + 2) <= max_part, "sampler overflows the sheet");
-
-module sampler_2d(etch=false) {
-    // straightness gauge
-    translate([3, sm_rows[0]]) if (!etch) straight_gauge_2d();
-    // groove comb, hole gauge, kerf square, a C-turn rib
-    translate([3, sm_rows[1]]) if (!etch) groove_comb_2d(); else groove_comb_etch_2d();
-    translate([3 + gc_w + sm_gap, sm_rows[1]]) if (!etch) hole_gauge_2d(); else hole_gauge_etch_2d();
-    translate([3 + gc_w + sm_gap + hg_w + sm_gap, sm_rows[1]]) if (!etch) kerf_square_2d();
-    translate([sm_crib_x, sm_rows[1] - c_u0]) if (!etch) c_rib_profile_2d();
-    // snap coupons
-    for (i=[0:len(snap_tests)-1])
-        translate([3 + panel_t + tab_out + i * (snap_w + panel_t + tab_out + 2), sm_snap_y])
-            if (!etch) snap_coupon_2d(snap_tests[i]); else snap_coupon_etch_2d(snap_tests[i]);
-    // all 10 hook-in supports
-    for (k=[0:peg_variants-1]) translate(sm_sup(k))
-        if (!etch) peg_support_2d(k); else peg_support_etch_2d(k);
-    // omega jig, three layers
-    for (l=[0:2]) translate([3 + ojig_w / 2 + l * (ojig_w + 2), sm_jig_y])
-        if (!etch) ojig_layer_2d(l); else ojig_etch_2d(l);
-    // C-turn rail forms: all 3 layers of the inner one, the outer one's base
-    for (l=[0:2]) translate([3 + sm_fi + l * (2 * sm_fi + 2), sm_form_y + sm_fo - sm_fi])
-        if (!etch) c_form_2d(c_ri, l);
-        else translate([0, -sm_fi + 3]) text(str("C in ", l), size=3, halign="center");
-    translate([3 + 3 * (2 * sm_fi + 2) + sm_fo, sm_form_y])
-        if (!etch) c_form_2d(c_ro, 0);
-        else translate([0, -sm_fo + 3]) text("C out 0", size=3, halign="center");
-}
-sm_fi = (c_ri - rail_d / 2) * spring_k + 3;
-sm_fo = (c_ro - rail_d / 2) * spring_k + 3;
-sm_form_y = sm_jig_y + ojig_top + sm_gap + sm_fo;
-echo(sampler_forms_top=sm_form_y + sm_fo, sampler_forms_right=3 + 3 * (2 * sm_fi + 2) + 2 * sm_fo);
-assert(sm_form_y + sm_fo <= max_part - 1 && 3 + 3 * (2 * sm_fi + 2) + 2 * sm_fo <= max_part - 1,
-    "C forms overflow the sampler sheet");
 
 hy_part = "wall";
 hy_mod = 0;
@@ -841,10 +735,7 @@ else if (hy_part == "module") module_parts_2d(layout[hy_mod]);
 else if (hy_part == "module_3d") module_3d(layout[hy_mod]);
 else if (hy_part == "jigs") jigs_2d();
 else if (hy_part == "support") offset(delta=kerf / 2) support_2d();
-else if (hy_part == "peg_support") offset(delta=kerf / 2) peg_support_2d(0);
-else if (hy_part == "peg_variants") peg_variants_2d();
-else if (hy_part == "peg_variants_etch") peg_variants_2d(etch=true);
-else if (hy_part == "peg_demo") peg_demo(0);
-else if (hy_part == "sampler") offset(delta=kerf / 2) sampler_2d();
-else if (hy_part == "sampler_etch") sampler_2d(etch=true);
-else if (hy_part == "omega_jig_3d") for (l=[0:2]) translate([0, 0, l * sheet_th]) color(l == 0 ? "tan" : "burlywood") linear_extrude(sheet_th) ojig_layer_2d(l);
+else if (hy_part == "rib") offset(delta=kerf / 2) drib_2d(0);
+else if (hy_part == "rib_demo") rib_demo(0);
+else if (hy_part == "sheet") offset(delta=kerf / 2) sheet_cut_2d();
+else if (hy_part == "sheet_etch") sheet_etch_2d();
