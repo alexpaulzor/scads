@@ -10,19 +10,19 @@ fits, no plywood touching the pegboard.
               top leg hooks up behind the steel, the bottom leg stops it
               tipping. The bridge holds the plate flat to the board. Tilt,
               hook, swing down -- like any pegboard hook.
-  RIBS        stand out from the back plate on tabs (glue them). Each one
-              has a notch for every rail, open toward the marble, so rails
-              just drop in.
-  RAILS       wire. Lay them in the notches; bend each end 90 deg away from
-              the marble over the end rib's outer face. The rib is the bend
-              jig, and the two end hooks keep the rail from sliding.
-              Straights need no bending at all.
+  SUPPORTS    plywood frames on tabs (glue them), each with a window the
+              marble rolls through and a notch per rail position.
+  RAILS       wire, wrapped around the supports -- the supports are the
+              bending jig. On a straight each wire zig-zags: narrow at the
+              bottom center leaving a support, wide toward the side arriving
+              at the next, then around the support back to narrow. The
+              marble sinks as the gauge opens, so level wire still rolls.
 
 Modules meet at ports: marble 31.75 mm (1.25") off the board, x halfway
 between hole columns, each module starting joint_step below the port it
 enters by. The pegboard grid does the aligning.
 
-  straight - 2 wire rails, up to 11 columns long
+  straight - 2 zig-zag wires, one per side, up to 11 columns long
   C-turn   - 4 wire rails (enclosed) bent around a laser-cut form,
              threaded through framed ribs: drops 2" and reverses
 
@@ -74,10 +74,6 @@ bend_leg = 5;
 
 // --- ribs ---
 rib_wall = 4;
-comb_depth = 14;
-gusset = 14;
-strip_w = 4;
-rib_pitch_cols = 2;
 
 // --- staples ---
 staple_up = 7;
@@ -103,16 +99,51 @@ echo(c_rs=c_rs, c_ri=c_ri, c_ro=c_ro, c_drop=c_drop);
 assert(c_ri - notch_r - rib_wall > 4, "C-turn too tight for its ribs");
 
 
+// ===== straight module: zig-zag wires through framed supports =====
+//
+// Each support is a plywood frame with a window the marble rolls through.
+// Between two supports each wire runs straight from N (narrow, near bottom
+// center) on one support to W (wide, out toward the side) on the next, so
+// the marble sinks as the gauge opens even though the wire is level. At
+// the support the wire passes through notch W, runs across the far face to
+// notch N and sets off again: it wraps the support, and the support is the
+// bending jig. A wire starts by poking through N on the first support
+// (tail bent down on the near face) and ends by wrapping the last support
+// and poking back through N (tail bent down). One wire per rail per module.
+
+g_n = 7;
+g_w = 13;
+seg_cols = 2;
+h_n = sqrt(rail_rr * rail_rr - g_n * g_n / 4);
+h_w = sqrt(rail_rr * rail_rr - g_w * g_w / 4);
+// marble drop per span: sinking as the gauge opens, plus the hand-over
+seg_drop = h_n - h_w + joint_step;
+// support plates: marble at (track_d, 0) on arrival, joint_step lower leaving
+sup_in = 3;
+sup_win = marble_r + mclr;
+sup_side = g_w / 2 + notch_r + 5;
+sup_bot = h_n + joint_step + notch_r + 5;
+sup_top = sup_win + 6;
+tail = 5;
+tab_h = 5;
+sup_tab_ys = [-sup_bot + 1, sup_top - 1 - tab_h];
+// notch centers in the support plane (lateral, height)
+function sup_W(sx) = [sx * g_w / 2, -h_w];
+function sup_N(sx) = [sx * g_n / 2, -h_n - joint_step];
+
+echo(h_n=h_n, h_w=h_w, seg_drop=seg_drop, span=seg_cols * peg_p);
+assert(g_w - rail_d < marble_od - 1, "wide gauge lets the marble fall through");
+
 // ===== layout =====
 
-// ["S", c0, n, y_entry, dir]: columns c0+0.5 .. c0+n+0.5, marble y at the
-//   entry end; drops q_straight * q_step toward dir
+// ["S", c0, n, y_entry, dir]: columns c0+0.5 .. c0+n+0.5, marble y leaving
+//   the first support; travels toward dir
 // ["C", x_port, y_entry, side]: half loop bulging toward side (+1 right)
-q_straight = 2;
-s_drop = q_straight * q_step;
 y_start = 27 * peg_p;
 
-function step_y(m) = m[0] == "S" ? m[3] - s_drop : m[2] - (c_drop - joint_step);
+function s_k(m) = floor(m[2] / seg_cols) + 1;
+function s_drop_of(m) = (s_k(m) - 1) * seg_drop;
+function step_y(m) = m[0] == "S" ? m[3] - s_drop_of(m) : m[2] - (c_drop - joint_step);
 function chain(specs, y, acc=[]) =
     len(acc) == len(specs) ? acc :
     let(sp = specs[len(acc)], m = sp[0] == "S"
@@ -128,67 +159,66 @@ layout = chain([
     ["S", 12, 10, -1], ["S", 2, 10, -1]], y_start);
 
 
-// ===== straight module =====
-
 function s_xa(m) = (m[1] + 0.5) * peg_p;
 function s_xb(m) = (m[1] + m[2] + 0.5) * peg_p;
-function s_ya(m) = m[4] > 0 ? m[3] : m[3] - s_drop;
-function s_yb(m) = m[4] > 0 ? m[3] - s_drop : m[3];
-function s_y(m, x) = s_ya(m) + (s_yb(m) - s_ya(m)) * (x - s_xa(m)) / (s_xb(m) - s_xa(m));
-function s_rib_xs(m) = concat(
-    [s_xa(m) + end_rib_in],
-    [for (k=[rib_pitch_cols : rib_pitch_cols : m[2] - 1]) s_xa(m) + k * peg_p],
-    [s_xb(m) - end_rib_in]);
-// staple: [hole column, upper hole row]
-// the staple's two holes bracket the rail line (the plate sits behind the
-// marble, so it can run above the rails)
+function s_dir(m) = m[4];
+function s_x0(m) = m[4] > 0 ? s_xa(m) : s_xb(m);
+// support k: center x, and marble height arriving (reference for its plate)
+function sup_x(m, k) = s_x0(m) + s_dir(m) * (sup_in + k * (m[2] * peg_p - 2 * sup_in) / (s_k(m) - 1));
+function sup_y(m, k) = m[3] - k * seg_drop + joint_step;
+// marble path, for markers
+function s_y(m, x) = let(t = (x - s_x0(m)) * s_dir(m) / (m[2] * peg_p)) m[3] - t * s_drop_of(m);
+// staples bracket the rail line near each end
 function s_staples(m) =
-    [for (c=[m[1] + 1, m[1] + m[2]]) [c, floor((s_y(m, c * peg_p) - rail_h) / peg_p) + 1]];
+    [for (c=[m[1] + 1, m[1] + m[2]]) [c, floor((s_y(m, c * peg_p) - h_w) / peg_p) + 1]];
 
-// Rib in its own plane: x = out from the board (z), y = up; marble center
-// at (track_d, 0).
-function dip_y(x) = let(mr = marble_r + mclr) abs(x) < mr ? -sqrt(mr * mr - x * x) : 1e9;
-function open_parting(step=0.5) = let(w = gauge / 2 + notch_r + rib_wall)
-    concat([[-w, -rail_h]],
-        [for (x=[-gauge / 2 : step : gauge / 2]) [x, min(-rail_h, dip_y(x))]],
-        [[w, -rail_h]]);
-tab_ys_open = [-comb_depth + 0.5, -comb_depth - gusset + 0.5];
-tab_h = 5;
-
-module open_rib_2d() {
-    w = gauge / 2 + notch_r + rib_wall;
+// Support plate in its own plane: x = out from the board (z), y = up;
+// marble arriving at (track_d, 0).
+module support_2d() {
     difference() {
         union() {
-            translate([track_d, 0])
-                polygon(concat(open_parting(), [[w, -comb_depth], [-w, -comb_depth]]));
-            translate([sheet_th, -comb_depth]) square([track_d - w - sheet_th + 0.01, 6]);
-            polygon([[sheet_th, -comb_depth - gusset], [sheet_th, -comb_depth],
-                [sheet_th + gusset, -comb_depth]]);
-            translate([sheet_th, -comb_depth - gusset]) square([strip_w, gusset + 6]);
-            for (y=tab_ys_open) translate([0, y]) square([sheet_th + 0.01, tab_h]);
+            translate([sheet_th, -sup_bot]) square([track_d + sup_side - sheet_th, sup_bot + sup_top]);
+            for (y=sup_tab_ys) translate([0, y]) square([sheet_th + 0.01, tab_h]);
         }
-        for (sx=[-1, 1]) translate([track_d + sx * gauge / 2, -rail_h]) circle(r=notch_r, $fn=24);
+        hull() for (y=[0, -joint_step]) translate([track_d, y]) circle(r=sup_win, $fn=64);
+        for (sx=[-1, 1]) {
+            translate([track_d, 0] + sup_W(sx)) circle(r=notch_r, $fn=24);
+            translate([track_d, 0] + sup_N(sx)) circle(r=notch_r, $fn=24);
+        }
     }
 }
 
+function s_bb(m) = let(ys = s_staples(m),
+        ylo = min([for (k=[0:s_k(m)-1]) sup_y(m, k)]) - sup_bot,
+        yhi = max([for (k=[0:s_k(m)-1]) sup_y(m, k)]) + sup_top)
+    [s_xa(m) + 1, min(min([for (s=ys) (s[1] - 1) * peg_p - 7]), ylo - 3),
+     s_xb(m) - 1, max(max([for (s=ys) s[1] * peg_p + 7]), yhi + 3)];
+
 module s_back_2d(m) {
-    ys = s_staples(m);
-    y0 = min(min([for (s=ys) (s[1] - 1) * peg_p - 7]),
-             min(s_ya(m), s_yb(m)) - comb_depth - gusset - 3);
-    y1 = max(max([for (s=ys) s[1] * peg_p + 7]), max(s_ya(m), s_yb(m)) - comb_depth + 9);
+    b = s_bb(m);
     difference() {
-        translate([s_xa(m) + 1, y0]) square([s_xb(m) - s_xa(m) - 2, y1 - y0]);
-        for (s=ys, r=[s[1], s[1] - 1]) translate([s[0] * peg_p, r * peg_p]) circle(d=staple_hole_d, $fn=16);
-        for (x=s_rib_xs(m), ty=tab_ys_open)
-            translate([x - (sheet_th + tab_clr) / 2, s_y(m, x) + ty - tab_clr / 2])
+        translate([b[0], b[1]]) square([b[2] - b[0], b[3] - b[1]]);
+        for (s=s_staples(m), r=[s[1], s[1] - 1]) translate([s[0] * peg_p, r * peg_p]) circle(d=staple_hole_d, $fn=16);
+        for (k=[0:s_k(m)-1], ty=sup_tab_ys)
+            translate([sup_x(m, k) - (sheet_th + tab_clr) / 2, sup_y(m, k) + ty - tab_clr / 2])
                 square([sheet_th + tab_clr, tab_h + tab_clr]);
     }
 }
 
-function s_rails(m) = [for (sx=[-1, 1]) let(z = track_d + sx * gauge / 2,
-        xa = s_xa(m) + rail_gap, xb = s_xb(m) - rail_gap)
-    [[xa, s_y(m, xa) - rail_h - bend_leg, z], [xa, s_y(m, xa) - rail_h, z],
-     [xb, s_y(m, xb) - rail_h, z], [xb, s_y(m, xb) - rail_h - bend_leg, z]]];
+// one wire, side sx (+1 = away from the board)
+function s_rail(m, sx) = let(
+        d = s_dir(m), K = s_k(m),
+        fw = sheet_th / 2 + rail_d / 2,
+        P = function(k, q, face) [sup_x(m, k) + d * face * fw, sup_y(m, k) + q[1], track_d + q[0]],
+        N = sup_N(sx), W = sup_W(sx))
+    concat(
+        // start: tail down the near face of support 0, through notch N
+        [P(0, N + [0, -tail], -1), P(0, N, -1), P(0, N, 1)],
+        // every later support: arrive at W, through, across the far face to N
+        [for (k=[1:K-1]) each [P(k, W, -1), P(k, W, 1), P(k, N, 1)]],
+        // end: back through N and tail down the near face
+        [P(K - 1, N, -1), P(K - 1, N + [0, -tail], -1)]);
+function s_rails(m) = [for (sx=[-1, 1]) s_rail(m, sx)];
 
 
 // ===== C-turn module =====
@@ -312,7 +342,7 @@ module rib_radial(m, a) {
 module module_3d(m) {
     if (m[0] == "S") {
         color("burlywood") linear_extrude(sheet_th) s_back_2d(m);
-        color("tan") for (x=s_rib_xs(m)) rib_at(x, s_y(m, x)) linear_extrude(sheet_th) open_rib_2d();
+        color("tan") for (k=[0:s_k(m)-1]) rib_at(sup_x(m, k), sup_y(m, k)) linear_extrude(sheet_th) support_2d();
         color("silver") for (r=s_rails(m)) polywire(r);
         for (s=s_staples(m)) staple(s[0], s[1]);
     } else {
@@ -351,9 +381,6 @@ module wall() {
 // ===== checks =====
 
 // back plate bounding boxes [x0, y0, x1, y1]
-function s_bb(m) = let(ys = s_staples(m))
-    [s_xa(m) + 1, min(min([for (s=ys) (s[1] - 1) * peg_p - 7]), min(s_ya(m), s_yb(m)) - comb_depth - gusset - 3),
-     s_xb(m) - 1, max(max([for (s=ys) s[1] * peg_p + 7]), max(s_ya(m), s_yb(m)) - comb_depth + 9)];
 function c_bb(m) = let(x0 = c_xp(m) + c_s(m), x1 = c_xc(m) + c_s(m) * (c_u1 + 3))
     [min(x0, x1), c_yc(m) - c_u1 - 3, max(x0, x1), c_yc(m) + c_u1 + 3];
 function bb(m) = m[0] == "S" ? s_bb(m) : c_bb(m);
@@ -429,9 +456,10 @@ module jigs_2d() {
 module module_parts_2d(m) {
     offset(delta=kerf / 2) {
         if (m[0] == "S") {
-            translate([-s_xa(m), -min(s_ya(m), s_yb(m)) + comb_depth + gusset + 40]) s_back_2d(m);
-            for (i=[0:len(s_rib_xs(m))-1])
-                translate([i * 52 + 2, comb_depth + gusset + 2]) open_rib_2d();
+            translate([-s_bb(m)[0], -s_bb(m)[1] + 2 * (sup_bot + sup_top) + 6]) s_back_2d(m);
+            for (k=[0:s_k(m)-1])
+                translate([2 + (k % 6) * (track_d + sup_side + 3), sup_bot + 2 + floor(k / 6) * (sup_bot + sup_top + 3)])
+                    support_2d();
         } else {
             translate([-c_xc(m) + (c_s(m) > 0 ? c_leg + 2 : c_u1 + 4), -c_yc(m) + c_u1 + 4]) c_back_2d(m);
             translate([2 * c_u1 + 20, c_u1 + 4]) c_frame_2d();
