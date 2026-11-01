@@ -81,7 +81,7 @@ staple_slack = 0.6;
 staple_hole_d = hook_d + 0.5;
 
 // --- C-turn ---
-c_drop = 8 * q_step;
+c_drop = 12 * q_step;
 c_rs = (c_drop - joint_step - run_clr) / 2;
 c_ri = c_rs - rail_h;
 c_ro = c_ri + 2 * rail_h + run_clr;
@@ -102,6 +102,8 @@ assert(c_ri - notch_r - rib_wall > 4, "C-turn too tight for its ribs");
 // ===== straight module: zig-zag wires through framed supports =====
 //
 // Each support is a plywood frame with a window the marble rolls through.
+// The marble center sits at the ring center at every support (arriving on
+// W, leaving on N), so the hand-over is level and the drop is in the spans.
 // Between two supports each wire runs straight from N (narrow, near bottom
 // center) on one support to W (wide, out toward the side) on the next, so
 // the marble sinks as the gauge opens even though the wire is level. At
@@ -111,27 +113,52 @@ assert(c_ri - notch_r - rib_wall > 4, "C-turn too tight for its ribs");
 // (tail bent down on the near face) and ends by wrapping the last support
 // and poking back through N (tail bent down). One wire per rail per module.
 
-g_n = 7;
-g_w = 13;
+// Every support has sup_n notches evenly spaced on a ring of radius rail_rr
+// around the marble center (where a resting marble touches a wire), offset
+// half a step so bottom and top center stay free. The straight rides pair
+// n_idx (N, counted out from bottom center) leaving a support and the pair
+// wide_step further out (W) arriving; the rest are for extra wires:
+// guards, roofs, tunnels. The innermost pair is too narrow to ride on (the
+// marble would roll off sideways), so it is left for lacing.
+// The window is groove_in bigger than the ring, so every notch is a groove
+// shallower than half the wire: wires drop in from the window, no forcing.
+sup_n = 16;
+sup_step = 360 / sup_n;
+n_idx = 1;
+wide_step = 1;
 seg_cols = 2;
-h_n = sqrt(rail_rr * rail_rr - g_n * g_n / 4);
-h_w = sqrt(rail_rr * rail_rr - g_w * g_w / 4);
-// marble drop per span: sinking as the gauge opens, plus the hand-over
-seg_drop = h_n - h_w + joint_step;
-// support plates: marble at (track_d, 0) on arrival, joint_step lower leaving
+a_n = sup_step / 2 + n_idx * sup_step;
+a_w = a_n + wide_step * sup_step;
+g_n = 2 * rail_rr * sin(a_n);
+g_w = 2 * rail_rr * sin(a_w);
+h_n = rail_rr * cos(a_n);
+h_w = rail_rr * cos(a_w);
+// on top of the sinking, the supports step down this slope
+rail_slope = 0;
+seg_drop = h_n - h_w + rail_slope * seg_cols * peg_p;
+groove_in = 0.5;
+sup_win = rail_rr + groove_in;
+// lacing hole: bottom center, between the inner notches, further out
+lace_dr = 8;
+lace_d = 2 * rail_d + 0.5;
+sup_margin = 7;
 sup_in = 3;
-sup_win = marble_r + mclr;
-sup_side = g_w / 2 + notch_r + 5;
-sup_bot = h_n + joint_step + notch_r + 5;
-sup_top = sup_win + 6;
+sup_ring = rail_rr + notch_r + sup_margin;
+sup_side = sup_ring;
+sup_top = sup_ring;
+sup_bot = max(sup_ring, rail_rr + lace_dr + lace_d / 2 + 4);
 tail = 5;
 tab_h = 5;
-sup_tab_ys = [-sup_bot + 1, sup_top - 1 - tab_h];
-// notch centers in the support plane (lateral, height)
-function sup_W(sx) = [sx * g_w / 2, -h_w];
-function sup_N(sx) = [sx * g_n / 2, -h_n - joint_step];
+sup_tab_ys = [-sup_bot + 2, sup_top - 2 - tab_h];
+function sup_notch(i) = let(a = a_n + i * sup_step) [rail_rr * sin(a), -rail_rr * cos(a)];
+function sup_W(sx) = [sx * rail_rr * sin(a_w), -h_w];
+function sup_N(sx) = [sx * rail_rr * sin(a_n), -h_n];
 
-echo(h_n=h_n, h_w=h_w, seg_drop=seg_drop, span=seg_cols * peg_p);
+echo(sup_n=sup_n, notch_step=sup_step, g_n=g_n, g_w=g_w, h_n=h_n, h_w=h_w,
+    seg_drop=seg_drop, span=seg_cols * peg_p, slope=seg_drop / (seg_cols * peg_p));
+echo(window_r=sup_win, notch_ring=rail_rr, groove_depth=rail_rr + notch_r - sup_win,
+    groove_mouth=2 * sqrt(notch_r * notch_r - groove_in * groove_in), lace_ring=rail_rr + lace_dr,
+    support_size=[track_d + sup_side, sup_bot + sup_top]);
 assert(g_w - rail_d < marble_od - 1, "wide gauge lets the marble fall through");
 
 // ===== layout =====
@@ -165,7 +192,7 @@ function s_dir(m) = m[4];
 function s_x0(m) = m[4] > 0 ? s_xa(m) : s_xb(m);
 // support k: center x, and marble height arriving (reference for its plate)
 function sup_x(m, k) = s_x0(m) + s_dir(m) * (sup_in + k * (m[2] * peg_p - 2 * sup_in) / (s_k(m) - 1));
-function sup_y(m, k) = m[3] - k * seg_drop + joint_step;
+function sup_y(m, k) = m[3] - k * seg_drop;
 // marble path, for markers
 function s_y(m, x) = let(t = (x - s_x0(m)) * s_dir(m) / (m[2] * peg_p)) m[3] - t * s_drop_of(m);
 // staples bracket the rail line near each end
@@ -180,10 +207,10 @@ module support_2d() {
             translate([sheet_th, -sup_bot]) square([track_d + sup_side - sheet_th, sup_bot + sup_top]);
             for (y=sup_tab_ys) translate([0, y]) square([sheet_th + 0.01, tab_h]);
         }
-        hull() for (y=[0, -joint_step]) translate([track_d, y]) circle(r=sup_win, $fn=64);
-        for (sx=[-1, 1]) {
-            translate([track_d, 0] + sup_W(sx)) circle(r=notch_r, $fn=24);
-            translate([track_d, 0] + sup_N(sx)) circle(r=notch_r, $fn=24);
+        translate([track_d, 0]) {
+            circle(r=sup_win, $fn=96);
+            for (i=[0:sup_n-1]) translate(sup_notch(i)) circle(r=notch_r, $fn=24);
+            translate([0, -(rail_rr + lace_dr)]) circle(d=lace_d, $fn=24);
         }
     }
 }

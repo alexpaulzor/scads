@@ -27,9 +27,13 @@ does the rolling and the hanging.
   lengths).
 - **Supports** are plywood frames glued into the back plate on tabs, each
   with a window the marble rolls through. Every straight support is the same
-  part.
-- **Straight rails zig-zag**: each wire leaves a support narrow (near bottom
-  center), arrives at the next one wide (out toward the side), passes through
+  part: 16 notches evenly spaced on a ring (22.5 deg, bottom and top center
+  left free) so extra wires can make guards, roofs and tunnels, plus a big
+  lacing hole below bottom center for feeding wire through. The window is
+  a bit bigger than the ring, so each notch is a shallow groove the wire
+  drops into.
+- **Straight rails zig-zag**: each wire leaves a support on the 2nd notch
+  out from bottom center, arrives at the next one on the 3rd, passes through
   the wide notch, runs across the far face to the narrow notch and sets off
   again. The marble sinks as the gauge opens, so level wire still rolls. A
   wire starts by poking through the first support (tail bent down) and ends
