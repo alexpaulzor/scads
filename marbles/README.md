@@ -32,6 +32,15 @@ does the rolling and the hanging.
   lacing hole below bottom center for feeding wire through. The window is
   a bit bigger than the ring, so each notch is a shallow groove the wire
   drops into.
+- **Hook-in supports** (`hy_part="peg_variants"`): no back plate. A tab on
+  the support's back edge goes into a pegboard hole, locked by a wire
+  **omega**: feet behind the steel, legs forward through the hole either
+  side of the tab, bridge across the support through a curved slot above
+  the tab. Omega in first, then the tab wedges its legs apart; drop the
+  support 2 mm and the slot pulls the bridge out, drawing the feet tight.
+  The omega wire must pass beside a 3 mm tab in a 1/4" hole: about 1.6 mm
+  max (16 ga steel), not the 2.05 mm rail wire. Supports come in 10 tab
+  heights 2.54 mm apart, then repeat one hole row down.
 - **Straight rails zig-zag**: each wire leaves a support on the 2nd notch
   out from bottom center, arrives at the next one on the 3rd, passes through
   the wide notch, runs across the far face to the narrow notch and sets off

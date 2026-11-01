@@ -501,6 +501,125 @@ module module_parts_2d(m) {
     }
 }
 
+// ===== hook-in support: omega wire + tab, no back plate =====
+//
+// The support's back edge sits flat on the steel. A tab on that edge goes
+// into one pegboard hole; a small wire OMEGA locks it:
+//   - feet: behind the steel, turned outward past the hole edge
+//   - legs: forward through the hole, one each side of the tab
+//   - bridge: across the support, through a curved slot above the tab
+// Hang it: push the omega's feet through the hole (legs pinched together),
+// push the support's tab into the hole between the legs -- the tab wedges
+// them apart so the feet can't slip back out -- with the bridge entering
+// the slot mouth at the back edge, then let the support drop om_drop. The
+// slot curves outward, so the drop pulls the bridge out by om_pull and
+// draws the feet tight against the back of the steel. The support's weight
+// keeps it there; lift it to take it off.
+//
+// Hole rows are 1" apart but each span sinks seg_drop, so supports come in
+// peg_variants versions with the tab 25.4 / peg_variants lower each time;
+// after the last one the sequence repeats one hole row down.
+
+om_d = 1.6;
+om_r = om_d / 2;
+om_drop = 2;
+om_pull = 1.5;
+om_foot = 4;
+peg_variants = 10;
+peg_step = peg_p / peg_variants;
+tab_out = 1.5;
+// hole center relative to the ring center, variant 0
+peg_y0 = 9;
+// bridge seat above the hole center, and out from the board
+om_rise = 6.5;
+om_out = 4;
+slot_w = om_d + 0.3;
+// omega legs sit beside the tab
+om_c = sheet_th / 2 + om_r + 0.05;
+peg_tab_h = peg_hole_d - om_drop - 0.6;
+
+function peg_hole_y(k) = peg_y0 - k * peg_step;
+echo(peg_step=peg_step, om_d=om_d, gap_beside_tab=(peg_hole_d - sheet_th) / 2,
+    peg_hole_y=[for (k=[0:peg_variants-1]) peg_hole_y(k)]);
+assert(om_c + om_r <= peg_hole_d / 2, "omega wire too thick to pass beside the tab");
+assert(peg_hole_y(peg_variants - 1) - peg_hole_d / 2 - 3 > -sup_bot
+    && peg_hole_y(0) + om_rise + slot_w / 2 + 3 < sup_top, "tab/slot range doesn't fit the support");
+
+// Support in its own plane (x = out from the board, y = up), seated:
+// back edge on the steel at x = 0, ring center at (track_d, 0), tab in the
+// hole centered at y = peg_hole_y(k).
+module peg_support_2d(k) {
+    yh = peg_hole_y(k);
+    yb = yh + om_rise;
+    difference() {
+        union() {
+            translate([0, -sup_bot]) square([track_d + sup_side, sup_bot + sup_top]);
+            // tab rests on the bottom of the hole
+            translate([-(panel_t + tab_out), yh - peg_hole_d / 2 + 0.1])
+                square([panel_t + tab_out + 0.01, peg_tab_h]);
+        }
+        translate([track_d, 0]) {
+            circle(r=sup_win, $fn=96);
+            for (i=[0:sup_n-1]) translate(sup_notch(i)) circle(r=notch_r, $fn=24);
+            for (i=[0:sup_n-1]) translate(sup_lace(i)) circle(d=lace_d, $fn=24);
+        }
+        // bridge slot: in from the back edge, then up and out to the seat
+        for (seg=[[[-1, yb - om_drop], [om_out - om_pull, yb - om_drop]],
+                  [[om_out - om_pull, yb - om_drop], [om_out, yb]]])
+            hull() for (q=seg) translate(q) circle(d=slot_w, $fn=20);
+    }
+}
+
+module peg_support_etch_2d(k) {
+    translate([track_d - sup_ring + 4, -sup_bot + 3]) text(str(k), size=4);
+}
+
+// omega, in board coordinates around its hole (hole center at the origin,
+// board face at z = 0), seated
+function omega_pts(k) = let(zb = -(panel_t + om_r), yb = om_rise)
+    [[-(om_c + om_foot), 0, zb], [-om_c, 0, zb], [-om_c, 0, om_r], [-om_c, yb, om_out],
+     [om_c, yb, om_out], [om_c, 0, om_r], [om_c, 0, zb], [om_c + om_foot, 0, zb]];
+echo(omega_wire_length=rail_len(omega_pts(0)));
+
+module omega_3d(k) {
+    color("gold") for (i=[0:len(omega_pts(k))-2])
+        hull() for (q=[omega_pts(k)[i], omega_pts(k)[i + 1]]) translate(q) sphere(d=om_d, $fn=10);
+}
+
+// one support + omega hung in a patch of board
+module peg_demo(k=0) {
+    color("slategray") translate([-30, -40, -panel_t]) difference() {
+        cube([60, 80, panel_t]);
+        for (c=[-1:1], r=[-1:2]) translate([30 + c * peg_p, 40 + r * peg_p, -1]) cylinder(d=peg_hole_d, h=3, $fn=24);
+    }
+    // support plane: x -> z, y -> y, centered on x = 0
+    translate([0, -peg_hole_y(k), 0])
+        multmatrix([[0, 0, 1, -sheet_th / 2], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1]])
+        color("burlywood") linear_extrude(sheet_th) peg_support_2d(k);
+    omega_3d(k);
+    % translate([0, -peg_hole_y(k), track_d]) sphere(r=marble_r, $fn=48);
+}
+
+// all variants on one sheet
+module peg_variants_2d(etch=false) {
+    for (k=[0:peg_variants-1])
+        translate([(k % 5) * (track_d + sup_side + panel_t + tab_out + 4) + panel_t + tab_out + 2,
+                   floor(k / 5) * (sup_bot + sup_top + 4) + sup_bot + 2])
+            if (etch) peg_support_etch_2d(k);
+            else offset(delta=kerf / 2) peg_support_2d(k);
+}
+
+// Omega bending gauge: wrap the wire over the 3 mm tongue for the bridge,
+// bend the legs at the first line, the feet at the second.
+module omega_gauge_2d() {
+    leg = norm([om_rise, om_out - om_r]) ;
+    difference() {
+        translate([-15, -5]) square([30, leg + panel_t + 20]);
+        // slot the legs drop into, one tab thickness apart
+        for (sx=[-1, 1]) translate([sx * om_c - (om_d + 0.2) / 2, -5.01]) square([om_d + 0.2, leg + 5]);
+    }
+}
+
 hy_part = "wall";
 hy_mod = 0;
 if (hy_part == "wall") wall();
@@ -508,3 +627,7 @@ else if (hy_part == "module") module_parts_2d(layout[hy_mod]);
 else if (hy_part == "module_3d") module_3d(layout[hy_mod]);
 else if (hy_part == "jigs") jigs_2d();
 else if (hy_part == "support") offset(delta=kerf / 2) support_2d();
+else if (hy_part == "peg_support") offset(delta=kerf / 2) peg_support_2d(0);
+else if (hy_part == "peg_variants") peg_variants_2d();
+else if (hy_part == "peg_variants_etch") peg_variants_2d(etch=true);
+else if (hy_part == "peg_demo") peg_demo(0);
