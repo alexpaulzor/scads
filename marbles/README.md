@@ -25,13 +25,18 @@ does the rolling and the hanging.
   The top leg hooks up behind the steel, the bottom one stops tipping. Bend
   them on the staple jig (two pins set the 1" bridge, two slots set the leg
   lengths).
-- **Ribs** glue into the back plate on tabs. Rail notches open toward the
-  marble, so rails just drop in.
-- **Rails**: straights are plain straight wire (buy straight rod and there is
-  nothing to straighten). Bend each end 90 deg over the end rib's outside
-  face with pliers: the rib is the jig, the hooks keep the rail from
-  sliding. C-turn rails are wrapped around a 3-layer plywood form, then
-  threaded through the framed ribs.
+- **Supports** are plywood frames glued into the back plate on tabs, each
+  with a window the marble rolls through. Every straight support is the same
+  part.
+- **Straight rails zig-zag**: each wire leaves a support narrow (near bottom
+  center), arrives at the next one wide (out toward the side), passes through
+  the wide notch, runs across the far face to the narrow notch and sets off
+  again. The marble sinks as the gauge opens, so level wire still rolls. A
+  wire starts by poking through the first support (tail bent down) and ends
+  by wrapping the last one and poking back through (tail bent down). The
+  supports are the bending jig; one wire per side per module.
+- **C-turn rails** are wrapped around a 3-layer plywood form, then threaded
+  through framed ribs.
 
 ```bash
 openscad -o hybrid.png marbles/hybrid.scad                                 # echoes the checks
