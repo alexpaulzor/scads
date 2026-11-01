@@ -511,10 +511,13 @@ module module_parts_2d(m) {
 // Hang it: push the omega's feet through the hole (legs pinched together),
 // push the support's tab into the hole between the legs -- the tab wedges
 // them apart so the feet can't slip back out -- with the bridge entering
-// the slot mouth at the back edge, then let the support drop om_drop. The
-// slot curves outward, so the drop pulls the bridge out by om_pull and
-// draws the feet tight against the back of the steel. The support's weight
-// keeps it there; lift it to take it off.
+// the slot mouth at the back edge, then push the support down om_drop.
+// The bridge stays at one height while the support slides past it, so the
+// slot is a cam: it pushes the bridge out (away from the board) past the
+// seat by om_over, the point of most tension, then curls back toward the
+// board into a pocket at the top. Seated, the legs pull the bridge toward
+// the board and the support's weight pushes it up into the pocket, so it
+// snaps in and stays; lift the support back over the peak to take it off.
 //
 // Hole rows are 1" apart but each span sinks seg_drop, so supports come in
 // peg_variants versions with the tab 25.4 / peg_variants lower each time;
@@ -523,7 +526,12 @@ module module_parts_2d(m) {
 om_d = 1.6;
 om_r = om_d / 2;
 om_drop = 2;
+// legs slack at the slot mouth by om_pull; tight by om_pull when seated
 om_pull = 1.5;
+// over-center bump past the seat
+om_over = 0.8;
+// fraction of the drop where the bump peaks
+om_peak = 0.6;
 om_foot = 4;
 peg_variants = 10;
 peg_step = peg_p / peg_variants;
@@ -539,6 +547,13 @@ om_c = sheet_th / 2 + om_r + 0.05;
 peg_tab_h = peg_hole_d - om_drop - 0.6;
 
 function peg_hole_y(k) = peg_y0 - k * peg_step;
+// bridge path in the support's frame, seated at (om_out, yb): x out from
+// the board as the support slides down past it (u = 0 at the mouth)
+function smooth(t) = t * t * (3 - 2 * t);
+function om_cam_x(u) = u < om_peak
+    ? (om_out - om_pull) + (om_pull + om_over) * smooth(u / om_peak)
+    : (om_out + om_over) - om_over * smooth((u - om_peak) / (1 - om_peak));
+function om_cam(yb, n=16) = [for (i=[0:n]) let(u = i / n) [om_cam_x(u), yb - om_drop + u * om_drop]];
 echo(peg_step=peg_step, om_d=om_d, gap_beside_tab=(peg_hole_d - sheet_th) / 2,
     peg_hole_y=[for (k=[0:peg_variants-1]) peg_hole_y(k)]);
 assert(om_c + om_r <= peg_hole_d / 2, "omega wire too thick to pass beside the tab");
@@ -563,10 +578,10 @@ module peg_support_2d(k) {
             for (i=[0:sup_n-1]) translate(sup_notch(i)) circle(r=notch_r, $fn=24);
             for (i=[0:sup_n-1]) translate(sup_lace(i)) circle(d=lace_d, $fn=24);
         }
-        // bridge slot: in from the back edge, then up and out to the seat
-        for (seg=[[[-1, yb - om_drop], [om_out - om_pull, yb - om_drop]],
-                  [[om_out - om_pull, yb - om_drop], [om_out, yb]]])
-            hull() for (q=seg) translate(q) circle(d=slot_w, $fn=20);
+        // bridge slot: straight in from the back edge, then the cam
+        pts = concat([[-1, yb - om_drop]], om_cam(yb));
+        for (i=[0:len(pts)-2])
+            hull() for (q=[pts[i], pts[i + 1]]) translate(q) circle(d=slot_w, $fn=20);
     }
 }
 
