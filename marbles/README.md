@@ -3,6 +3,7 @@
 | File | What |
 |---|---|
 | `marbles.scad`, `marbles2.scad` | Earlier ring / 2020 guide experiments |
+| `hybrid.scad` | **Current direction**: plywood back plates + ribs set every position, wire rails roll and wire staples hang it on the pegboard. No solder, no snap fits |
 | `wire_bender.scad` | Manual wire straightener + bender on one 2020 beam: V-wheel straighteners, sliding-pivot bend head, stop disc, mandrels |
 | `pegwall.scad` | **Modular run on steel pegboard**: hook-on plywood fins, straights, C-turns, wall lift, cut sheets |
 | `wire_track.scad` | Rail cross-sections (open, guarded, enclosed tube), tie former, printed snap clips (experimental: the snap lips are necessarily thin) |
@@ -12,6 +13,31 @@
 | `poc_layout.py` | Lays out the proof-of-concept run and writes `poc_path.scad` (generated) |
 | `poc_run.scad` | Whole proof-of-concept: board, posts, laps, clips, lift; board cut/etch layers |
 | `launcher_calc.py` | Feasibility numbers for a spring-launcher lift instead of the coil |
+
+## Hybrid wall (`hybrid.scad`)
+
+Laser-cut 3 mm plywood (every part fits 300 x 300) holds the positions; wire
+does the rolling and the hanging.
+
+- **Back plate** lies flat on the steel pegboard; its holes line up with the
+  board's.
+- **Staples**: wire U-hooks through the back plate into two pegboard holes.
+  The top leg hooks up behind the steel, the bottom one stops tipping. Bend
+  them on the staple jig (two pins set the 1" bridge, two slots set the leg
+  lengths).
+- **Ribs** glue into the back plate on tabs. Rail notches open toward the
+  marble, so rails just drop in.
+- **Rails**: straights are plain straight wire (buy straight rod and there is
+  nothing to straighten). Bend each end 90 deg over the end rib's outside
+  face with pliers: the rib is the jig, the hooks keep the rail from
+  sliding. C-turn rails are wrapped around a 3-layer plywood form, then
+  threaded through the framed ribs.
+
+```bash
+openscad -o hybrid.png marbles/hybrid.scad                                 # echoes the checks
+openscad -o mod0.svg -D 'hy_part="module"' -D 'hy_mod=0' marbles/hybrid.scad   # one module's parts
+openscad -o jigs.svg -D 'hy_part="jigs"' marbles/hybrid.scad               # staple jig + C forms
+```
 
 ## Pegboard wall (`pegwall.scad`)
 
