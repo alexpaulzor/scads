@@ -540,7 +540,9 @@ tab_out = 1.5;
 peg_y0 = 9;
 // bridge seat above the hole center, and out from the board
 om_rise = 6.5;
-om_out = 4;
+// far enough out that a straight leg from the bridge crosses the steel
+// within the hole's widest part (the omega is flat, so it bends in a slot jig)
+om_out = 6;
 slot_w = om_d + 0.3;
 // omega legs sit beside the tab
 om_c = sheet_th / 2 + om_r + 0.05;
@@ -550,10 +552,39 @@ function peg_hole_y(k) = peg_y0 - k * peg_step;
 // bridge path in the support's frame, seated at (om_out, yb): x out from
 // the board as the support slides down past it (u = 0 at the mouth)
 function smooth(t) = t * t * (3 - 2 * t);
-function om_cam_x(u) = u < om_peak
-    ? (om_out - om_pull) + (om_pull + om_over) * smooth(u / om_peak)
-    : (om_out + om_over) - om_over * smooth((u - om_peak) / (1 - om_peak));
-function om_cam(yb, n=16) = [for (i=[0:n]) let(u = i / n) [om_cam_x(u), yb - om_drop + u * om_drop]];
+function om_cam_x(u, over=om_over, pull=om_pull) = u < om_peak
+    ? (om_out - pull) + (pull + over) * smooth(u / om_peak)
+    : (om_out + over) - over * smooth((u - om_peak) / (1 - om_peak));
+function om_cam(yb, n=16, over=om_over, pull=om_pull) =
+    [for (i=[0:n]) let(u = i / n) [om_cam_x(u, over, pull), yb - om_drop + u * om_drop]];
+
+// Flat omega: legs run straight from the bridge, through the middle of the
+// steel at the hole, to the feet behind it. In (y, z) around the hole:
+om_B = [om_rise, om_out];
+om_H = [0, -panel_t / 2];
+om_k = (om_B[0] - om_H[0]) / (om_B[1] - om_H[1]);
+om_zf = -(panel_t + om_r + 0.3);
+om_F = [om_H[0] + (om_zf - om_H[1]) * om_k, om_zf];
+om_leg = norm(om_B - om_F);
+// where the leg crosses the front and back of the steel, and the room
+// beside the tab there
+om_cross = [for (z=[0, -panel_t]) om_H[0] + (z - om_H[1]) * om_k];
+om_gap = min([for (y=om_cross) sqrt(peg_hole_d * peg_hole_d / 4 - y * y)]) - sheet_th / 2;
+echo(omega_leg=om_leg, omega_feet_y=om_F[0], leg_crosses_steel_at=om_cross,
+    room_beside_tab=om_gap, omega_d=om_d);
+assert(om_gap >= om_d, "omega legs don't fit beside the tab where they cross the steel");
+
+// tab + cam slot for a support whose hole center is at yh (support frame)
+module peg_tab_2d(yh) {
+    translate([-(panel_t + tab_out), yh - peg_hole_d / 2 + 0.1])
+        square([panel_t + tab_out + 0.01, peg_tab_h]);
+}
+module peg_slot_2d(yh, over=om_over, pull=om_pull) {
+    yb = yh + om_rise;
+    pts = concat([[-1, yb - om_drop]], om_cam(yb, 16, over, pull));
+    for (i=[0:len(pts)-2])
+        hull() for (q=[pts[i], pts[i + 1]]) translate(q) circle(d=slot_w, $fn=20);
+}
 echo(peg_step=peg_step, om_d=om_d, gap_beside_tab=(peg_hole_d - sheet_th) / 2,
     peg_hole_y=[for (k=[0:peg_variants-1]) peg_hole_y(k)]);
 assert(om_c + om_r <= peg_hole_d / 2, "omega wire too thick to pass beside the tab");
@@ -570,8 +601,7 @@ module peg_support_2d(k) {
         union() {
             translate([0, -sup_bot]) square([track_d + sup_side, sup_bot + sup_top]);
             // tab rests on the bottom of the hole
-            translate([-(panel_t + tab_out), yh - peg_hole_d / 2 + 0.1])
-                square([panel_t + tab_out + 0.01, peg_tab_h]);
+            peg_tab_2d(yh);
         }
         translate([track_d, 0]) {
             circle(r=sup_win, $fn=96);
@@ -579,9 +609,7 @@ module peg_support_2d(k) {
             for (i=[0:sup_n-1]) translate(sup_lace(i)) circle(d=lace_d, $fn=24);
         }
         // bridge slot: straight in from the back edge, then the cam
-        pts = concat([[-1, yb - om_drop]], om_cam(yb));
-        for (i=[0:len(pts)-2])
-            hull() for (q=[pts[i], pts[i + 1]]) translate(q) circle(d=slot_w, $fn=20);
+        peg_slot_2d(yh);
     }
 }
 
@@ -591,9 +619,9 @@ module peg_support_etch_2d(k) {
 
 // omega, in board coordinates around its hole (hole center at the origin,
 // board face at z = 0), seated
-function omega_pts(k) = let(zb = -(panel_t + om_r), yb = om_rise)
-    [[-(om_c + om_foot), 0, zb], [-om_c, 0, zb], [-om_c, 0, om_r], [-om_c, yb, om_out],
-     [om_c, yb, om_out], [om_c, 0, om_r], [om_c, 0, zb], [om_c + om_foot, 0, zb]];
+function omega_pts(k) = let(F = om_F, B = om_B)
+    [[-(om_c + om_foot), F[0], F[1]], [-om_c, F[0], F[1]], [-om_c, B[0], B[1]],
+     [om_c, B[0], B[1]], [om_c, F[0], F[1]], [om_c + om_foot, F[0], F[1]]];
 echo(omega_wire_length=rail_len(omega_pts(0)));
 
 module omega_3d(k) {
@@ -624,16 +652,187 @@ module peg_variants_2d(etch=false) {
             else offset(delta=kerf / 2) peg_support_2d(k);
 }
 
-// Omega bending gauge: wrap the wire over the 3 mm tongue for the bridge,
-// bend the legs at the first line, the feet at the second.
-module omega_gauge_2d() {
-    leg = norm([om_rise, om_out - om_r]) ;
+// ===== omega bending jig =====
+//
+// Three glued layers: a solid base, then two layers with the omega's flat
+// shape cut as a 6 mm deep channel. A 3 mm steel pin (M3 bolt, 1/8" nail)
+// through the base is the only narrow part: the bridge wraps it, so the U
+// comes out one support-thickness wide. Every other bend wraps a big
+// block of wood. Wrap the wire over the pin, push both legs down their
+// channels, fold the feet out along theirs, clip at the engraved marks.
+// Leg-to-leg is open below the pin -- nothing thin to snap off.
+
+ojig_w = 64;
+ojig_h = 52;
+ojig_pin_d = 3.1;
+ojig_ch = om_d + 0.35;
+// flat pattern: pin at the origin, legs down -y, feet out to the edges
+ojig_top = 14;
+function ojig_path(sx) = [[sx * (ojig_w / 2 + 1), -om_leg], [sx * om_c, -om_leg], [sx * om_c, 0]];
+module ojig_outline() {
+    translate([-ojig_w / 2, -ojig_h + ojig_top]) square([ojig_w, ojig_h]);
+}
+module ojig_layer_2d(layer) {
     difference() {
-        translate([-15, -5]) square([30, leg + panel_t + 20]);
-        // slot the legs drop into, one tab thickness apart
-        for (sx=[-1, 1]) translate([sx * om_c - (om_d + 0.2) / 2, -5.01]) square([om_d + 0.2, leg + 5]);
+        ojig_outline();
+        if (layer == 0) circle(d=ojig_pin_d, $fn=24);
+        else {
+            for (sx=[-1, 1]) let(pp = ojig_path(sx))
+                for (i=[0:len(pp)-2]) hull() for (q=[pp[i], pp[i + 1]]) translate(q) circle(d=ojig_ch, $fn=16);
+            // bridge channel around the pin
+            difference() {
+                circle(r=om_c + ojig_ch / 2, $fn=48);
+                circle(r=om_c - ojig_ch / 2, $fn=48);
+                translate([-ojig_w, -ojig_w]) square([2 * ojig_w, ojig_w]);
+            }
+            // open between the legs below the pin
+            translate([-om_c, -om_leg]) square([2 * om_c, om_leg]);
+        }
+        // glue alignment: 3 mm holes for nails / dowels through all three
+        // layers; the foot channels split each channel layer into an upper
+        // and a lower block, both glued to the solid base
+        for (sx=[-1, 1], y=[ojig_top - 7, -ojig_h + ojig_top + 6])
+            translate([sx * (ojig_w / 2 - 6), y]) circle(d=3, $fn=16);
     }
 }
+module ojig_etch_2d(layer) {
+    if (layer == 2) {
+        // clip marks at the foot length
+        for (sx=[-1, 1]) translate([sx * (om_c + om_foot) - 0.2, -om_leg + ojig_ch / 2 + 0.5]) square([0.4, 3]);
+        translate([0, ojig_top - 6]) text("OMEGA", size=4, halign="center");
+        translate([0, -om_leg - 9]) text("clip", size=3, halign="center");
+    } else translate([0, ojig_top - 6]) text(str("layer ", layer), size=3.5, halign="center");
+}
+
+
+// ===== test coupons =====
+
+// Snap coupon: just the back edge of a support -- tab + cam slot -- to hang
+// in the steel with an omega and feel the snap. [over, pull] per coupon.
+snap_tests = [for (o=[0.4, 0.8, 1.2], pl=[1.0, 1.5, 2.0]) [o, pl]];
+snap_w = om_out + 1.2 + 6;
+snap_y0 = -peg_hole_d / 2 - 5;
+snap_y1 = om_rise + slot_w + 4;
+module snap_coupon_2d(t) {
+    difference() {
+        union() {
+            translate([0, snap_y0]) square([snap_w, snap_y1 - snap_y0]);
+            peg_tab_2d(0);
+        }
+        peg_slot_2d(0, t[0], t[1]);
+    }
+}
+module snap_coupon_etch_2d(t) {
+    translate([snap_w - 1, snap_y0 + 1.5]) rotate([0, 0, 90]) text(str("o", t[0], " p", t[1]), size=2.2);
+}
+
+// Groove comb: notches along a straight edge with the wire center groove_in
+// inside the edge, like the support window. Columns: groove_in; rows of
+// teeth: notch clearance. Drop the rail wire in; pick the snug one.
+groove_ins = [0.2, 0.35, 0.5, 0.65, 0.8];
+notch_clrs = [0.1, 0.15, 0.2];
+gc_pitch = 9;
+gc_w = len(groove_ins) * len(notch_clrs) * gc_pitch + 6;
+gc_h = 16;
+function gc_items() = [for (c=notch_clrs, g=groove_ins) [g, c]];
+module groove_comb_2d() {
+    difference() {
+        square([gc_w, gc_h]);
+        for (i=[0:len(gc_items())-1]) let(g = gc_items()[i][0], c = gc_items()[i][1])
+            translate([6 + i * gc_pitch, gc_h + g]) circle(r=rail_d / 2 + c, $fn=24);
+    }
+}
+module groove_comb_etch_2d() {
+    for (i=[0:len(gc_items())-1]) let(g = gc_items()[i][0], c = gc_items()[i][1])
+        translate([6 + i * gc_pitch, 2]) {
+            text(str(g), size=1.8, halign="center");
+            translate([0, 4]) text(str(c), size=1.8, halign="center");
+        }
+    translate([1, gc_h - 14]) text("in", size=1.6);
+    translate([1, gc_h - 10]) text("c", size=1.6);
+}
+
+// Hole gauge: lacing / pass-through holes for both wires
+hole_tests = concat([for (dd=[0.3, 0.6, 1.0, 1.5, 2.0]) rail_d + dd], [for (dd=[0.2, 0.4, 0.8]) om_d + dd]);
+hg_w = len(hole_tests) * 8 + 4;
+hg_h = 16;
+module hole_gauge_2d() {
+    difference() {
+        square([hg_w, hg_h]);
+        for (i=[0:len(hole_tests)-1]) translate([6 + i * 8, 10]) circle(d=hole_tests[i], $fn=32);
+    }
+}
+module hole_gauge_etch_2d() {
+    for (i=[0:len(hole_tests)-1]) translate([6 + i * 8, 2.5])
+        text(str(round(hole_tests[i] * 10) / 10), size=1.7, halign="center");
+}
+
+// Kerf square: measure the 20 mm square and the 10 mm hole with calipers
+module kerf_square_2d() {
+    difference() {
+        square([20, 20]);
+        translate([10, 10]) circle(d=10, $fn=64);
+    }
+}
+
+// Straightness gauge: a long slot one wire + 0.4 wide. A rail wire that
+// drops in along its length is straight enough for the supports.
+sg_l = 290;
+module straight_gauge_2d() {
+    difference() {
+        square([sg_l, 10]);
+        translate([5, 5 - (rail_d + 0.4) / 2]) square([sg_l - 10, rail_d + 0.4]);
+    }
+}
+
+
+// ===== sampler: one 300 x 300 sheet =====
+
+sup_pw = track_d + sup_side + panel_t + tab_out;
+sup_ph = sup_bot + sup_top;
+// [x, y] of each piece's own origin on the sheet
+sm_gap = 3;
+sm_rows = [3, 3 + 10 + sm_gap, 3 + 10 + sm_gap + gc_h + sm_gap];
+sm_snap_y = sm_rows[2] - snap_y0;
+sm_sup_y0 = sm_rows[2] + (snap_y1 - snap_y0) + sm_gap;
+function sm_sup(k) = [3 + panel_t + tab_out + (k % 5) * (sup_pw + 2), sm_sup_y0 + sup_bot + floor(k / 5) * (sup_ph + sm_gap)];
+sm_jig_y = sm_sup_y0 + 2 * (sup_ph + sm_gap) + ojig_h - ojig_top;
+sm_crib_x = 3 + gc_w + sm_gap + hg_w + sm_gap + 20 + sm_gap;
+echo(sampler_top=sm_jig_y + ojig_top, sampler_right=[3 + 5 * (sup_pw + 2), 3 + 3 * (ojig_w + 2), sm_crib_x + c_rib_zmax]);
+assert(sm_jig_y + ojig_top <= max_part - 2 && 3 + 5 * (sup_pw + 2) <= max_part, "sampler overflows the sheet");
+
+module sampler_2d(etch=false) {
+    // straightness gauge
+    translate([3, sm_rows[0]]) if (!etch) straight_gauge_2d();
+    // groove comb, hole gauge, kerf square, a C-turn rib
+    translate([3, sm_rows[1]]) if (!etch) groove_comb_2d(); else groove_comb_etch_2d();
+    translate([3 + gc_w + sm_gap, sm_rows[1]]) if (!etch) hole_gauge_2d(); else hole_gauge_etch_2d();
+    translate([3 + gc_w + sm_gap + hg_w + sm_gap, sm_rows[1]]) if (!etch) kerf_square_2d();
+    translate([sm_crib_x, sm_rows[1] - c_u0]) if (!etch) c_rib_profile_2d();
+    // snap coupons
+    for (i=[0:len(snap_tests)-1])
+        translate([3 + panel_t + tab_out + i * (snap_w + panel_t + tab_out + 2), sm_snap_y])
+            if (!etch) snap_coupon_2d(snap_tests[i]); else snap_coupon_etch_2d(snap_tests[i]);
+    // all 10 hook-in supports
+    for (k=[0:peg_variants-1]) translate(sm_sup(k))
+        if (!etch) peg_support_2d(k); else peg_support_etch_2d(k);
+    // omega jig, three layers
+    for (l=[0:2]) translate([3 + ojig_w / 2 + l * (ojig_w + 2), sm_jig_y])
+        if (!etch) ojig_layer_2d(l); else ojig_etch_2d(l);
+    // C-turn rail forms: all 3 layers of the inner one, the outer one's base
+    for (l=[0:2]) translate([3 + sm_fi + l * (2 * sm_fi + 2), sm_form_y + sm_fo - sm_fi])
+        if (!etch) c_form_2d(c_ri, l);
+        else translate([0, -sm_fi + 3]) text(str("C in ", l), size=3, halign="center");
+    translate([3 + 3 * (2 * sm_fi + 2) + sm_fo, sm_form_y])
+        if (!etch) c_form_2d(c_ro, 0);
+        else translate([0, -sm_fo + 3]) text("C out 0", size=3, halign="center");
+}
+sm_fi = (c_ri - rail_d / 2) * spring_k + 3;
+sm_fo = (c_ro - rail_d / 2) * spring_k + 3;
+sm_form_y = sm_jig_y + ojig_top + sm_gap + sm_fo;
+echo(sampler_forms_top=sm_form_y + sm_fo, sampler_forms_right=3 + 3 * (2 * sm_fi + 2) + 2 * sm_fo);
+assert(sm_form_y + sm_fo <= max_part - 1 && 3 + 3 * (2 * sm_fi + 2) + 2 * sm_fo <= max_part - 1,
+    "C forms overflow the sampler sheet");
 
 hy_part = "wall";
 hy_mod = 0;
@@ -646,3 +845,6 @@ else if (hy_part == "peg_support") offset(delta=kerf / 2) peg_support_2d(0);
 else if (hy_part == "peg_variants") peg_variants_2d();
 else if (hy_part == "peg_variants_etch") peg_variants_2d(etch=true);
 else if (hy_part == "peg_demo") peg_demo(0);
+else if (hy_part == "sampler") offset(delta=kerf / 2) sampler_2d();
+else if (hy_part == "sampler_etch") sampler_2d(etch=true);
+else if (hy_part == "omega_jig_3d") for (l=[0:2]) translate([0, 0, l * sheet_th]) color(l == 0 ? "tan" : "burlywood") linear_extrude(sheet_th) ojig_layer_2d(l);

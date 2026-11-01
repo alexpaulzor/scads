@@ -41,6 +41,12 @@ does the rolling and the hanging.
   The omega wire must pass beside a 3 mm tab in a 1/4" hole: about 1.6 mm
   max (16 ga steel), not the 2.05 mm rail wire. Supports come in 10 tab
   heights 2.54 mm apart, then repeat one hole row down.
+- **Sampler sheet** (`hy_part="sampler"` + `"sampler_etch"`, one 300 x 300):
+  all 10 hook-in supports, the 3-layer omega bending jig, the C-turn rail
+  forms (inner x3, outer base), a C-turn rib, and test coupons: 9 snap
+  coupons (cam over-travel x pull), a groove comb (groove depth x notch
+  clearance), a hole gauge (lacing / omega hole sizes), a kerf square, and a
+  290 mm wire straightness gauge.
 - **Straight rails zig-zag**: each wire leaves a support on the 2nd notch
   out from bottom center, arrives at the next one on the 3rd, passes through
   the wide notch, runs across the far face to the narrow notch and sets off
