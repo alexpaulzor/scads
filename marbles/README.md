@@ -58,7 +58,18 @@ does the rolling and the hanging.
 - **C-turn rails** are wrapped around a 3-layer plywood form, then threaded
   through framed ribs.
 
+- **A la carte G-code** (`marbles/gcode/`, made by `marbles/laser_parts.py`):
+  one file per part, etch first then cut, zeroed at the bottom-left corner
+  of the part's cut outline. Parts: `rib_test` (labeled test holes, arc and
+  groove values), `rib_k0`..`rib_k9` (the 10 tab heights), `omega_form` and
+  `omega_length` (jig slots), `straightness` (200 mm rail gauge). Slots go
+  into scrap at least 1/2" from any edge. Cut and etch recipes come from
+  `cnc_vibes/material_profiles/laser_materials.yaml` (default
+  `plywood_veneer_3ply_3mm`; `--material` to change). Kerf is the 0.1 mm
+  guess in hybrid.scad.
+
 ```bash
+python3 marbles/laser_parts.py                                   # regenerate all G-code
 openscad -o hybrid.png marbles/hybrid.scad                                 # echoes the checks
 openscad -o mod0.svg -D 'hy_part="module"' -D 'hy_mod=0' marbles/hybrid.scad   # one module's parts
 openscad -o jigs.svg -D 'hy_part="jigs"' marbles/hybrid.scad               # staple jig + C forms

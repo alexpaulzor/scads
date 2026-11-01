@@ -713,6 +713,45 @@ module test_rib_etch_2d() {
     translate([form_x, form_y - form_h - 4]) text("omega", size=2.5, halign="center");
 }
 
+// ===== a la carte laser parts =====
+//
+// Each part's CUT and ETCH geometry in one shared frame; laser_parts.py
+// turns each into its own G-code (etch first, then cut) zeroed at the cut's
+// bottom-left corner. Ribs are kept parts (kerf grows them); slots are cut
+// into scrap (kerf shrinks the drop-out so the slot keeps its width).
+straight_gauge_l = 200;
+lz_parts = concat(["rib_test", "omega_form", "omega_length", "straightness"],
+    [for (k=[0:peg_variants-1]) str("rib_k", k)]);
+module rib_etch_2d(k) {
+    translate([3, tr_y0 + 3]) text(str("k", k), size=2.5);
+}
+module lz_cut_2d(name) {
+    if (name == "rib_test") offset(delta=kerf / 2) drib_2d(test_k, arc_dr, groove_in, test_holes);
+    else if (name == "omega_form") offset(delta=-kerf / 2) omega_form_slot_2d();
+    else if (name == "omega_length") offset(delta=-kerf / 2) omega_length_slot_2d();
+    else if (name == "straightness") offset(delta=-kerf / 2) straight_slot_2d(straight_gauge_l);
+    else for (k=[0:peg_variants-1]) if (name == str("rib_k", k)) offset(delta=kerf / 2) drib_2d(k);
+}
+module lz_etch_2d(name) {
+    if (name == "rib_test") {
+        for (h=concat(test_holes, [[14, lace_d]])) let(dir = sup_lace(h[0]) / norm(sup_lace(h[0])))
+            translate([track_d, 0] + dir * (rail_rr + notch_r + 2.6))
+                text(str("w+", round((h[1] - rail_d) * 10) / 10), size=1.6, halign="center", valign="center");
+        translate([arc_r * 0.55, peg_hole_y(test_k) + 2.5]) text(str("r", arc_r, " +", arc_dr), size=1.8, halign="center");
+        translate([8, -11]) text(str("g", groove_in), size=2.2, halign="center", valign="center");
+        rib_etch_2d(test_k);
+    }
+    else if (name == "omega_form")
+        translate([form_w / 2 + 4, -form_h / 2]) text("omega", size=2.5, valign="center");
+    else if (name == "omega_length")
+        translate([form_ch / 2 + 3, omega_wire_l / 2]) rotate([0, 0, 90]) text("omega length", size=2.2, halign="center");
+    else if (name == "straightness")
+        translate([rail_d / 2 + 3, straight_gauge_l / 2]) rotate([0, 0, 90]) text("rail straightness", size=2.5, halign="center");
+    else for (k=[0:peg_variants-1]) if (name == str("rib_k", k)) rib_etch_2d(k);
+}
+lz_name = "rib_test";
+echo(lz_parts=lz_parts);
+
 // ===== demo sheet: 300 x 295 =====
 //
 // Every part is a rib you can use on the wall. The 30 ribs are three full
@@ -796,5 +835,7 @@ else if (hy_part == "rib") offset(delta=kerf / 2) drib_2d(0);
 else if (hy_part == "rib_demo") rib_demo(0);
 else if (hy_part == "sheet") offset(delta=kerf / 2) sheet_cut_2d();
 else if (hy_part == "test_rib") offset(delta=kerf / 2) test_rib_cut_2d();
+else if (hy_part == "lz_cut") lz_cut_2d(lz_name);
+else if (hy_part == "lz_etch") lz_etch_2d(lz_name);
 else if (hy_part == "test_rib_etch") test_rib_etch_2d();
 else if (hy_part == "sheet_etch") sheet_etch_2d();
