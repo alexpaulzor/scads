@@ -138,15 +138,19 @@ rail_slope = 0;
 seg_drop = h_n - h_w + rail_slope * seg_cols * peg_p;
 groove_in = 0.5;
 sup_win = rail_rr + groove_in;
-// lacing hole: bottom center, between the inner notches, further out
+// lacing holes: one between each pair of neighboring notches, lace_dr
+// further out than the notch ring, oversized so wire feeds through easily
 lace_dr = 8;
-lace_d = 2 * rail_d + 0.5;
+lace_d = rail_d + 1.5;
+// wood left between neighboring lacing holes and outside them
+lace_web = 3;
 sup_margin = 7;
 sup_in = 3;
-sup_ring = rail_rr + notch_r + sup_margin;
+sup_ring = max(rail_rr + notch_r + sup_margin, rail_rr + lace_dr + lace_d / 2 + lace_web);
 sup_side = sup_ring;
 sup_top = sup_ring;
-sup_bot = max(sup_ring, rail_rr + lace_dr + lace_d / 2 + 4);
+sup_bot = sup_ring;
+function sup_lace(i) = let(a = i * sup_step, r = rail_rr + lace_dr) [r * sin(a), -r * cos(a)];
 tail = 5;
 tab_h = 5;
 sup_tab_ys = [-sup_bot + 2, sup_top - 2 - tab_h];
@@ -157,7 +161,8 @@ function sup_N(sx) = [sx * rail_rr * sin(a_n), -h_n];
 echo(sup_n=sup_n, notch_step=sup_step, g_n=g_n, g_w=g_w, h_n=h_n, h_w=h_w,
     seg_drop=seg_drop, span=seg_cols * peg_p, slope=seg_drop / (seg_cols * peg_p));
 echo(window_r=sup_win, notch_ring=rail_rr, groove_depth=rail_rr + notch_r - sup_win,
-    groove_mouth=2 * sqrt(notch_r * notch_r - groove_in * groove_in), lace_ring=rail_rr + lace_dr,
+    groove_mouth=2 * sqrt(notch_r * notch_r - groove_in * groove_in), lace_ring=rail_rr + lace_dr, lace_d=lace_d,
+    lace_web_between=2 * (rail_rr + lace_dr) * sin(sup_step / 2) - lace_d,
     support_size=[track_d + sup_side, sup_bot + sup_top]);
 assert(g_w - rail_d < marble_od - 1, "wide gauge lets the marble fall through");
 
@@ -210,7 +215,7 @@ module support_2d() {
         translate([track_d, 0]) {
             circle(r=sup_win, $fn=96);
             for (i=[0:sup_n-1]) translate(sup_notch(i)) circle(r=notch_r, $fn=24);
-            translate([0, -(rail_rr + lace_dr)]) circle(d=lace_d, $fn=24);
+            for (i=[0:sup_n-1]) translate(sup_lace(i)) circle(d=lace_d, $fn=24);
         }
     }
 }
@@ -502,3 +507,4 @@ if (hy_part == "wall") wall();
 else if (hy_part == "module") module_parts_2d(layout[hy_mod]);
 else if (hy_part == "module_3d") module_3d(layout[hy_mod]);
 else if (hy_part == "jigs") jigs_2d();
+else if (hy_part == "support") offset(delta=kerf / 2) support_2d();
