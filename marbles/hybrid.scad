@@ -507,14 +507,14 @@ module module_parts_2d(m) {
 // pegboard hole and a small wire OMEGA locks it:
 //   - feet: behind the steel, flared out sideways past the hole edge
 //   - legs: forward through the hole, one each side of the tab
-//   - bridge: across the rib, in a J slot above the tab
+//   - bridge: across the rib, in an arc slot around the tab
 // The legs always pull the bridge toward the center of the hole. Hang it:
 // feet through the hole first (legs pinched), then push the rib's tab in
 // between the legs -- it wedges them apart so the feet can't slip back --
-// with the bridge entering the J's stem at the back edge. The stem rises
-// as it goes in, stretching the omega; at the end the J hooks back down
-// toward the tab and the legs snap the bridge into the tip. To get out the
-// bridge has to climb back up the hook against the pull.
+// with the omega swung up flat against the board so the bridge enters the
+// slot at 12 o'clock on the back edge. Swing the bridge down the arc to
+// 3 o'clock; the arc opens up slightly, stretching the omega, and the
+// bridge catches in the divot at the end.
 //
 // Hole rows are 1" apart but each span sinks seg_drop, so ribs come in
 // peg_variants versions with the tab 25.4 / peg_variants lower each time;
@@ -526,21 +526,24 @@ om_foot = 4;
 peg_variants = 10;
 peg_step = peg_p / peg_variants;
 tab_out = 1.5;
-// bridge seat (J tip) above the hole center, and out from the board: far
-// enough out that a straight leg crosses the steel near the hole's middle
-om_rise = 6.5;
-om_out = 6;
+// Bridge slot: a 90 degree arc centered on the tab center (rib's left edge,
+// hole height). Starts at 12 o'clock on the left edge at radius arc_r,
+// curves down to 3 o'clock, the radius growing by arc_dr on the way to
+// stretch the omega, and ends in a divot one wire radius back toward the
+// center that the bridge catches in.
+arc_r = 8;
+arc_dr = 1.2;
+arc_divot = om_r;
+// seated bridge: at 3 o'clock, in the divot
+om_rise = 0;
+om_out = arc_r + arc_dr - arc_divot;
 slot_w = om_d + 0.2;
 // omega legs sit beside the tab
 om_c = sheet_th / 2 + om_r + 0.05;
 peg_tab_h = peg_hole_d - 0.6;
-// seated, the legs are stretched this much
-om_pull = 1.0;
-// J: wood between the stem and the tip (snap strength), tip length back
-// toward the tab, and how much the stem rises from mouth to hook
-j_lip = 0.8;
-j_tip = 0.8;
-j_rise = 2;
+// omega bent with the bridge arc_r from the tab center: seated it is
+// stretched this much (and arc_dr at the end of the arc, before the divot)
+om_pull = arc_dr - arc_divot;
 
 // Flat omega: legs run straight from the bridge, through the middle of the
 // steel at the hole, to the feet behind it. In (y, z) around the hole:
@@ -558,24 +561,21 @@ echo(omega_leg=om_leg, omega_leg_free=om_leg_free, leg_crosses_steel_at=om_cross
     room_beside_tab=om_gap, omega_d=om_d);
 assert(om_gap >= om_d, "omega legs don't fit beside the tab where they cross the steel");
 
-// J slot, rib frame (x out from the board, y up), hole center at y = yh
-function j_H(yh) = [-panel_t / 2, yh];
-function j_S(yh) = [om_out, yh + om_rise];
-function j_A(yh, lip) = j_S(yh) + [j_tip, slot_w + lip];
-function j_path(yh, lip=j_lip) = let(S = j_S(yh), A = j_A(yh, lip))
-    [[-1, A[1] - j_rise], [A[0], A[1]], [A[0] + 0.3, A[1] - (A[1] - S[1]) / 2], S];
-function j_stretch(lip) = let(L = norm(j_S(0) - j_H(0)) - om_pull)
-    [for (q=j_path(0, lip)) norm(q - j_H(0)) - L];
-echo(j_stretch_mouth_hook_tip=j_stretch(j_lip));
+// arc slot path, rib frame (x out from the board, y up), tab center (0, yh)
+function arc_path(yh, dr=arc_dr, n=24) = [for (i=[0:n]) let(t = i / n, a = 90 * (1 - t), r = arc_r + dr * t)
+    [r * cos(a), yh + r * sin(a)]];
+echo(arc_r=arc_r, arc_dr=arc_dr, arc_divot=arc_divot, seated_stretch=om_pull);
 
 module peg_tab_2d(yh) {
     translate([-(panel_t + tab_out), yh - peg_hole_d / 2 + 0.1])
         square([panel_t + tab_out + 0.01, peg_tab_h]);
 }
-module j_slot_2d(yh, lip=j_lip) {
-    pts = j_path(yh, lip);
+module j_slot_2d(yh, dr=arc_dr) {
+    pts = arc_path(yh, dr);
     for (i=[0:len(pts)-2])
         hull() for (q=[pts[i], pts[i + 1]]) translate(q) circle(d=slot_w, $fn=20);
+    // divot at the end, one wire radius back toward the center
+    hull() for (x=[arc_r + dr, arc_r + dr - arc_divot]) translate([x, yh]) circle(d=om_d + 0.1, $fn=20);
 }
 
 // --- the rib: a bumpy D ---
@@ -591,7 +591,7 @@ d_corner = 3;
 peg_y0 = 8.4;
 function peg_hole_y(k) = peg_y0 - k * peg_step;
 d_y0 = peg_hole_y(peg_variants - 1) - peg_hole_d / 2 - 3;
-d_y1 = peg_hole_y(0) + om_rise + slot_w + 1.4 + slot_w / 2 + 3.5;
+d_y1 = peg_hole_y(0) + arc_r + slot_w / 2 + 3.5;
 module d_outline_2d() {
     hull() {
         translate([track_d, 0]) circle(r=d_r, $fn=128);
@@ -599,11 +599,11 @@ module d_outline_2d() {
         for (y=[d_y0 + d_corner, d_y1 - d_corner]) translate([d_corner, y]) circle(r=d_corner, $fn=32);
     }
 }
-// k: tab height; lip: J snap; gin: groove depth (window past the wire
+// k: tab height; dr: arc tension; gin: groove depth (window past the wire
 // centers); top_d: diameter of the uppermost board-side lacing hole (hole
 // size test -- that one is rarely used)
 top_lace_i = 9;
-module drib_2d(k, lip=j_lip, gin=groove_in, top_d=lace_d) {
+module drib_2d(k, dr=arc_dr, gin=groove_in, top_d=lace_d) {
     yh = peg_hole_y(k);
     difference() {
         union() {
@@ -618,7 +618,7 @@ module drib_2d(k, lip=j_lip, gin=groove_in, top_d=lace_d) {
             rotate([0, 0, chan_i * sup_step])
                 translate([-chan_w / 2, -(d_r + 2)]) square([chan_w, d_r + 2 - rail_rr]);
         }
-        j_slot_2d(yh, lip);
+        j_slot_2d(yh, dr);
     }
 }
 
@@ -672,8 +672,8 @@ rib_h = max(d_y1, d_r) - rib_y0;
 rib_gap = 1.5;
 rib_cols = 5;
 rib_rows = floor((sheet_y - 2) / (rib_h + rib_gap));
-// [lip, groove_in] per group
-groups = [[0.5, 0.35], [0.8, 0.5], [1.1, 0.65]];
+// [arc_dr, groove_in] per group
+groups = [[0.9, 0.35], [1.2, 0.5], [1.5, 0.65]];
 hole_tests = [for (dd=[0.3, 0.6, 1.0, 1.5, 2.0]) rail_d + dd];
 function rib_k(i) = i % peg_variants;
 function rib_g(i) = floor(i / peg_variants) % len(groups);

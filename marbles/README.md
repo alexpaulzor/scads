@@ -35,15 +35,16 @@ does the rolling and the hanging.
 - **Hook-in ribs** (`hy_part="rib"`): a bumpy D, flat back on the steel, no
   back plate. A tab on the back goes into a pegboard hole, locked by a wire
   **omega** (feet flared behind the steel, legs either side of the tab,
-  bridge in a J slot above the tab). The legs pull toward the hole center,
-  so the J's stem rises going in (stretching the omega) and hooks back down
-  toward the tab; the bridge snaps into the tip. Lacing positions are holes
+  bridge in an arc slot). The slot is 90 deg of a circle around the tab
+  center: from 12 o'clock on the back edge at radius 8 mm down to
+  3 o'clock, opening by arc_dr on the way to stretch the omega, ending in a
+  one-wire-radius divot back toward the center that the bridge catches in. Lacing positions are holes
   between the marble and the board, grooves on the outer curve, plus one
   open channel above 3 o'clock for slipping wire in sideways. 10 tab
   heights 2.54 mm apart. Omega wire about 1.6 mm max (16 ga steel).
 - **Demo sheet** (`hy_part="sheet"` + `"sheet_etch"`, 300 x 295): 30 ribs =
   three cycles of the 10 tab heights, each cycle an experiment group
-  (A/B/C: J lip 0.5/0.8/1.1 mm, groove depth 0.35/0.5/0.65 mm); the
+  (A/B/C: arc opening 0.9/1.2/1.5 mm, groove depth 0.35/0.5/0.65 mm); the
   uppermost board-side hole steps through 5 sizes. Leftover strip on the
   right carries the omega form slot, omega length slot and wire
   straightness slot (cut into the scrap, no outline of their own).
