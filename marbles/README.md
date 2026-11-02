@@ -71,6 +71,12 @@ does the rolling and the hanging.
   `cnc_vibes/material_profiles/laser_materials.yaml` (default
   `plywood_veneer_3ply_3mm`; `--material` to change). Kerf is the 0.1 mm
   guess in hybrid.scad.
+- **Kerf test** (`python3 marbles/kerf_test.py` writes
+  `marbles/gcode/kerf_test.gcode`): one zig-zag cut makes 10 lines 5 mm
+  apart, with the turnarounds outside the strip area, then a box cut 5 mm
+  outside the outer lines frees 11 strips, each 5 mm minus one kerf. Stack
+  10 and measure: kerf = (50 - stack) / 10. Put the result in `kerf` in
+  hybrid.scad.
 
 ```bash
 python3 marbles/laser_parts.py                                   # regenerate all G-code
