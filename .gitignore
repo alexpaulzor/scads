@@ -2,3 +2,4 @@
 *.stl
 *.dxf
 __pycache__/
+marbles/gcode/
