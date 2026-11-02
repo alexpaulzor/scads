@@ -728,8 +728,24 @@ backer_t = sheet_th;
 backer_w = peg_p;
 backer_h = 2 * peg_p;
 backer_slot = [sheet_th + 0.2, peg_hole_d];
+slot_clr = 0.2;
+// The backer stops just under the hook's tongue: the hook passes over its
+// top edge, so nothing on the plate sits above the pivot when the rib is
+// tilted to hook in.
+// extra rib tabs into the backer only (not the steel), between hook and peg
+mid_tab_ys = [5.5, -6];
+mid_tab_h = 4;
+mid_tab_len = sheet_th - 0.1;
+// crossmember: horizontal plate, perpendicular to rib and backer; slides
+// into a slot in the rib's back edge, tabs into the backer
+cm_y = 0;
+cm_d = 10;
+cm_w = backer_w;
+cm_tab_w = 5;
+cm_tab_x = 7.5;
 hk_y = peg_p / 2;
 pg_y = -peg_p / 2;
+backer_top = hk_y - peg_hole_d / 2 - 0.3;   // just under the hook tongue so the hook passes over it
 // tabs: rest on the bottom of their hole
 tab_h2 = 4;
 hook_reach = backer_t + panel_t + 0.3;
@@ -763,6 +779,8 @@ module hr_tabs_2d() {
         [[-hook_reach - hook_r, tip]]);
     for (i=[0:len(pts)-2]) hull() for (q=[pts[i], pts[i + 1]]) translate(q) circle(d=tab_h2, $fn=32);
     translate([0, yb]) square([1, tab_h2]);
+    // extra tabs into the backer
+    for (y=mid_tab_ys) translate([-mid_tab_len, y - mid_tab_h / 2]) square([mid_tab_len + 0.01, mid_tab_h]);
     // peg: straight
     translate([-peg_len, pg_y - peg_hole_d / 2 + 0.1]) square([peg_len + 0.01, tab_h2]);
 }
@@ -781,16 +799,27 @@ module hrib_2d(holes=[]) {
             rotate([0, 0, chan_i * sup_step])
                 translate([-chan_w / 2, -(d_r + 2)]) square([chan_w, d_r + 2 - rail_rr]);
         }
+        // crossmember slot, open at the back edge
+        translate([-1, cm_y - (sheet_th + slot_clr) / 2]) square([cm_d + 1, sheet_th + slot_clr]);
     }
 }
-// Backer plate, board plane: x across, y up, centered between the holes
+// Backer plate, board plane: x across (rib at x = 0), y as in the rib frame
 module backer_2d() {
     difference() {
-        translate([-backer_w / 2, -backer_h / 2])
+        translate([-backer_w / 2, backer_top - backer_h])
             offset(r=2, $fn=24) offset(delta=-2) square([backer_w, backer_h]);
-        for (y=[hk_y, pg_y]) translate([0, y]) square(backer_slot, center=true);
+        translate([0, pg_y]) square(backer_slot, center=true);
+        for (y=mid_tab_ys) translate([0, y]) square([sheet_th + slot_clr, mid_tab_h + slot_clr], center=true);
+        for (sx=[-1, 1]) translate([sx * cm_tab_x, cm_y]) square([cm_tab_w + slot_clr, sheet_th + slot_clr], center=true);
     }
 }
+// Crossmember, its own plane: x across, y out from the backer's face
+module crossmember_2d() {
+    translate([-cm_w / 2, 0]) offset(r=1.5, $fn=16) offset(delta=-1.5) square([cm_w, cm_d]);
+    for (sx=[-1, 1]) translate([sx * cm_tab_x - cm_tab_w / 2, -mid_tab_len]) square([cm_tab_w, mid_tab_len + 0.01]);
+}
+echo(backer_span_y=[backer_top - backer_h, backer_top], crossmember=[cm_w, cm_d]);
+assert(cm_d + 2 < track_d - d_r - lace_d / 2, "crossmember slot runs into the lacing holes");
 hr_test_holes = [[9, rail_d + 0.6], [10, rail_d + 1.0]];
 
 
@@ -800,11 +829,12 @@ hr_test_holes = [[9, rail_d + 0.6], [10, rail_d + 1.0]];
 // turns each into its own G-code (etch first, then cut) zeroed at the cut's
 // bottom-left corner. Kept parts grow by kerf; slots cut into scrap shrink.
 straight_gauge_l = 200;
-lz_parts = ["hook_rib", "hook_rib_test", "backer", "straightness"];
+lz_parts = ["hook_rib", "hook_rib_test", "backer", "crossmember", "straightness"];
 module lz_cut_2d(name) {
     if (name == "hook_rib") offset(delta=kerf / 2) hrib_2d();
     else if (name == "hook_rib_test") offset(delta=kerf / 2) hrib_2d(hr_test_holes);
     else if (name == "backer") offset(delta=kerf / 2) backer_2d();
+    else if (name == "crossmember") offset(delta=kerf / 2) crossmember_2d();
     else if (name == "straightness") offset(delta=-kerf / 2) straight_slot_2d(straight_gauge_l);
 }
 module lz_etch_2d(name) {

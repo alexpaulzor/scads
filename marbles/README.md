@@ -36,7 +36,13 @@ does the rolling and the hanging.
   a plywood hook (lip drops 1/4" behind the steel) in one hole and a
   straight peg in the hole 1" below, both through a 1" x 2" **backer plate**
   that sits flush on the steel and stops the rib swinging side to side.
-  Tilt, hook, swing down. Lacing holes between the marble and the board,
+  The backer's top edge stops just under the hook tongue (no closed slot
+  for the hook), so nothing sits above the pivot when you tilt the rib to
+  hook in. Two short rib tabs between hook and peg go into the backer only,
+  and a horizontal **crossmember** (1" x 10 mm) slides into a slot in the
+  rib's back edge and tabs into the backer, square to both. Glue rib,
+  backer and crossmember into one piece, then tilt, hook, swing down.
+  Lacing holes between the marble and the board,
   grooves on the outer curve, one open channel above 3 o'clock.
   (The older omega-clip rib and its 10 tab heights are still in the file
   but no longer cut.)
@@ -60,7 +66,7 @@ does the rolling and the hanging.
   `marbles/gcode/`, which is git-ignored): one file per part, etch first then
   cut, zeroed at the bottom-left corner of the part's cut outline. Parts:
   `hook_rib`, `hook_rib_test` (two lacing holes at test sizes, each
-  engraved with its clearance), `backer`, `straightness` (200 mm rail
+  engraved with its clearance), `backer`, `crossmember`, `straightness` (200 mm rail
   gauge slot for scrap, at least 1/2" from any edge). Recipes come from
   `cnc_vibes/material_profiles/laser_materials.yaml` (default
   `plywood_veneer_3ply_3mm`; `--material` to change). Kerf is the 0.1 mm
