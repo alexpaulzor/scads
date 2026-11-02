@@ -733,12 +733,14 @@ pg_y = -peg_p / 2;
 // tabs: rest on the bottom of their hole
 tab_h2 = 4;
 hook_reach = backer_t + panel_t + 0.3;
-hook_drop = 6.35;
-hook_lip = sheet_th;
+// behind the steel the hook curves UP (centerline radius hook_r) and its tip
+// ends hook_rise above the top of the tongue
+hook_r = 3;
+hook_rise = 6.35;
 peg_len = backer_t + panel_t + 1.5;
 hr_y0 = min(-d_r, pg_y - peg_hole_d / 2 - 4);
 hr_y1 = max(d_r, hk_y + peg_hole_d / 2 + 4);
-echo(hook_rib_tabs=[["hook", hk_y, hook_reach, hook_drop], ["peg", pg_y, peg_len]],
+echo(hook_rib_tabs=[["hook", hk_y, hook_reach, hook_r, hook_rise], ["peg", pg_y, peg_len]],
     backer=[backer_w, backer_h, backer_t]);
 
 module hr_outline_2d() {
@@ -749,10 +751,18 @@ module hr_outline_2d() {
     }
 }
 module hr_tabs_2d() {
-    // hook: tongue through plate + steel, lip down behind the steel
+    // hook: tongue through plate + steel (resting on the bottom of the
+    // hole), then a smooth curve up behind the steel
     yb = hk_y - peg_hole_d / 2 + 0.1;
-    translate([-hook_reach, yb]) square([hook_reach + 0.01, tab_h2]);
-    translate([-hook_reach - hook_lip, yb - hook_drop]) square([hook_lip, tab_h2 + hook_drop]);
+    yc = yb + tab_h2 / 2;
+    tip = yb + tab_h2 + hook_rise - tab_h2 / 2;
+    pts = concat([[1, yc], [-hook_reach, yc]],
+        // arc centered above the tongue's end: from straight below the
+        // center (heading back) round to straight left of it (heading up)
+        [for (a=[-105 : -15 : -180]) [-hook_reach, yc + hook_r] + hook_r * [cos(a), sin(a)]],
+        [[-hook_reach - hook_r, tip]]);
+    for (i=[0:len(pts)-2]) hull() for (q=[pts[i], pts[i + 1]]) translate(q) circle(d=tab_h2, $fn=32);
+    translate([0, yb]) square([1, tab_h2]);
     // peg: straight
     translate([-peg_len, pg_y - peg_hole_d / 2 + 0.1]) square([peg_len + 0.01, tab_h2]);
 }
