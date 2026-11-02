@@ -32,16 +32,14 @@ does the rolling and the hanging.
   lacing hole below bottom center for feeding wire through. The window is
   a bit bigger than the ring, so each notch is a shallow groove the wire
   drops into.
-- **Hook-in ribs** (`hy_part="rib"`): a bumpy D, flat back on the steel, no
-  back plate. A tab on the back goes into a pegboard hole, locked by a wire
-  **omega** (feet flared behind the steel, legs either side of the tab,
-  bridge in an arc slot). The slot is 90 deg of a circle around the tab
-  center: from 12 o'clock on the back edge at radius 8 mm down to
-  3 o'clock, opening by arc_dr on the way to stretch the omega, ending in a
-  one-wire-radius divot back toward the center that the bridge catches in. Lacing positions are holes
-  between the marble and the board, grooves on the outer curve, plus one
-  open channel above 3 o'clock for slipping wire in sideways. 10 tab
-  heights 2.54 mm apart. Omega wire about 1.6 mm max (16 ga steel).
+- **Hook rib** (`hrib_2d`, one size): a bumpy D, hung like a pegboard hook:
+  a plywood hook (lip drops 1/4" behind the steel) in one hole and a
+  straight peg in the hole 1" below, both through a 1" x 2" **backer plate**
+  that sits flush on the steel and stops the rib swinging side to side.
+  Tilt, hook, swing down. Lacing holes between the marble and the board,
+  grooves on the outer curve, one open channel above 3 o'clock.
+  (The older omega-clip rib and its 10 tab heights are still in the file
+  but no longer cut.)
 - **Demo sheet** (`hy_part="sheet"` + `"sheet_etch"`, 300 x 295): 30 ribs =
   three cycles of the 10 tab heights, each cycle an experiment group
   (A/B/C: arc opening 0.9/1.2/1.5 mm, groove depth 0.35/0.5/0.65 mm); the
@@ -58,12 +56,12 @@ does the rolling and the hanging.
 - **C-turn rails** are wrapped around a 3-layer plywood form, then threaded
   through framed ribs.
 
-- **A la carte G-code** (`marbles/gcode/`, made by `marbles/laser_parts.py`):
-  one file per part, etch first then cut, zeroed at the bottom-left corner
-  of the part's cut outline. Parts: `rib_test` (labeled test holes, arc and
-  groove values), `rib_k0`..`rib_k9` (the 10 tab heights), `omega_form` and
-  `omega_length` (jig slots), `straightness` (200 mm rail gauge). Slots go
-  into scrap at least 1/2" from any edge. Cut and etch recipes come from
+- **A la carte G-code** (`python3 marbles/laser_parts.py` writes
+  `marbles/gcode/`, which is git-ignored): one file per part, etch first then
+  cut, zeroed at the bottom-left corner of the part's cut outline. Parts:
+  `hook_rib`, `hook_rib_test` (two lacing holes at test sizes, each
+  engraved with its clearance), `backer`, `straightness` (200 mm rail
+  gauge slot for scrap, at least 1/2" from any edge). Recipes come from
   `cnc_vibes/material_profiles/laser_materials.yaml` (default
   `plywood_veneer_3ply_3mm`; `--material` to change). Kerf is the 0.1 mm
   guess in hybrid.scad.

@@ -14,7 +14,7 @@ fixed lead-in (each loop traced once, then followed through etch_lead_in_mm
 past its start), not the 1 s cut warmup.
 
     python3 marbles/laser_parts.py                       # all parts
-    python3 marbles/laser_parts.py rib_test omega_form   # some parts
+    python3 marbles/laser_parts.py hook_rib backer       # some parts
     python3 marbles/laser_parts.py --material plywood_baltic_birch_3mm
 """
 
@@ -56,6 +56,9 @@ def export_svg(openscad, layer, name, path):
     r = subprocess.run([openscad, "-o", str(path), "-D", f'hy_part="lz_{layer}"',
                         "-D", f'lz_name="{name}"', str(SCAD)],
                        capture_output=True, text=True)
+    if layer == "etch" and ("top level object is empty" in r.stderr
+                           or "not a 2D object" in r.stderr):
+        return None
     if r.returncode != 0 or not path.exists():
         sys.exit(f"openscad failed on {name} {layer}:\n{r.stderr}")
     return path.read_text()
@@ -100,7 +103,7 @@ def main():
         layers = {}
         for layer in ("cut", "etch"):
             svg = export_svg(a.openscad, layer, name, tmp / f"{name}_{layer}.svg")
-            lines, u = s2g.parse_svg(svg)
+            lines, u = s2g.parse_svg(svg) if svg else ([], 1.0)
             # OpenSCAD's SVG is y-down (y negated); back to machine y-up
             layers[layer] = [s2g.Polyline([(x * u, -y * u) for x, y in pl.points], pl.closed)
                              for pl in lines]

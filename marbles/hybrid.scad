@@ -713,43 +713,99 @@ module test_rib_etch_2d() {
     translate([form_x, form_y - form_h - 4]) text("omega", size=2.5, halign="center");
 }
 
+// ===== hook rib: one size, hook + peg through a backer plate =====
+//
+// The rib hangs like a pegboard hook: a plywood hook in one hole, a straight
+// peg in the hole below (1" apart), both passing through a backer plate
+// that sits flush on the steel and stops the rib swinging side to side.
+// Tilt the rib, put the hook's lip through the top hole, swing it down so
+// the peg goes into the lower hole. Every rib is the same; space them for
+// the drop you want.
+//
+// Rib frame: x out from the rib's back edge (which sits on the backer
+// plate), y up, ring/marble center at (track_d, 0). Holes at y = +/- 12.7.
+backer_t = sheet_th;
+backer_w = peg_p;
+backer_h = 2 * peg_p;
+backer_slot = [sheet_th + 0.2, peg_hole_d];
+hk_y = peg_p / 2;
+pg_y = -peg_p / 2;
+// tabs: rest on the bottom of their hole
+tab_h2 = 4;
+hook_reach = backer_t + panel_t + 0.3;
+hook_drop = 6.35;
+hook_lip = sheet_th;
+peg_len = backer_t + panel_t + 1.5;
+hr_y0 = min(-d_r, pg_y - peg_hole_d / 2 - 4);
+hr_y1 = max(d_r, hk_y + peg_hole_d / 2 + 4);
+echo(hook_rib_tabs=[["hook", hk_y, hook_reach, hook_drop], ["peg", pg_y, peg_len]],
+    backer=[backer_w, backer_h, backer_t]);
+
+module hr_outline_2d() {
+    hull() {
+        translate([track_d, 0]) circle(r=d_r, $fn=128);
+        translate([0, hr_y0]) square([0.01, hr_y1 - hr_y0]);
+        for (y=[hr_y0 + d_corner, hr_y1 - d_corner]) translate([d_corner, y]) circle(r=d_corner, $fn=32);
+    }
+}
+module hr_tabs_2d() {
+    // hook: tongue through plate + steel, lip down behind the steel
+    yb = hk_y - peg_hole_d / 2 + 0.1;
+    translate([-hook_reach, yb]) square([hook_reach + 0.01, tab_h2]);
+    translate([-hook_reach - hook_lip, yb - hook_drop]) square([hook_lip, tab_h2 + hook_drop]);
+    // peg: straight
+    translate([-peg_len, pg_y - peg_hole_d / 2 + 0.1]) square([peg_len + 0.01, tab_h2]);
+}
+// holes: [[lacing index, diameter], ...] test sizes for some lacing holes
+module hrib_2d(holes=[]) {
+    difference() {
+        union() {
+            hr_outline_2d();
+            hr_tabs_2d();
+        }
+        translate([track_d, 0]) {
+            circle(r=rail_rr + groove_in, $fn=96);
+            for (i=[0:sup_n-1]) translate(sup_notch(i)) circle(r=notch_r, $fn=24);
+            for (i=[0:sup_n-1]) if (i != chan_i)
+                translate(sup_lace(i)) circle(d=hole_d_of(i, holes), $fn=24);
+            rotate([0, 0, chan_i * sup_step])
+                translate([-chan_w / 2, -(d_r + 2)]) square([chan_w, d_r + 2 - rail_rr]);
+        }
+    }
+}
+// Backer plate, board plane: x across, y up, centered between the holes
+module backer_2d() {
+    difference() {
+        translate([-backer_w / 2, -backer_h / 2])
+            offset(r=2, $fn=24) offset(delta=-2) square([backer_w, backer_h]);
+        for (y=[hk_y, pg_y]) translate([0, y]) square(backer_slot, center=true);
+    }
+}
+hr_test_holes = [[9, rail_d + 0.6], [10, rail_d + 1.0]];
+
+
 // ===== a la carte laser parts =====
 //
 // Each part's CUT and ETCH geometry in one shared frame; laser_parts.py
 // turns each into its own G-code (etch first, then cut) zeroed at the cut's
-// bottom-left corner. Ribs are kept parts (kerf grows them); slots are cut
-// into scrap (kerf shrinks the drop-out so the slot keeps its width).
+// bottom-left corner. Kept parts grow by kerf; slots cut into scrap shrink.
 straight_gauge_l = 200;
-lz_parts = concat(["rib_test", "omega_form", "omega_length", "straightness"],
-    [for (k=[0:peg_variants-1]) str("rib_k", k)]);
-module rib_etch_2d(k) {
-    translate([3, tr_y0 + 3]) text(str("k", k), size=2.5);
-}
+lz_parts = ["hook_rib", "hook_rib_test", "backer", "straightness"];
 module lz_cut_2d(name) {
-    if (name == "rib_test") offset(delta=kerf / 2) drib_2d(test_k, arc_dr, groove_in, test_holes);
-    else if (name == "omega_form") offset(delta=-kerf / 2) omega_form_slot_2d();
-    else if (name == "omega_length") offset(delta=-kerf / 2) omega_length_slot_2d();
+    if (name == "hook_rib") offset(delta=kerf / 2) hrib_2d();
+    else if (name == "hook_rib_test") offset(delta=kerf / 2) hrib_2d(hr_test_holes);
+    else if (name == "backer") offset(delta=kerf / 2) backer_2d();
     else if (name == "straightness") offset(delta=-kerf / 2) straight_slot_2d(straight_gauge_l);
-    else for (k=[0:peg_variants-1]) if (name == str("rib_k", k)) offset(delta=kerf / 2) drib_2d(k);
 }
 module lz_etch_2d(name) {
-    if (name == "rib_test") {
-        for (h=concat(test_holes, [[14, lace_d]])) let(dir = sup_lace(h[0]) / norm(sup_lace(h[0])))
+    if (name == "hook_rib_test")
+        for (h=concat(hr_test_holes, [[14, lace_d]])) let(dir = sup_lace(h[0]) / norm(sup_lace(h[0])))
             translate([track_d, 0] + dir * (rail_rr + notch_r + 2.6))
                 text(str("w+", round((h[1] - rail_d) * 10) / 10), size=1.6, halign="center", valign="center");
-        translate([arc_r * 0.55, peg_hole_y(test_k) + 2.5]) text(str("r", arc_r, " +", arc_dr), size=1.8, halign="center");
-        translate([8, -11]) text(str("g", groove_in), size=2.2, halign="center", valign="center");
-        rib_etch_2d(test_k);
-    }
-    else if (name == "omega_form")
-        translate([form_w / 2 + 4, -form_h / 2]) text("omega", size=2.5, valign="center");
-    else if (name == "omega_length")
-        translate([form_ch / 2 + 3, omega_wire_l / 2]) rotate([0, 0, 90]) text("omega length", size=2.2, halign="center");
     else if (name == "straightness")
         translate([rail_d / 2 + 3, straight_gauge_l / 2]) rotate([0, 0, 90]) text("rail straightness", size=2.5, halign="center");
-    else for (k=[0:peg_variants-1]) if (name == str("rib_k", k)) rib_etch_2d(k);
 }
-lz_name = "rib_test";
+lz_name = "hook_rib";
 echo(lz_parts=lz_parts);
 
 // ===== demo sheet: 300 x 295 =====
