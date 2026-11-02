@@ -106,6 +106,36 @@ def export_svg(openscad, layer, name, path, sheet_th):
     return path.read_text()
 
 
+def part_layers(s2g, openscad, name, sheet_th, tmp):
+    """{'cut': [Polyline], 'etch': [Polyline]} in mm, machine y-up, hybrid.scad frame."""
+    layers = {}
+    for layer in ("cut", "etch"):
+        svg = export_svg(openscad, layer, name, Path(tmp) / f"{name}_{layer}.svg", sheet_th)
+        lines, u = s2g.parse_svg(svg) if svg else ([], 1.0)
+        # OpenSCAD's SVG is y-down (y negated); back to machine y-up
+        layers[layer] = [s2g.Polyline([(x * u, -y * u) for x, y in pl.points], pl.closed)
+                         for pl in lines]
+    return layers
+
+
+def load_profile(material, s_full_power, quickcut):
+    """(s2g module, motion module, material dict, cut CutJob) for a material id."""
+    sys.path.insert(0, str(find_quickcut(quickcut)))
+    import svg2gcode as s2g  # noqa: E402
+    import motion  # noqa: E402
+    from materials import SHARED_MATERIALS  # noqa: E402
+    import yaml  # noqa: E402
+    mats = {m["id"]: m for m in yaml.safe_load(Path(SHARED_MATERIALS).read_text())}
+    if material not in mats:
+        sys.exit(f"unknown material {material}")
+    mat = mats[material]
+    r = mat["laser"]
+    job = s2g.CutJob(feed_mm_per_min=r["feed_mm_per_min"], power_percent=r["power_percent"],
+                     passes=r.get("passes", 1), material_id=material,
+                     s_full_power=s_full_power)
+    return s2g, motion, mat, job
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("parts", nargs="*", help="part names (default: all)")
@@ -145,13 +175,7 @@ def main():
     a.out.mkdir(parents=True, exist_ok=True)
     tmp = Path(tempfile.mkdtemp())
     for name in names:
-        layers = {}
-        for layer in ("cut", "etch"):
-            svg = export_svg(a.openscad, layer, name, tmp / f"{name}_{layer}.svg", sheet_th)
-            lines, u = s2g.parse_svg(svg) if svg else ([], 1.0)
-            # OpenSCAD's SVG is y-down (y negated); back to machine y-up
-            layers[layer] = [s2g.Polyline([(x * u, -y * u) for x, y in pl.points], pl.closed)
-                             for pl in lines]
+        layers = part_layers(s2g, a.openscad, name, sheet_th, tmp)
         pts = [p for pl in layers["cut"] for p in pl.points]
         x0, y0 = min(p[0] for p in pts), min(p[1] for p in pts)
         x1, y1 = max(p[0] for p in pts), max(p[1] for p in pts)
