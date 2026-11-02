@@ -44,7 +44,7 @@ panel_t = 0.9;
 peg_edge = 12.7;
 
 // --- stock ---
-sheet_th = 3;
+sheet_th = 2.63;   // measured: the "3 mm" 3-ply veneer (laser_parts.py passes the material profile's thickness_mm)
 kerf = 0.105;   // measured: kerf_test.py, 10 strips stacked = 48.95 mm -> (50 - 48.95) / 10
 max_part = 300;
 tab_clr = 0.1;

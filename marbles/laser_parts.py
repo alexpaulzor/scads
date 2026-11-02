@@ -93,8 +93,9 @@ def part_names(openscad):
     sys.exit("hybrid.scad didn't echo lz_parts")
 
 
-def export_svg(openscad, layer, name, path):
+def export_svg(openscad, layer, name, path, sheet_th):
     r = subprocess.run([openscad, "-o", str(path), "-D", f'hy_part="lz_{layer}"',
+                        "-D", f"sheet_th={sheet_th}",
                         "-D", f'lz_name="{name}"', str(SCAD)],
                        capture_output=True, text=True)
     if layer == "etch" and ("top level object is empty" in r.stderr
@@ -134,6 +135,8 @@ def main():
                          power_percent=cut_r["power_percent"],
                          passes=cut_r.get("passes", 1), material_id=a.material,
                          s_full_power=a.s_full_power)
+    # slot and tab sizes follow the stock: the profile's measured thickness
+    sheet_th = mat["thickness_mm"]
     etch_s = round(etch_r["power_percent"] / 100 * a.s_full_power)
     etch_f = etch_r["feed_mm_per_min"]
     etch_on = "M3" if etch_r.get("mode", "static") == "static" else "M4"
@@ -144,7 +147,7 @@ def main():
     for name in names:
         layers = {}
         for layer in ("cut", "etch"):
-            svg = export_svg(a.openscad, layer, name, tmp / f"{name}_{layer}.svg")
+            svg = export_svg(a.openscad, layer, name, tmp / f"{name}_{layer}.svg", sheet_th)
             lines, u = s2g.parse_svg(svg) if svg else ([], 1.0)
             # OpenSCAD's SVG is y-down (y negated); back to machine y-up
             layers[layer] = [s2g.Polyline([(x * u, -y * u) for x, y in pl.points], pl.closed)
@@ -161,7 +164,7 @@ def main():
         ex = (min(p[0] for p in epts), min(p[1] for p in epts),
               max(p[0] for p in epts), max(p[1] for p in epts)) if epts else None
 
-        g = [f"; {name} -- hybrid.scad / laser_parts.py",
+        g = [f"; {name} -- hybrid.scad / laser_parts.py, {a.material} ({sheet_th} mm thick)",
              f"; X0 Y0 = bottom-left corner of the cut outline; part is "
              f"{x1 - x0:.2f} x {y1 - y0:.2f} mm",
              f"; etch first ({etch_r['power_percent']}% F{etch_f}, "
