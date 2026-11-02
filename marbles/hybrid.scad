@@ -45,7 +45,7 @@ peg_edge = 12.7;
 
 // --- stock ---
 sheet_th = 3;
-kerf = 0.1;
+kerf = 0.105;   // measured: kerf_test.py, 10 strips stacked = 48.95 mm -> (50 - 48.95) / 10
 max_part = 300;
 tab_clr = 0.1;
 
