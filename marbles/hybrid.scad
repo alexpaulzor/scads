@@ -755,10 +755,15 @@ hook_reach = backer_t + panel_t + 0.3;
 // ends hook_rise above the top of the tongue
 hook_r = 3;
 hook_rise = 6.35;
-peg_len = backer_t + panel_t + 1.5;
+// peg: nearly the full hole (peg_hole_d - peg_clr), centered in it, round
+// tipped, reaching peg_past beyond the back of the steel (tip included)
+peg_clr = 0.3;
+peg_d = peg_hole_d - peg_clr;
+peg_past = 5;
+peg_len = backer_t + panel_t + peg_past;
 hr_y0 = min(-d_r, pg_y - peg_hole_d / 2 - 4);
 hr_y1 = max(d_r, hk_y + peg_hole_d / 2 + 4);
-echo(hook_rib_tabs=[["hook", hk_y, hook_reach, hook_r, hook_rise], ["peg", pg_y, peg_len]],
+echo(hook_rib_tabs=[["hook", hk_y, hook_reach, hook_r, hook_rise], ["peg", pg_y, peg_len, peg_d]],
     backer=[backer_w, backer_h, backer_t]);
 
 module hr_outline_2d() {
@@ -783,8 +788,11 @@ module hr_tabs_2d() {
     translate([0, yb]) square([1, tab_h2]);
     // extra tabs into the backer
     for (y=mid_tab_ys) translate([-mid_tab_len, y - mid_tab_h / 2]) square([mid_tab_len + 0.01, mid_tab_h]);
-    // peg: straight
-    translate([-peg_len, pg_y - peg_hole_d / 2 + 0.1]) square([peg_len + 0.01, tab_h2]);
+    // peg: full width, round tip
+    hull() {
+        translate([-0.01, pg_y - peg_d / 2]) square([0.02, peg_d]);
+        translate([-peg_len + peg_d / 2, pg_y]) circle(d=peg_d, $fn=48);
+    }
 }
 // Open channel for winding wire in: a 45 deg sector of the ring from lacing
 // position chan_i - 1 to chan_i + 1 (those two holes and the two notches
