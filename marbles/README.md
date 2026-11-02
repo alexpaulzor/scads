@@ -117,6 +117,31 @@ openscad -o mod0.svg -D 'hy_part="module"' -D 'hy_mod=0' marbles/hybrid.scad   #
 openscad -o jigs.svg -D 'hy_part="jigs"' marbles/hybrid.scad               # staple jig + C forms
 ```
 
+## Ball clock (`clock/escapement.py`)
+
+Wall clock idea: a seconds pendulum (994 mm) regulates everything, steel
+balls (1/2") are the drive weight, a motor lift refills a hopper, and
+rolling-ball counting rails show the time.
+
+So far: a Graham deadbeat escapement, 30-tooth escape wheel (1 rev/min,
+seconds hand on its arbor) with the anchor on the pendulum arbor BELOW it
+(the escapement sits above the pendulum's fulcrum). `escapement.py` runs a
+kinematic check (pendulum swings, wheel driven until something stops it)
+at 3, 4 and 5 deg amplitude and fails if the wheel runs away, recoils or
+doesn't advance half a tooth per swing; it also passed with parts 0.15 mm
+over/undersize. Then it writes a TEST RIG: two plates with 608 bearings,
+escape wheel, anchor, spacers, a string drum and a seconds hand
+(`gcode/clock_*.gcode`, with the copies to cut in each header).
+
+Drive is still open: balls in an 84 mm pocket wheel straight on the escape
+arbor give about 10x the torque the pendulum needs, so the ball wheel will
+turn slower and drive the escape wheel through a step-up train.
+
+```bash
+python3 marbles/clock/escapement.py           # check, cut files, preview (needs shapely)
+python3 marbles/clock/escapement.py --check   # check only
+```
+
 ## Pegboard wall (`pegwall.scad`)
 
 Modular run for 1" grid steel pegboard: two 13 x 30 hole panels side by
