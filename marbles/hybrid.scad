@@ -751,9 +751,16 @@ backer_h = backer_top - backer_bot;
 // tabs: rest on the bottom of their hole
 tab_h2 = 4;
 hook_reach = backer_t + panel_t + 0.3;
-// behind the steel the hook curves UP (centerline radius hook_r) and its tip
-// ends hook_rise above the top of the tongue
-hook_r = 3;
+// behind the steel the hook curves UP and its tip ends hook_rise above the
+// top of the tongue. The hook is one constant-width stroke (hook_w, nearly
+// the hole) from tongue through bend to tip, so the hole's edge can slide
+// round the inside of the bend while the far edge clears the outside:
+// threading a J through a hole needs its stroke width < the hole, and an
+// inner bend radius the steel's edge fits into. hook_fit_check.py checks
+// the whole tilt-in with the rib, backer and steel.
+hook_w = peg_hole_d - 0.3;
+hook_ri = 1.5;      // inner bend radius (steel is panel_t thick)
+hook_c = 0.3;       // leg's front face to the back of the steel
 hook_rise = 6.35;
 // peg: nearly the full hole (peg_hole_d - peg_clr), centered in it, round
 // tipped, reaching peg_past beyond the back of the steel (tip included)
@@ -762,8 +769,10 @@ peg_d = peg_hole_d - peg_clr;
 peg_past = 5;
 peg_len = backer_t + panel_t + peg_past;
 hr_y0 = min(-d_r, pg_y - peg_hole_d / 2 - 4);
-hr_y1 = max(d_r, hk_y + peg_hole_d / 2 + 4);
-echo(hook_rib_tabs=[["hook", hk_y, hook_reach, hook_r, hook_rise], ["peg", pg_y, peg_len, peg_d]],
+// nothing of the rib above the hook tongue: rib material there swings into
+// the steel as the rib tilts in (hook_fit_check.py)
+hr_y1 = max(d_r, hk_y + hook_w / 2);
+echo(hook_rib_tabs=[["hook", hk_y, hook_w, hook_ri, hook_rise], ["peg", pg_y, peg_len, peg_d]],
     backer=[backer_w, backer_h, backer_t]);
 
 module hr_outline_2d() {
@@ -774,18 +783,21 @@ module hr_outline_2d() {
     }
 }
 module hr_tabs_2d() {
-    // hook: tongue through plate + steel (resting on the bottom of the
-    // hole), then a smooth curve up behind the steel
-    yb = hk_y - peg_hole_d / 2 + 0.1;
-    yc = yb + tab_h2 / 2;
-    tip = yb + tab_h2 + hook_rise - tab_h2 / 2;
-    pts = concat([[1, yc], [-hook_reach, yc]],
-        // arc centered above the tongue's end: from straight below the
-        // center (heading back) round to straight left of it (heading up)
-        [for (a=[-105 : -15 : -180]) [-hook_reach, yc + hook_r] + hook_r * [cos(a), sin(a)]],
-        [[-hook_reach - hook_r, tip]]);
-    for (i=[0:len(pts)-2]) hull() for (q=[pts[i], pts[i + 1]]) translate(q) circle(d=tab_h2, $fn=32);
-    translate([0, yb]) square([1, tab_h2]);
+    // hook: tongue through the steel, centered in the hole, then a
+    // constant-width bend up behind the steel and a round-tipped leg
+    yt = hk_y + hook_w / 2;                         // tongue top
+    cx = -(backer_t + panel_t) - hook_c - hook_ri;   // bend center
+    cy = yt + hook_ri;
+    ro = hook_ri + hook_w;
+    translate([cx, hk_y - hook_w / 2]) square([-cx + 0.01, hook_w]);
+    intersection() {
+        difference() { translate([cx, cy]) circle(r=ro, $fn=96); translate([cx, cy]) circle(r=hook_ri, $fn=48); }
+        translate([cx - ro - 1, cy - ro - 1]) square([ro + 1, ro + 1]);
+    }
+    hull() {
+        translate([cx - ro, cy - 0.01]) square([hook_w, 0.01]);
+        translate([cx - hook_ri - hook_w / 2, yt + hook_rise - hook_w / 2]) circle(d=hook_w, $fn=48);
+    }
     // extra tabs into the backer
     for (y=mid_tab_ys) translate([-mid_tab_len, y - mid_tab_h / 2]) square([mid_tab_len + 0.01, mid_tab_h]);
     // peg: full width, round tip
@@ -841,10 +853,49 @@ module crossmember_2d() {
     }
     for (sx=[-1, 1]) translate([sx * cm_tab_x - cm_tab_w / 2, -mid_tab_len]) square([cm_tab_w, mid_tab_len + 0.01]);
 }
+echo(hook_fit=[backer_t, panel_t, peg_hole_d, peg_p, hk_y, backer_bot, backer_top]);
 echo(backer_span_y=[backer_bot, backer_top], backer_h=backer_h, crossmember=[cm_w, cm_d],
     half_lap_depth=cm_d / 2, chan_deg=[(chan_i - hr_chan_span / 2) * sup_step, (chan_i + hr_chan_span / 2) * sup_step]);
 assert(cm_d + 2 < track_d - d_r - lace_d / 2, "crossmember slot runs into the lacing holes");
 hr_test_holes = [[9, rail_d + 0.6], [10, rail_d + 1.0]];
+
+// --- rail end loop and its bending guide ---
+// A rail ends by passing through the end rib in a notch, U-turning past the
+// rib's far face, coming back through the neighboring lacing groove (8 mm
+// further out, half a step round), then a last 90 deg fold, done in place,
+// turns the very end up to touch the rail. The guide bends only the U; the
+// tail after it stays straight (the guide's stop slot sets its length).
+lp_span = norm([rail_rr, 0] - (rail_rr + lace_dr) * [cos(sup_step / 2), sin(sup_step / 2)]);
+lp_rc = lp_span / 2;                 // U centerline radius
+lp_ri = lp_rc - rail_d / 2;          // = mandrel radius
+lp_e = 1;                            // U starts this far past the rib's far face
+lp_f = 1;                            // last fold starts this far past the near face
+lp_rf = rail_d;                      // last fold centerline radius (round-nose pliers)
+// straight tail after the U: back past the rib, round the last fold, up to
+// touch the rail's underside
+lp_tail = lp_e + sheet_th + lp_f + PI / 2 * lp_rf + (2 * lp_rc - rail_d / 2 - lp_rf);
+lp_allow = PI * lp_rc + lp_tail;     // wire from the U's start to the very end
+lp_slot = rail_d + 0.3;
+lp_jaw = 14;                         // handle side, also the stop slot's wall
+lp_below = 18;                       // body below the stop
+echo(end_loop=[["span", lp_span], ["mandrel_r", lp_ri], ["tail", lp_tail],
+    ["U_start_past_far_face", lp_e], ["wire_U_start_to_end", lp_allow],
+    ["wire_far_face_to_end", lp_e + lp_allow]]);
+// guide: mandrel tongue (width 2 lp_ri, round tip centered at the origin),
+// stop slot for the tail on its left, handle jaw beyond; the long leg wraps
+// the tip and lies along the tongue's right edge (the guide's right edge)
+module loop_guide_2d() {
+    y0 = -lp_tail - lp_below;
+    difference() {
+        union() {
+            translate([-lp_ri - lp_slot - lp_jaw, y0])
+                offset(r=2, $fn=24) offset(delta=-2) square([lp_jaw + lp_slot + 2 * lp_ri, -y0]);
+            translate([-lp_ri, y0]) square([2 * lp_ri, -y0]);
+            circle(r=lp_ri, $fn=96);
+        }
+        translate([-lp_ri - lp_slot, -lp_tail]) square([lp_slot, lp_tail + 1]);
+    }
+}
 
 
 // ===== a la carte laser parts =====
@@ -853,13 +904,14 @@ hr_test_holes = [[9, rail_d + 0.6], [10, rail_d + 1.0]];
 // turns each into its own G-code (etch first, then cut) zeroed at the cut's
 // bottom-left corner. Kept parts grow by kerf; slots cut into scrap shrink.
 straight_gauge_l = 200;
-lz_parts = ["hook_rib", "hook_rib_test", "backer", "crossmember", "straightness"];
+lz_parts = ["hook_rib", "hook_rib_test", "backer", "crossmember", "straightness", "loop_guide"];
 module lz_cut_2d(name) {
     if (name == "hook_rib") offset(delta=kerf / 2) hrib_2d();
     else if (name == "hook_rib_test") offset(delta=kerf / 2) hrib_2d(hr_test_holes);
     else if (name == "backer") offset(delta=kerf / 2) backer_2d();
     else if (name == "crossmember") offset(delta=kerf / 2) crossmember_2d();
     else if (name == "straightness") offset(delta=-kerf / 2) straight_slot_2d(straight_gauge_l);
+    else if (name == "loop_guide") offset(delta=kerf / 2) loop_guide_2d();
 }
 module lz_etch_2d(name) {
     if (name == "hook_rib_test")

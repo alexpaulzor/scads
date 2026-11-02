@@ -50,6 +50,21 @@ does the rolling and the hanging.
   (three lacing positions wide) for winding wire in.
   (The older omega-clip rib and its 10 tab heights are still in the file
   but no longer cut.)
+- **Hook and peg** are one constant-width stroke each, nearly the hole
+  (6.35 - 0.3 mm), the hook bending up behind the steel. The rib has no
+  material above the hook tongue: there it swung into the steel as the rib
+  tilted in. `python3 marbles/hook_fit_check.py` simulates the tilt-in
+  (rib + backer vs the steel, any tilt and slide) and says whether the
+  hung position connects to off-the-board. Passes for steel up to 1.2 mm;
+  measure yours and set `panel_t`.
+- **Rail end loop**: the rail passes through the end rib in a notch,
+  U-turns just past the far face, comes back through the neighboring
+  lacing groove, and a last fold (in place, pliers) turns the very end up
+  to touch the rail. `loop_guide` bends only the U: put the wire end in the
+  stop slot, wrap the long leg 180 deg round the tongue. Its numbers are
+  echoed as `end_loop` (wire from the U's start to the end, and from the
+  rib's far face to the end). Glue 2-3 cut copies into a stack for a
+  stiffer tongue.
 - **Demo sheet** (`hy_part="sheet"` + `"sheet_etch"`, 300 x 295): 30 ribs =
   three cycles of the 10 tab heights, each cycle an experiment group
   (A/B/C: arc opening 0.9/1.2/1.5 mm, groove depth 0.35/0.5/0.65 mm); the
@@ -70,11 +85,13 @@ does the rolling and the hanging.
   `marbles/gcode/`, which is git-ignored): one file per part, etch first then
   cut, zeroed at the bottom-left corner of the part's cut outline. Parts:
   `hook_rib`, `hook_rib_test` (two lacing holes at test sizes, each
-  engraved with its clearance), `backer`, `crossmember`, `straightness` (200 mm rail
+  engraved with its clearance), `backer`, `crossmember`, `loop_guide`, `straightness` (200 mm rail
   gauge slot for scrap, at least 1/2" from any edge). Recipes come from
   `cnc_vibes/material_profiles/laser_materials.yaml` (default
   `plywood_veneer_3ply_3mm`; `--material` to change). Kerf is the 0.1 mm
   guess in hybrid.scad.
+- **One set from scrap** (`python3 marbles/laser_set.py`): rib, crossmember
+  and backer in one row, `gcode/hook_rib_set.gcode`.
 - **Kerf test** (`python3 marbles/kerf_test.py` writes
   `marbles/gcode/kerf_test.gcode`): one zig-zag cut makes 10 lines 5 mm
   apart, with the turnarounds outside the strip area, then a box cut 5 mm
