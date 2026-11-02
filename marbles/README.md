@@ -65,6 +65,17 @@ does the rolling and the hanging.
   echoed as `end_loop` (wire from the U's start to the end, and from the
   rib's far face to the end). Glue 2-3 cut copies into a stack for a
   stiffer tongue.
+- **Plywood spoke rails** (no wire): each rail is a flat strip in a plane
+  through the marble path's center line, at a clock angle, so the marble
+  rolls on its cut face. `rail_rib` (same hook, peg, backer, crossmember)
+  has 8 radial slots, every 45 deg; each rail has slanted notches on its
+  outer edge that meet them egg-crate style, so the rolling edge is
+  unbroken. Ribs hang vertically and the track slopes, so notches and rib
+  slots are computed for the slope (`rl_cols` columns per `rl_rows` inch
+  of drop, default 4:1 = 14 deg). Default rails: -45 and +45 to roll on,
+  +90 outside guard. Insert each rail from inside the window, outward into
+  the slots. The notches lean, so a rail seats one way round (etched arrow
+  downhill); if it won't, turn it over.
 - **Demo sheet** (`hy_part="sheet"` + `"sheet_etch"`, 300 x 295): 30 ribs =
   three cycles of the 10 tab heights, each cycle an experiment group
   (A/B/C: arc opening 0.9/1.2/1.5 mm, groove depth 0.35/0.5/0.65 mm); the
@@ -85,7 +96,7 @@ does the rolling and the hanging.
   `marbles/gcode/`, which is git-ignored): one file per part, etch first then
   cut, zeroed at the bottom-left corner of the part's cut outline. Parts:
   `hook_rib`, `hook_rib_test` (two lacing holes at test sizes, each
-  engraved with its clearance), `backer`, `crossmember`, `loop_guide`, `straightness` (200 mm rail
+  engraved with its clearance), `backer`, `crossmember`, `loop_guide`, `rail_rib`, `rail_m45`, `rail_p45`, `rail_p90`, `straightness` (200 mm rail
   gauge slot for scrap, at least 1/2" from any edge). Recipes come from
   `cnc_vibes/material_profiles/laser_materials.yaml` (default
   `plywood_veneer_3ply_3mm`; `--material` to change). Kerf is the 0.1 mm

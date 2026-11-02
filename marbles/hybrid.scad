@@ -898,13 +898,87 @@ module loop_guide_2d() {
 }
 
 
+// ===== plywood spoke rails (no wire) =====
+//
+// Every rail is a flat plywood strip lying in a plane through the marble
+// path's center line, like a spoke, so the marble rolls on its cut face.
+// A rail's clock angle is measured in the rib plane like the wire
+// positions (0 = straight down, +90 = 3 o'clock, out from the board). The
+// rib (rail_rib) has a radial slot at every rl_slot_angles position; a
+// rail notch from its outer edge meets the rib slot from the window, egg-
+// crate style, so the rail's inner (rolling) edge is unbroken.
+//
+// Ribs hang vertically and the track slopes (rl_rows inches of drop over
+// rl_cols columns per span), so a rail crosses each rib slightly askew:
+// its notches are slanted parallelograms and the rib slots a touch wider,
+// both computed exactly for the slope.
+//   t = path direction (down by rl_alpha), d = rail's radial direction in
+//   the rib plane; the rail plane is span(d, t). In the rail's flat frame
+//   (u along t, v perpendicular, outward) the rib slab is
+//   |u - v k| <= sheet_th / (2 cos a),  k = cos(th) sin(a) / s,
+//   s = sqrt(1 - cos^2(th) sin^2(a)); and a rib-plane radius r is v = r s.
+rl_cols = 4;                 // grid columns per span (rib to rib)
+rl_rows = 1;                 // inches of drop per span
+rl_spans = 1;                // spans per rail (rails <= 300 mm)
+rl_alpha = atan(rl_rows / rl_cols);
+rl_in = marble_r + 0.4;      // rolling edge, from the path center
+rl_win = 10.5;               // rib window radius
+rl_s = 14;                   // rib slot bottom (radius); rail notch meets it
+rl_out = 17;                 // rail outer edge
+rl_over = 10;                // rail runs past the end ribs
+rl_clr = 0.2;                // fit clearance, both joints
+rl_slot_angles = [for (i=[-3:4]) i * 45];      // 8 spokes on the rib
+rl_angles = [-45, 45, 90];   // rails to cut: two to roll on, one outside guard
+function rl_sq(th) = sqrt(1 - pow(cos(th) * sin(rl_alpha), 2));
+function rl_k(th) = cos(th) * sin(rl_alpha) / rl_sq(th);
+function rl_name(th) = str("rail_", th < 0 ? "m" : "p", abs(th));
+rl_len = rl_spans * rl_cols * peg_p / cos(rl_alpha);
+echo(spoke_rails=[["slope_deg", rl_alpha], ["rail_len", rl_len + 2 * rl_over],
+    ["rail_width", rl_out - rl_in], ["rib_slot_w", [for (a=rl_slot_angles) sheet_th * rl_sq(a) / cos(rl_alpha) + rl_clr]]]);
+assert(rl_len + 2 * rl_over <= 300, "rail longer than the stock");
+
+// rib: same outline, hook, peg, backer and crossmember as the wire rib
+module rail_rib_2d() {
+    difference() {
+        union() { hr_outline_2d(); hr_tabs_2d(); }
+        translate([track_d, 0]) {
+            circle(r=rl_win, $fn=96);
+            for (a=rl_slot_angles) rotate([0, 0, a]) let(w = sheet_th * rl_sq(a) / cos(rl_alpha) + rl_clr)
+                translate([-w / 2, -rl_s]) square([w, rl_s]);
+        }
+        translate([-1, cm_y - (sheet_th + slot_clr) / 2]) square([cm_d / 2 + 1, sheet_th + slot_clr]);
+    }
+}
+// rail at clock angle th, flat: x = u (downhill), y = v (out from the path)
+module rail_2d(th) {
+    k = rl_k(th);
+    hw = sheet_th / (2 * cos(rl_alpha)) + rl_clr / 2;
+    vs = rl_s * rl_sq(th);
+    v1 = rl_out + 1;
+    difference() {
+        translate([-rl_over, rl_in]) offset(r=1.5, $fn=16) offset(delta=-1.5) square([rl_len + 2 * rl_over, rl_out - rl_in]);
+        for (j=[0:rl_spans]) let(u = j * rl_cols * peg_p / cos(rl_alpha))
+            polygon([[u + vs * k - hw, vs], [u + vs * k + hw, vs], [u + v1 * k + hw, v1], [u + v1 * k - hw, v1]]);
+    }
+}
+// etch: angle and a downhill arrow. The notches lean, so a rail only seats
+// one way round: arrow downhill, and (track running downhill to the right,
+// facing the board) the etched face toward the smaller clock angle, e.g.
+// the 0 rail's etched face toward the board; downhill to the left, the
+// other face. If it won't seat, turn it over.
+module rail_etch_2d(th) {
+    translate([rl_len / 2, (rl_in + rl_out) / 2])
+        text(str(th > 0 ? "+" : "", th, "  downhill >"), size=3, halign="center", valign="center");
+}
+
 // ===== a la carte laser parts =====
 //
 // Each part's CUT and ETCH geometry in one shared frame; laser_parts.py
 // turns each into its own G-code (etch first, then cut) zeroed at the cut's
 // bottom-left corner. Kept parts grow by kerf; slots cut into scrap shrink.
 straight_gauge_l = 200;
-lz_parts = ["hook_rib", "hook_rib_test", "backer", "crossmember", "straightness", "loop_guide"];
+lz_parts = concat(["hook_rib", "hook_rib_test", "backer", "crossmember", "straightness", "loop_guide", "rail_rib"],
+    [for (a=rl_angles) rl_name(a)]);
 module lz_cut_2d(name) {
     if (name == "hook_rib") offset(delta=kerf / 2) hrib_2d();
     else if (name == "hook_rib_test") offset(delta=kerf / 2) hrib_2d(hr_test_holes);
@@ -912,6 +986,8 @@ module lz_cut_2d(name) {
     else if (name == "crossmember") offset(delta=kerf / 2) crossmember_2d();
     else if (name == "straightness") offset(delta=-kerf / 2) straight_slot_2d(straight_gauge_l);
     else if (name == "loop_guide") offset(delta=kerf / 2) loop_guide_2d();
+    else if (name == "rail_rib") offset(delta=kerf / 2) rail_rib_2d();
+    else for (a=rl_angles) if (name == rl_name(a)) offset(delta=kerf / 2) rail_2d(a);
 }
 module lz_etch_2d(name) {
     if (name == "hook_rib_test")
@@ -920,6 +996,7 @@ module lz_etch_2d(name) {
                 text(str("w+", round((h[1] - rail_d) * 10) / 10), size=1.6, halign="center", valign="center");
     else if (name == "straightness")
         translate([rail_d / 2 + 3, straight_gauge_l / 2]) rotate([0, 0, 90]) text("rail straightness", size=2.5, halign="center");
+    else for (a=rl_angles) if (name == rl_name(a)) rail_etch_2d(a);
 }
 lz_name = "hook_rib";
 echo(lz_parts=lz_parts);
