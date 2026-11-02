@@ -6,8 +6,11 @@ exported to SVG by OpenSCAD and converted here. Every file is zeroed at the
 bottom-left corner of the part's CUT outline: jog the laser to the corner of
 the stock you want, zero X and Y there, and run it.
 
-Cutting uses quickcut's own emitter (cnc_vibes/quickcut/svg2gcode.py): static
-M3, 1 s warmup follow-through, interior loops first, outer boundary last.
+Cutting (emit_cut below): static M3, interior loops first, outer boundary
+last. EVERY cut, closed or open, starts with the warmup wiggle (out half
+the 1 s warmup distance along the path and back to the start, as
+jigsawzall's cutter does), then cuts the whole path hot; closed loops then
+keep going one warmup distance past the start so the seam is cut twice.
 Etching uses the material's etch recipe with the settings laser_materials.yaml
 records as the fix for etch burn-through: 0.3 mm minimum segments and a short
 fixed lead-in (each loop traced once, then followed through etch_lead_in_mm
@@ -40,6 +43,44 @@ def find_quickcut(arg):
         if (c / "svg2gcode.py").exists():
             return c
     sys.exit("can't find quickcut/svg2gcode.py; pass --quickcut PATH")
+
+
+def emit_cut(s2g, motion, pl, i, n, job):
+    """Wiggle first on every path; closed loops also overlap their seam."""
+    pts = motion.decimate(pl.points, job.min_segment_mm)
+    if len(pts) < 2:
+        return []
+    length = motion.path_length(pts)
+    if length < job.warmup_mm / 2:   # stub: one out-and-back, not a shuttle
+        warm = pts[1:] + pts[-2::-1]
+    else:
+        warm = motion.warmup_wiggle(pts, job.warmup_mm)
+    g = [f"; --- cut {i}/{n} ({'loop' if pl.closed else 'open path'}, {len(pts)} pts) ---",
+         f"G0 X{pts[0][0]:.3f} Y{pts[0][1]:.3f}", f"M3 S{job.power_s}", f"F{job.feed_mm_per_min}",
+         f"; warmup wiggle: {job.warmup_mm / 2:.1f}mm out and back"]
+    g += [f"G1 X{x:.3f} Y{y:.3f}" for x, y in warm]
+    for k in range(job.passes):
+        if job.passes > 1:
+            g.append(f"; pass {k + 1}/{job.passes}")
+        seq = pts[1:] if (pl.closed or k % 2 == 0) else pts[-2::-1]
+        g += [f"G1 X{x:.3f} Y{y:.3f}" for x, y in seq]
+    if pl.closed:
+        g.append(f"; overlap: {job.warmup_mm:.1f}mm past the start")
+        g += [f"G1 X{x:.3f} Y{y:.3f}" for x, y in motion.follow_through(pts, job.warmup_mm)]
+    return g + ["M5", ""]
+
+
+def preamble(s2g, job):
+    """quickcut's preamble, with its warmup lines describing emit_cut instead."""
+    out = []
+    for line in s2g._preamble(job):
+        if line.startswith("; closed loops:"):
+            out.append("; every cut: warmup wiggle (half the warmup out and back), then the path")
+        elif line.startswith("; open paths:"):
+            out.append("; closed loops then overlap the warmup distance past their start")
+        else:
+            out.append(line)
+    return out
 
 
 def part_names(openscad):
@@ -78,6 +119,7 @@ def main():
     sys.path.insert(0, str(qc))
     import svg2gcode as s2g  # noqa: E402
     from materials import SHARED_MATERIALS  # noqa: E402
+    import motion  # noqa: E402
     from motion import decimate, follow_through  # noqa: E402
     import yaml  # noqa: E402
 
@@ -127,7 +169,7 @@ def main():
              ]
         if ex:
             g.append(f"; etch extent X{ex[0]:.2f}..{ex[2]:.2f} Y{ex[1]:.2f}..{ex[3]:.2f}")
-        g += s2g._preamble(cut_job)
+        g += preamble(s2g, cut_job)
         g += ["; ===== ETCH ====="]
         for i, pl in enumerate(layers["etch"], 1):
             p = decimate(pl.points, ETCH_MIN_SEG_MM)
@@ -142,7 +184,7 @@ def main():
         g += ["; ===== CUT ====="]
         cuts = s2g.order_cuts(layers["cut"])
         for i, pl in enumerate(cuts, 1):
-            g += s2g._emit_cut(pl, i, len(cuts), cut_job)
+            g += emit_cut(s2g, motion, pl, i, len(cuts), cut_job)
         g += s2g._footer()
         out = a.out / f"{name}.gcode"
         out.write_text("\n".join(g))

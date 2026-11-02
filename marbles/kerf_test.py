@@ -24,7 +24,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from laser_parts import find_quickcut  # noqa: E402
+from laser_parts import emit_cut, find_quickcut, preamble  # noqa: E402
 
 
 def main():
@@ -42,6 +42,7 @@ def main():
 
     sys.path.insert(0, str(find_quickcut(a.quickcut)))
     import svg2gcode as s2g  # noqa: E402
+    import motion  # noqa: E402
     from materials import SHARED_MATERIALS  # noqa: E402
     import yaml  # noqa: E402
 
@@ -75,9 +76,9 @@ def main():
          f"; each strip = {P:g} - kerf; stack {stack_n}: kerf = "
          f"({stack_n * P:g} - stack) / {stack_n}",
          ";"]
-    g += s2g._preamble(job)
+    g += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
-        g += s2g._emit_cut(c, i, len(cuts), job)
+        g += emit_cut(s2g, motion, c, i, len(cuts), job)
     g += s2g._footer()
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text("\n".join(g))
