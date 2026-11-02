@@ -726,7 +726,6 @@ module test_rib_etch_2d() {
 // plate), y up, ring/marble center at (track_d, 0). Holes at y = +/- 12.7.
 backer_t = sheet_th;
 backer_w = peg_p;
-backer_h = 2 * peg_p;
 backer_slot = [sheet_th + 0.2, peg_hole_d];
 slot_clr = 0.2;
 // The backer stops just under the hook's tongue: the hook passes over its
@@ -736,8 +735,9 @@ slot_clr = 0.2;
 mid_tab_ys = [5.5, -6];
 mid_tab_h = 4;
 mid_tab_len = sheet_th - 0.1;
-// crossmember: horizontal plate, perpendicular to rib and backer; slides
-// into a slot in the rib's back edge, tabs into the backer
+// crossmember: horizontal plate, perpendicular to rib and backer, half-lapped
+// with the rib (rib slot open at its back edge, crossmember notch open at
+// its front edge, each cm_d / 2 deep); tabs into the backer
 cm_y = 0;
 cm_d = 10;
 cm_w = backer_w;
@@ -746,6 +746,8 @@ cm_tab_x = 7.5;
 hk_y = peg_p / 2;
 pg_y = -peg_p / 2;
 backer_top = hk_y - peg_hole_d / 2 - 0.3;   // just under the hook tongue so the hook passes over it
+backer_bot = pg_y - peg_hole_d / 2 - 4;     // 4 mm of wood under the peg slot, no more
+backer_h = backer_top - backer_bot;
 // tabs: rest on the bottom of their hole
 tab_h2 = 4;
 hook_reach = backer_t + panel_t + 0.3;
@@ -784,6 +786,16 @@ module hr_tabs_2d() {
     // peg: straight
     translate([-peg_len, pg_y - peg_hole_d / 2 + 0.1]) square([peg_len + 0.01, tab_h2]);
 }
+// Open channel for winding wire in: a 45 deg sector of the ring from lacing
+// position chan_i - 1 to chan_i + 1 (those two holes and the two notches
+// between them go), straight radial edges, window to outside.
+hr_chan_span = 2;   // in lacing pitches (sup_step each)
+module hr_chan_2d() {
+    a0 = (chan_i - hr_chan_span / 2) * sup_step;
+    a1 = (chan_i + hr_chan_span / 2) * sup_step;
+    R = d_r + 3;
+    polygon(concat([[0, 0]], [for (a=[a0 : (a1 - a0) / 12 : a1]) R / cos((a1 - a0) / 24) * [sin(a), -cos(a)]]));
+}
 // holes: [[lacing index, diameter], ...] test sizes for some lacing holes
 module hrib_2d(holes=[]) {
     difference() {
@@ -794,13 +806,12 @@ module hrib_2d(holes=[]) {
         translate([track_d, 0]) {
             circle(r=rail_rr + groove_in, $fn=96);
             for (i=[0:sup_n-1]) translate(sup_notch(i)) circle(r=notch_r, $fn=24);
-            for (i=[0:sup_n-1]) if (i != chan_i)
+            for (i=[0:sup_n-1]) if (abs(i - chan_i) > hr_chan_span / 2)
                 translate(sup_lace(i)) circle(d=hole_d_of(i, holes), $fn=24);
-            rotate([0, 0, chan_i * sup_step])
-                translate([-chan_w / 2, -(d_r + 2)]) square([chan_w, d_r + 2 - rail_rr]);
+            hr_chan_2d();
         }
-        // crossmember slot, open at the back edge
-        translate([-1, cm_y - (sheet_th + slot_clr) / 2]) square([cm_d + 1, sheet_th + slot_clr]);
+        // crossmember half-lap slot, open at the back edge
+        translate([-1, cm_y - (sheet_th + slot_clr) / 2]) square([cm_d / 2 + 1, sheet_th + slot_clr]);
     }
 }
 // Backer plate, board plane: x across (rib at x = 0), y as in the rib frame
@@ -815,10 +826,15 @@ module backer_2d() {
 }
 // Crossmember, its own plane: x across, y out from the backer's face
 module crossmember_2d() {
-    translate([-cm_w / 2, 0]) offset(r=1.5, $fn=16) offset(delta=-1.5) square([cm_w, cm_d]);
+    difference() {
+        translate([-cm_w / 2, 0]) offset(r=1.5, $fn=16) offset(delta=-1.5) square([cm_w, cm_d]);
+        // half-lap notch for the rib, open at the front edge
+        translate([-(sheet_th + slot_clr) / 2, cm_d / 2]) square([sheet_th + slot_clr, cm_d / 2 + 1]);
+    }
     for (sx=[-1, 1]) translate([sx * cm_tab_x - cm_tab_w / 2, -mid_tab_len]) square([cm_tab_w, mid_tab_len + 0.01]);
 }
-echo(backer_span_y=[backer_top - backer_h, backer_top], crossmember=[cm_w, cm_d]);
+echo(backer_span_y=[backer_bot, backer_top], backer_h=backer_h, crossmember=[cm_w, cm_d],
+    half_lap_depth=cm_d / 2, chan_deg=[(chan_i - hr_chan_span / 2) * sup_step, (chan_i + hr_chan_span / 2) * sup_step]);
 assert(cm_d + 2 < track_d - d_r - lace_d / 2, "crossmember slot runs into the lacing holes");
 hr_test_holes = [[9, rail_d + 0.6], [10, rail_d + 1.0]];
 

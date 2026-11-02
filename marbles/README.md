@@ -39,11 +39,15 @@ does the rolling and the hanging.
   The backer's top edge stops just under the hook tongue (no closed slot
   for the hook), so nothing sits above the pivot when you tilt the rib to
   hook in. Two short rib tabs between hook and peg go into the backer only,
-  and a horizontal **crossmember** (1" x 10 mm) slides into a slot in the
-  rib's back edge and tabs into the backer, square to both. Glue rib,
+  and a horizontal **crossmember** (1" x 10 mm) half-laps with the rib
+  (half-depth slot in the rib's back edge, matching notch in the
+  crossmember's front edge) and tabs into the backer, square to both.
+  The backer runs from just under the hook tongue to 4 mm below the peg
+  slot. Glue rib,
   backer and crossmember into one piece, then tilt, hook, swing down.
   Lacing holes between the marble and the board,
-  grooves on the outer curve, one open channel above 3 o'clock.
+  grooves on the outer curve, and a 45 deg opening from 3 o'clock up
+  (three lacing positions wide) for winding wire in.
   (The older omega-clip rib and its 10 tab heights are still in the file
   but no longer cut.)
 - **Demo sheet** (`hy_part="sheet"` + `"sheet_etch"`, 300 x 295): 30 ribs =
