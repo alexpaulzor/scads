@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """V-wheel boxes for the lift's captive slide (replace guide rails G_F/G_M and sliders L_F/L_M).
 
-One box per end of each keeper (4 total). Each box is 5 tabbed plates around one
-polymer V-wheel, open on the side facing the beam the wheel rides:
+One box per end of each keeper (4 total). The KEEPER IS THE NEAR WALL of each box:
+it is 40 wide along most of its length and widens (curving out) to a lobe at each
+box. Each box adds 4 plates around one polymer V-wheel, open on the side facing
+the beam the wheel rides:
 
-  CH  cheek x2   plates parallel to the keeper. The near cheek lies flat on the
-                 keeper's inner face; the far cheek is on the other side of the
-                 wheel. Both carry the axle, so the axle is supported at both ends.
-  TB  top/bottom x2   tabbed through both cheeks; finger-jointed to the back wall
-  BK  back wall x1    tabbed through both cheeks; finger-jointed to top/bottom
-  TB + BK hold the cheeks apart (compression); long M5 bolts through keeper +
-  both cheeks pull them together (tension). No captive nuts in the wood.
+  FC  far cheek x1    parallel to the keeper, on the other side of the wheel.
+                      Keeper lobe + far cheek carry the axle at both ends.
+  TB  top/bottom x2   tabbed through the keeper and the far cheek; finger-jointed to BK
+  BK  back wall x1    tabbed through the keeper and the far cheek; finger-jointed to TB
+  TB + BK hold keeper and far cheek apart (compression); long M5 bolts through
+  keeper + far cheek pull them together (tension). No captive nuts in the wood.
 
 The wheel's position along its axle is set by two nuts on the axle bolt, one each
 side of the bearing's inner race, so the box does not need precise thickness.
@@ -64,7 +65,9 @@ BOLT_DZ = 30.0                # through bolts use the keeper's far-row holes at 
 
 # ---- W_F box, in assembly coordinates (W_M is the mirror: a -> 60 - a, s -> 8.4 - s)
 a_w, s_w = 60 + AX, -11.6 + 10            # axle (a), wheel mid-plane (s)
-NCi = 20.0 - T                            # near cheek inner face (cheek sits on K_F's inner face s = 20)
+NCi = 20.0                                # near wall = K_F itself; its inner face (F's front face) is s = 20
+KEEP_W = 40.0                             # keeper width away from the boxes (covers its beam + the ball column)
+FILLET = 15.0                             # radius where the keeper curves out to a box lobe
 FCi = -11.6 - T - CLR_K                   # far cheek inner face (clears K_M's outer face)
 FCo = FCi - T
 D = NCi - FCi                             # inside depth between cheeks
@@ -85,10 +88,10 @@ def P(*x):
     print(*x)
 P(f"T = {T}, KERF = {KERF}, FIT = {FIT}, tab {TAB}, min web {WEB}")
 P(f"wheel axle a = {a_w:.2f}, mid-plane s = {s_w:.2f}; rim reaches a = {a_w - WOD/2:.2f} (M far face a = 60)")
-P(f"cheeks: near s {NCi:.2f}..{NCi+T:.2f} (on K_F), far s {FCo:.2f}..{FCi:.2f}; inside depth D = {D:.2f}")
+P(f"near wall = K_F s {NCi:.2f}..{NCi+T:.2f}; far cheek s {FCo:.2f}..{FCi:.2f}; inside depth D = {D:.2f}")
 P(f"open side a = {a_open:.2f}; back wall a {a_bi:.2f}..{a_bo:.2f}; inside height 2 x {H_i:.2f} = {2*H_i:.2f}")
 P(f"cheek plate: a {a_c0:.2f}..{a_c1:.2f} ({a_c1-a_c0:.2f}) x z +/-{z_c:.2f} ({2*z_c:.2f})")
-P(f"near cheek inner face to wheel: {gapA:.2f} (washer {WASH} + nut {NUT_H} + {gapA-WASH-NUT_H:.2f} free)")
+P(f"keeper inner face to wheel: {gapA:.2f} (washer {WASH} + nut {NUT_H} + {gapA-WASH-NUT_H:.2f} free)")
 P(f"wheel to far cheek inner face: {gapB:.2f} (washer {WASH} + nut {NUT_H} + {gapB-WASH-NUT_H:.2f} clear)")
 BOLT_STD = next(x for x in (40, 45, 50, 55, 60, 65, 70, 80) if x >= bolt_len + NUT_H)
 P(f"bolts: keeper outer s {k_out:.2f} to far cheek outer s {FCo:.2f} = {bolt_len:.2f} + nut {NUT_H} = {bolt_len+NUT_H:.2f} -> M5x{BOLT_STD}")
@@ -130,9 +133,8 @@ def hexagon(cx, cy, af):
 def axle_hole(cz=0.0):
     return Point(a_w, cz).buffer(M5 / 2, 32)
 
-def cheek_2d():
-    """(a, z - zc)"""
-    g = box(a_c0, -z_c, a_c1, z_c)
+def box_cuts():
+    """holes and tab slots shared by the far cheek and the keeper lobe, in (a, z - zc)"""
     cuts = [axle_hole()] + [Point(70.0, dz).buffer(M5 / 2, 32) for dz in (-BOLT_DZ, BOLT_DZ)]
     w = T + FIT
     for zs in (1, -1):
@@ -141,7 +143,11 @@ def cheek_2d():
             cuts.append(box(x0 - FIT / 2, z0 - FIT / 2, x1 + FIT / 2, z0 + w - FIT / 2))
     for z0, z1 in bk_tabs:
         cuts.append(box(a_bi - FIT / 2, z0 - FIT / 2, a_bi + w - FIT / 2, z1 + FIT / 2))
-    return g.difference(unary_union(cuts))
+    return unary_union(cuts)
+
+def cheek_2d():
+    """far cheek, (a, z - zc)"""
+    return box(a_c0, -z_c, a_c1, z_c).difference(box_cuts())
 
 def tb_2d():
     """top/bottom wall in (a, s): body a_open..a_bi, corner fingers a_bi..a_bo, tabs through the cheeks."""
@@ -161,12 +167,16 @@ def bk_2d():
     return unary_union([g] + fingers + tabs)
 
 def keeper_2d():
-    """K_F / K_M revised: 300 x 80. Row v = 10 (own beam): slots across, +/-ADJ. Row v = 70: round (box bolts).
-    Round axle holes at v = a_w, u = box centres."""
-    g = box(0, 0, L, 80.0)
+    """K_F / K_M in (u, v) = (along, across from its own beam's outer face).
+    KEEP_W wide, with a lobe out to the box's outer edge at each box, curving in with FILLET.
+    Row v = 10 (own beam): slots across, +/-ADJ. Lobes: the box's bolt holes, axle hole and tab slots."""
+    strip = box(0, 0, L, KEEP_W)
+    lobes = [box(zc - z_c, 0, zc + z_c, a_c1) for zc in BOX_Z]
+    g = unary_union([strip] + lobes)
+    g = g.buffer(FILLET, 64).buffer(-FILLET, 64).intersection(box(0, 0, L, a_c1))      # curve the inside corners
+    g = g.buffer(-3, 32).buffer(3, 32)                                                    # round the outside corners
     cuts = [LineString([(u, 10.0 - ADJ), (u, 10.0 + ADJ)]).buffer(M5 / 2, 32) for u in M5_U]
-    cuts += [Point(u, 70.0).buffer(M5 / 2, 32) for u in M5_U]
-    cuts += [Point(u, a_w).buffer(M5 / 2, 32) for u in BOX_Z]
+    cuts += [affinity.affine_transform(box_cuts(), [0, 1, 1, 0, zc, 0]) for zc in BOX_Z]   # (a, dz) -> (u, v)
     return g.difference(unary_union(cuts))
 
 # min web checks (thinnest material between a cut and an edge / another cut)
@@ -182,7 +192,10 @@ def min_web(g):
                 d = r.distance(o)
                 best = d if best is None else min(best, d)
     return best
-PARTS = {"CH": ("cheek", cheek_2d(), 2), "TB": ("top / bottom wall", tb_2d(), 2), "BK": ("back wall", bk_2d(), 1)}
+PARTS = {"FC": ("far cheek", cheek_2d(), 1), "TB": ("top / bottom wall", tb_2d(), 2), "BK": ("back wall", bk_2d(), 1)}
+kp = keeper_2d()
+P(f"keeper: {L:g} long, {KEEP_W:g} wide, lobes to {a_c1:.2f} at u {BOX_Z[0]-z_c:.2f}..{BOX_Z[0]+z_c:.2f} and "
+  f"{BOX_Z[1]-z_c:.2f}..{BOX_Z[1]+z_c:.2f}, fillet r {FILLET:g}; narrowest web {min_web(kp):.2f}")
 for k, (n, g, q) in PARTS.items():
     x0, y0, x1, y1 = g.bounds
     mw = min_web(g)
@@ -248,8 +261,7 @@ def box_parts(zc, tag, col, explode=0.0, hardware=True):
     out_start = len(parts)
     ch = affinity.translate(cheek_2d(), 0, zc)
     e = explode
-    add("az", f"CHn{tag}", "CH near cheek", col, ch, NCi + e, NCi + T + e, group=f"box{tag}")
-    add("az", f"CHf{tag}", "CH far cheek", col, ch, FCo - e, FCi - e, group=f"box{tag}")
+    add("az", f"CHf{tag}", "FC far cheek", col, ch, FCo - e, FCi - e, group=f"box{tag}")
     tb = tb_2d()
     add("as", f"TBt{tag}", "TB top wall", col, tb, zc + H_i + 1.6 * e, zc + H_i + T + 1.6 * e, group=f"box{tag}")
     add("as", f"TBb{tag}", "TB bottom wall", col, tb, zc - H_i - T - 1.6 * e, zc - H_i - 1.6 * e, group=f"box{tag}")
@@ -325,12 +337,12 @@ json.dump({"parts": sec, "balls": [b for b in balls if b["c"][2] + b["r"] <= ZC]
 # one box alone (W_F lower) with stubs of M and K_F
 parts.clear()
 add("as", "M", "M", BEAM_M, profile2020(40, -11.6), 10, 110)
-kf = affinity.affine_transform(keeper_2d(), [0, 1, 1, 0, 0, 0]).intersection(box(44, 10, 80, 110))
+kf = affinity.affine_transform(keeper_2d(), [0, 1, 1, 0, 0, 0]).intersection(box(-5, 0, 100, 125))
 add("az", "K_F", "K_F", F_COL, kf, 20, 20 + T, 0.55)
 box_parts(60.0, "F60", BOX_F)
 json.dump({"parts": list(parts), "balls": []}, open(OUT / "box_one.json", "w"))
 parts.clear()
-add("az", "K_F", "K_F", F_COL, kf, 20 + 50, 20 + T + 50, 1.0)
+add("az", "K_F", "K_F", F_COL, kf, 20 + 24, 20 + T + 24, 1.0)
 box_parts(60.0, "F60", BOX_F, explode=24.0, hardware=False)
 json.dump({"parts": list(parts), "balls": []}, open(OUT / "box_exploded.json", "w"))
 
@@ -339,7 +351,7 @@ def thumbs(lst):
 json.dump({"parts": thumbs([(k, n, q, g) for k, (n, g, q) in PARTS.items()]),
            "assy": thumbs([("S_F / S_M", "sieve 300 x 46 (lift_sieve)", 2, sieve2d(True)),
                            ("K_F / K_M", "keeper, slotted row + axle holes", 2, affine := affinity.affine_transform(keeper_2d(), [1, 0, 0, 1, 0, 0])),
-                           ("box", "wheel box: CH x2, TB x2, BK x1", 4, cheek_2d())])},
+                           ("box", "wheel box: FC x1, TB x2, BK x1", 4, cheek_2d())])},
           open(OUT / "box_thumbs.json", "w"))
 json.dump({"T": T, "NCi": NCi, "FCi": FCi, "FCo": FCo, "a_w": a_w, "s_w": s_w, "a_bi": a_bi, "a_bo": a_bo, "H_i": H_i,
            "a_c0": a_c0, "a_c1": a_c1, "z_c": z_c, "a_open": a_open, "corner": corner, "BOX_Z": BOX_Z},
