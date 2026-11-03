@@ -1,38 +1,31 @@
 // Ball lift test rig: one fixed sieve strip (F) and one moving sieve strip
 // (M), both the 300 x 46 mm MDF strip from lift_sieve.py, each bolted to a
-// 2020. A crank at the top drives M. Animate in OpenSCAD: View > Animate,
-// FPS 10, Steps 60. One animation cycle = one crank turn = every ball up one
-// step; it loops seamlessly (a new ball feeds in at the bottom, the top one
-// leaves).
+// 2020. Animate in OpenSCAD: View > Animate, FPS 10, Steps 60. One
+// animation cycle = one turn of the cam = every ball up one step; it loops
+// seamlessly (a new ball feeds in at the bottom, the top one leaves).
 //
-// Axes: x across (left/right), y toward the viewer (front), z up.
-// Back to front: back guard 2020 (fixed) | gap | F | balls | M | M's 2020.
+// ONE MOTION DOES EVERYTHING
+// The whole rig hangs from a pivot at the top (axle along x) and rocks
+// forward and back. The pivot sits `arm` mm in front of M's top pin, so
+// rocking also raises and lowers the rig there. M slides on keys along the
+// rig, but its top pin hangs from a fixed link, so M stays at about the same
+// height while F rises and falls around it: that relative slide is the lift,
+// and it is in step with the rock by construction.
+//   - An off-centre cam on a fixed axle, its pin riding in a horizontal slot
+//     in the rig's front arm, rocks the rig.
+//   - Rig tipped forward (top toward the viewer) = F up, so M sits low
+//     against F: balls roll forward out of F into M.
+//   - Rig tipped back = F down, M high: balls roll back from M into F one
+//     hole higher, and lean on F / the back guard for the rest of the turn.
 //
-// The whole rig ROCKS on a pivot under its base, in step with the crank,
-// so gravity does the hand-offs: tipped forward at the bottom of the
-// stroke (balls roll forward out of F into M), tipped back at the top (balls
-// roll back from M into F) and for the rest of the turn (balls lean on F /
-// the back guard). tilt = rock_amp * cos(360 t) - rock_bias, + = top forward.
-// A fixed front guard keeps riding balls in while it's tipped forward.
-//
-// motion = "slider": crank + connecting rod, M slides straight up and down
-//   on wooden keys in its right-hand slot. This is the default because the
-//   ball stays on F's face the whole lift.
-// motion = "circle": two equal cranks (top driven, bottom idler) move M
-//   round a circle. A circle that gives the 34 mm lift also swings 17 mm
-//   sideways, which drags the riding ball across F's M5 heads one way or off
-//   F's 6 mm edge the other way (set `swing` smaller to see how far it can go).
+// Axes: x across, y toward the viewer (front), z up.
+// Back to front: back guard 2020 | gap | F | balls | M | M's 2020.
 
 /* [Animation] */
 t_fixed = -1;                 // set 0..1 to show one moment instead of animating
-t = t_fixed >= 0 ? t_fixed : $t;   // 0..1, one crank turn
-motion = "slider";            // [slider, circle]
-swing = 17;                   // sideways radius for motion = "circle"
-rock_amp = 12;                // deg, rocking amplitude
-rock_bias = 6;                // deg, rocks more back than forward: +6 forward at the bottom, -18 back at the top
-pivot = [30, 0, -60];         // rocking axle (along x), under the base
+t = t_fixed >= 0 ? t_fixed : $t;   // 0..1, one cam turn
 show_frame = true;
-section_view = false;         // cut away everything outside the ball column (x 22..38) to see the hand-offs
+section_view = false;         // cut away everything outside the ball column (x 22..38)
 
 /* [Sieve strip (as cut)] */
 L = 300; W = 46; T = 3.2;     // strip; T = MDF thickness
@@ -42,28 +35,62 @@ m5_d = 5; m5_v = 10; m5_u = [30, 90, 150, 210, 270];
 
 /* [Balls] */
 ball_d = 19.05;               // 3/4" steel; set to your toy marbles' size to compare
-drop = 2;                     // hand-off drop: stroke = pitch + 2 * drop
+drop = 2;                     // hand-off drop: lift = pitch + 2 * drop
+
+/* [Rocking drive] */
+tilt_fwd = 6;                 // deg, top toward the viewer, at M's low point
+tilt_back = 18;               // deg, top toward the wall, at M's high point
+cam_r = 10;                   // off-centre cam (eccentric) radius
+link = 100;                   // fixed link from the frame down to M's top pin
+pivot_up = 45;                // pivot this far above M's top pin
 
 /* [Layout] */
 guard_gap = 4;                // back guard face this far behind F's back face
 m_gap = 0.45;                 // M's back face clears a resting ball's front by this
-rod = 100;                    // connecting rod length
-crank_r = (pitch + 2 * drop) / 2;
 
-// ---------- derived positions (y)
-yF0 = 0;                        // F back face
-yF1 = T;                        // F front face
-yG = -guard_gap;                // back guard face
-yB_rest = yG + ball_d / 2;      // ball resting in F, against the guard
-yM0 = yB_rest + ball_d / 2 + m_gap;   // M back face
-yB_ride = yF1 + ball_d / 2;     // ball riding in M, against F's face
-yGF = yB_ride + ball_d / 2 + 0.5;   // front guard face
-yB_front = yGF - ball_d / 2;    // ball in M, tipped forward against the front guard
-tilt = rock_amp * cos(360 * t) - rock_bias;
-echo(t = t, stroke = 2 * crank_r, ball_rest_y = yB_rest, ball_ride_y = yB_ride, M_back_face_y = yM0);
-assert(yB_ride + ball_d / 2 > yM0, "riding ball never reaches M's hole");
+// ---------- geometry (rig frame, before rocking)
+lift = pitch + 2 * drop;
+s_span = sin(tilt_fwd) + sin(tilt_back);
+arm_trim = 1.0085;                    // fine trim so the solved stroke comes out = lift
+arm = arm_trim * lift / s_span;        // pivot ahead of M's top pin (sets the lift)
+cam_arm = 2 * cam_r / s_span;         // cam slot ahead of the pivot (sets the rock)
+yF0 = 0; yF1 = T;
+yG = -guard_gap;
+yB_rest = yG + ball_d / 2;
+yM0 = yB_rest + ball_d / 2 + m_gap;
+yB_ride = yF1 + ball_d / 2;
+yGF = yB_ride + ball_d / 2 + 0.5;
+yB_front = yGF - ball_d / 2;
+Mbase = [50, yM0 + T + 10, L + 15];             // M's top pin, rig frame, reference for the link solve
+P = [30, Mbase[1] + arm, Mbase[2] + pivot_up];  // rocking pivot
+slotC = P + [0, cam_arm, 0];                    // cam slot centre on the front arm (rig frame)
+Ccam = [30, slotC[1], P[2] - cam_arm * (sin(tilt_fwd) - sin(tilt_back)) / 2];   // cam axle (fixed)
+A = Mbase + [0, 0, link];                       // fixed anchor of M's link
 
-// ---------- the strip, 2D in its own frame (u along, v across)
+// cam pin; the slot on the arm stays at the pin's height, which sets the tilt
+function pin_at(tt) = Ccam + [0, cam_r * sin(360 * tt), -cam_r * cos(360 * tt)];   // tt = 0: pin at the bottom
+function tilt_at(tt) = asin((P[2] - pin_at(tt)[2]) / cam_arm);                       // + = top forward
+pin = pin_at(t);
+tilt = tilt_at(t);
+
+// rotate a rig-frame point by the tilt about P (top forward = rotate -tilt about x)
+function rotx(v, a) = [v[0], v[1] * cos(a) - v[2] * sin(a), v[1] * sin(a) + v[2] * cos(a)];
+function world(v, tl) = P + rotx(v - P, -tl);
+// M's slide (along the rig) that keeps the link length, at a given tilt
+function m_slide(tl) =
+    let(w = world(Mbase, tl) - A, u = rotx([0, 0, 1], -tl), b = w * u, c = w * w - link * link)
+    -b - sqrt(b * b - c);                       // M's pin hangs BELOW the anchor
+zs = [for (i = [0:72]) m_slide(tilt_at(i / 72))];
+zs_min = min(zs); zs_max = max(zs);
+zM = -drop + (m_slide(tilt) - zs_min);          // M relative to F: -drop .. -drop + stroke
+Mpin0 = Mbase + [0, 0, zs_min + drop];          // M's pin when M's holes line up with F's
+echo(t = t, tilt = tilt, M_rel = zM, stroke = zs_max - zs_min, arm = arm, cam_arm = cam_arm);
+
+function hole_z(i) = pitch / 2 + i * pitch;
+function rest_z(i) = hole_z(i) - (hole_d - ball_d) / 2;
+function sm(e0, e1, x) = let(s = min(1, max(0, (x - e0) / (e1 - e0)))) s * s * (3 - 2 * s);
+
+// ---------- parts
 module strip2d() {
     difference() {
         square([L, W]);
@@ -71,13 +98,10 @@ module strip2d() {
         for (u = m5_u) translate([u, m5_v]) circle(d = m5_d, $fn = 24);
     }
 }
-// F: bolt band on the left (x 0..20), holes at x = 30
 module stripF() { color("burlywood") translate([0, yF0, 0]) rotate([90, 0, 0]) mirror([0, 0, 1])
     rotate([0, 0, 90]) mirror([0, 1, 0]) linear_extrude(T) strip2d(); }
-// M: mirrored, bolt band on the right (x 40..60), holes at x = 30
 module stripM() { color("tan") translate([60, yM0, 0]) mirror([1, 0, 0]) rotate([90, 0, 0]) mirror([0, 0, 1])
     rotate([0, 0, 90]) mirror([0, 1, 0]) linear_extrude(T) strip2d(); }
-
 module t2020_w(w, len) { color("silver") cube([w, 20, len]); }
 module t2020(len) {
     color("silver") difference() {
@@ -86,97 +110,65 @@ module t2020(len) {
             translate([-3.1, -3.1, 0]) cube([6.2, 6.2, len + 2]);
     }
 }
+module pinx(p, d = 8, h = 30) { color("dimgray") translate(p) rotate([0, 90, 0]) cylinder(d = d, h = h, center = true, $fn = 24); }
+module bar(p0, p1, w = 12) { hull() { translate(p0) rotate([0, 90, 0]) cylinder(d = w, h = T * 2, center = true, $fn = 24);
+                                       translate(p1) rotate([0, 90, 0]) cylinder(d = w, h = T * 2, center = true, $fn = 24); } }
 
-// ---------- motion
-a = 180 + 360 * t;                          // t = 0: M at the bottom
-zc = (rod + crank_r);                       // crank centre above M's pin (relative)
-function slider_z(a) = crank_r * cos(a) - sqrt(rod * rod - pow(crank_r * sin(a), 2));
-zs_min = slider_z(180);
-zM = motion == "slider" ? -drop + (slider_z(a) - zs_min) : -drop + crank_r - crank_r * cos(360 * t);
-xM = motion == "slider" ? 0 : swing * sin(360 * t);
-
-function hole_z(i) = pitch / 2 + i * pitch;
-function rest_z(i) = hole_z(i) - (hole_d - ball_d) / 2;       // ball sitting on a hole's bottom
-function sm(e0, e1, x) = let(s = min(1, max(0, (x - e0) / (e1 - e0)))) s * s * (3 - 2 * s);
-
-// one ball that starts this turn in F at level k
+// ---------- balls (rig frame)
 module ball_k(k) {
-    pick = sm(0.0, 0.06, t);                // F -> M at the bottom
-    give = sm(0.5, 0.56, t);                // M -> F at the top
+    pick = sm(0.0, 0.06, t);
+    give = sm(0.5, 0.56, t);
     zride = rest_z(k) + zM;
     z = t < 0.5 ? max(rest_z(k), zride) : max(rest_z(k + 1), zride);
-    fwd = (pick - give) * max(0, min(1, tilt / 2));     // tipped forward: rides against the front guard
+    fwd = (pick - give) * max(0, min(1, tilt / 2));
     y = yB_rest + (yB_ride - yB_rest) * (pick - give) + (yB_front - yB_ride) * fwd;
-    x = 30 + xM * (pick - give);
     if (k + (t >= 0.5 ? 1 : 0) <= n_holes - 1)
-        translate([x, y, z]) color("steelblue") sphere(d = ball_d, $fn = 32);
+        translate([30, y, z]) color("steelblue") sphere(d = ball_d, $fn = 32);
 }
-// feeder and exit balls
 module feed_exit() {
     f = sm(0.6, 0.95, t);
-    // incoming ball rolls in from behind to level 0
     translate([30, yB_rest - 60 * (1 - f), rest_z(0) + 20 * (1 - f)]) color("steelblue") sphere(d = ball_d, $fn = 32);
-    // the ball that just reached the top rolls out the back
     if (t >= 0.56) translate([30, yB_rest - 70 * f, rest_z(n_holes - 1) - 12 * f]) color("steelblue") sphere(d = ball_d, $fn = 32);
 }
-
-// ---------- assembly
 module balls() { for (k = [0:n_holes - 2]) ball_k(k); feed_exit(); }
 
+// ---------- the rocking rig (rig frame)
 module rig() {
-    // fixed: F on its 2020, back guard (stops short at the feed and exit levels)
     stripF();
-    translate([0, -20, -30]) t2020(L + 170);
-    translate([20, yG - 20, hole_z(0) + 20]) t2020(hole_z(n_holes - 1) - hole_z(0) - 40);
-    // front guard (fixed), in front of the ball column, beside M's 2020
-    translate([20, yGF, hole_z(0) - 10]) t2020_w(19.5, hole_z(n_holes - 1) - hole_z(0) + 20);
-    // moving: M and its 2020 (slot on the right rides fixed keys)
-    translate([xM, 0, zM]) {
+    translate([0, -20, -20]) t2020(L + 75);                                     // F's 2020
+    translate([20, yG - 20, hole_z(0) + 20]) t2020(hole_z(n_holes - 1) - hole_z(0) - 40);    // back guard
+    translate([20, yGF, hole_z(0) - 10]) t2020_w(19.5, hole_z(n_holes - 1) - hole_z(0) + 20); // front guard
+    // M on its 2020, sliding on keys in its right-hand slot; link pin on top
+    translate([0, 0, zM]) {
         stripM();
         translate([40, yM0 + T, -10]) t2020(L + 30);
-        // top pin for the connecting rod
-        translate([50, yM0 + T + 10, L + 15]) rotate([90, 0, 0]) color("dimgray") cylinder(d = 8, h = 30, center = true, $fn = 24);
+        pinx(Mpin0);
     }
-    // guide keys (fixed) in M's right-hand slot, top and bottom
-    if (motion == "slider") for (z = [5, L - 25]) color("peru")
-        translate([60 - 4, yM0 + T + 10 - 1.25, z]) cube([24, 2.5, 20]);
-    // crank at the top
-    pin_z = L + 15 + zM;
-    cz = L + 15 - drop + crank_r - zs_min + 0;            // crank centre
-    crank_c = [50, yM0 + T + 10 + 22, motion == "slider" ? L + 15 - drop - zs_min : L + 15 - drop + crank_r];
-    cp = crank_c + [crank_r * sin(a - 180 + 180) * (motion == "slider" ? 1 : 0) + (motion == "slider" ? 0 : swing * sin(360 * t)),
-                    0, motion == "slider" ? crank_r * cos(a) : -crank_r * cos(360 * t)];
-    color("peru") translate(crank_c) rotate([90, 0, 0]) rotate([0, 0, -a]) linear_extrude(T * 2, center = true) difference() {
-        circle(r = crank_r + 12, $fn = 64); circle(d = 8, $fn = 24); }
-    color("dimgray") translate(cp) rotate([90, 0, 0]) cylinder(d = 8, h = 30, center = true, $fn = 24);
-    if (motion == "slider") color("peru") hull() {
-        translate(cp + [0, -9, 0]) rotate([90, 0, 0]) cylinder(d = 14, h = T * 2, center = true, $fn = 32);
-        translate([50, yM0 + T + 13, pin_z]) rotate([90, 0, 0]) cylinder(d = 14, h = T * 2, center = true, $fn = 32);
-    }
-    if (motion == "circle") {           // bottom idler crank for parallel motion
-        bc = [50, yM0 + T + 10 + 22, -25 - drop + crank_r];
-        color("peru") translate(bc) rotate([90, 0, 0]) rotate([0, 0, -360 * t]) linear_extrude(T * 2, center = true)
-            difference() { circle(r = crank_r + 12, $fn = 64); circle(d = 8, $fn = 24); }
-    }
-    // frame
-    if (show_frame) {
-        color("gainsboro") translate([-30, -90, -46]) cube([140, 170, 6]);      // rocking base
-        color("dimgray") translate(pivot + [-40, 0, 0]) rotate([0, 90, 0]) cylinder(d = 8, h = 160, $fn = 24);
-        for (x = [-30, 104]) color("peru") translate([x, -6, pivot[2]]) cube([6, 12, 14]);  // axle lugs
-        translate([90, yM0 + T, -40]) t2020(crank_c[2] + 60);                  // right post
-        translate([-20, yM0 + T + 30, crank_c[2] + 20]) rotate([0, 90, 0]) t2020(130);   // top bar
-        if (motion == "slider") for (z = [5, L - 25]) color("peru")
-            translate([80, yM0 + T + 4, z]) cube([10, 12, 20]);              // key blocks on the post
+    for (z = [5, L - 25]) color("peru") translate([56, yM0 + T + 10 - 1.25, z]) cube([30, 2.5, 20]);   // keys
+    translate([80, yM0 + T + 4, -20]) t2020(L + 75);                             // post carrying the keys
+    // top plate tying F's 2020 and the key post to the pivot boss and the cam arm
+    color("peru") translate([-10, -20, L + 55]) cube([115, P[1] + 20 - 10, 6]);
+    color("peru") translate([24, P[1] - 10, L + 55]) cube([6, 20, P[2] - L - 55 + 10]);              // pivot boss
+    color("peru") difference() {                                                  // front arm with the cam slot
+        translate([24, P[1] - 10, P[2] - 12]) cube([6, cam_arm + cam_r + 25, 24]);
+        translate([22, slotC[1] - cam_r - 5, P[2] - 4.5]) cube([10, 2 * cam_r + 10, 9]);
     }
 }
 
-echo(t = t, tilt = tilt);
-// fixed stand with the rocking axle bearings
+// ---------- fixed stand: pivot bearing, cam axle, M's link anchor
 if (show_frame && !section_view) {
-    color("dimgray") translate([-60, -120, pivot[2] - 30]) cube([200, 240, 6]);
-    for (x = [-46, 120]) color("burlywood") translate([x, -10, pivot[2] - 24]) cube([6, 20, 30]);
+    pinx(P, 8, 160);
+    for (x = [-50, 110]) color("dimgray") translate([x, P[1] - 15, P[2] - 15]) cube([6, 30, 150]);  // uprights
+    color("dimgray") translate([-50, P[1] - 15, P[2] + 135]) cube([166, 30, 8]);                    // cross piece
+    color("dimgray") translate([-50, A[1] - 6, A[2] - 6]) cube([166, 12, 12]);                      // anchor bar
+    color("darkorange") translate(Ccam + [4, 0, 0]) rotate([0, 90, 0]) cylinder(r = cam_r + 8, h = 5, $fn = 48);   // cam disc
+    pinx(Ccam, 8, 60);
+    pinx(pin, 7, 26);
+    mp = world(Mpin0 + [0, 0, zM], tilt);
+    color("darkorange") bar(A, mp, 10);
+    pinx(A, 8, 30);
 }
-translate(pivot) rotate([-tilt, 0, 0]) translate(-pivot) {
-    if (section_view) { intersection() { rig(); translate([22, -200, -100]) cube([16, 400, 700]); } balls(); }
+translate(P) rotate([-tilt, 0, 0]) translate(-P) {
+    if (section_view) { intersection() { rig(); translate([22, -200, -100]) cube([16, 400, 800]); } balls(); }
     else { rig(); balls(); }
 }
