@@ -5,8 +5,6 @@ All parts are in the rig's side view: u = forward (toward the viewer, the
 demo's +y), v = up (+z). Numbers are taken from lift_demo.scad's defaults;
 re-run after changing them there and here together.
 
-  backing_plate  the strip with no ball holes except the feed (bottom) and
-                 exit (top) openings; replaces the cardboard behind F.
   cam_arm        bolts to the side of F's 2020 at its top; carries the pivot
                  bearing (608) and the horizontal slot the cam pin rides in.
   cam_disc       turns on its own fixed 8 mm shaft (plain 8 mm bore); pin
@@ -15,10 +13,15 @@ re-run after changing them there and here together.
                  and T-nut in the side slot at the top of M's 2020).
   link_anchor    bolts to the frame above M; a slot lets you tune the link's
                  top point, i.e. where M sits against F.
-  keeper         lap plate on a longer bolt through one of F's own M5 holes,
-                 stood off by M5 nuts/washers (16 mm: F's front face to just in
-                 front of M), lapping M's inner 6 mm edge so M slides up and
-                 down but can't pull away. Keep it left of the ball column.
+  keeper         K_F / K_M, 300 x 80: M5 rows 10 mm in from each long edge
+                 (sieve spacing); one edge bolts to its beam (F or M), the
+                 other to its guide rail (G_F or G_M). Also the front/back
+                 guards for the ball column (replaces the cardboard).
+  slider         L_F / L_M, 300 x 26: M5 row 10 mm from one edge, bolted to
+                 the guide rail's face opposite the keeper; the 6 mm free edge
+                 rides in the other half's beam's far slot (L_F in M, L_M in F).
+                 With the sieves (S_F in M's near slot, S_M in F's near slot)
+                 that makes the captive slide.
 
     python3 marbles/clock/lift_parts.py      # writes marbles/gcode/lift_<part>.gcode
 """
@@ -100,19 +103,24 @@ def link_anchor():
     return p.difference(slot).difference(holes([(0, -30), (0, 20)]))
 
 
+M5_U = [30.0, 90.0, 150.0, 210.0, 270.0]          # same as the sieve
+
+
 def keeper():
-    # x 4..19.5 in the rig: from beside F's bolt (x = 10) over M's edge
-    # (x 14..20) but short of the ball column (x 20.5+)
-    return rr(0, 0, 15.5, 22, 3).difference(holes([(6, 11)]))
+    return box(0, 0, STRIP_L, 80.0).difference(holes([(u, v) for u in M5_U for v in (10.0, 70.0)]))
+
+
+def slider():
+    return box(0, 0, STRIP_L, 26.0).difference(holes([(u, 10.0) for u in M5_U]))
 
 
 PARTS = {
-    "backing_plate": (backing_plate, 1, "behind F; feed opening at the bottom hole, exit at the top"),
     "cam_arm": (cam_arm, 3, "glue 3; 608 in the pivot hole; bolts to the side of F's 2020"),
     "cam_disc": (cam_disc, 3, "glue 3; 8 mm bore on a fixed shaft; M5 pin at the cam radius, M5 handle"),
     "m_link": (m_link, 2, "glue 2; 100 mm between M5 holes"),
     "link_anchor": (link_anchor, 2, "glue 2; slot tunes where M sits"),
-    "keeper": (keeper, 2, "on F's top and bottom M5 bolts, 16 mm of nuts/washers under each"),
+    "keeper": (keeper, 2, "K_F and K_M, 300 x 80, M5 rows 10 mm from each edge"),
+    "slider": (slider, 2, "L_F and L_M, 300 x 26, M5 row 10 mm from one edge"),
 }
 
 
