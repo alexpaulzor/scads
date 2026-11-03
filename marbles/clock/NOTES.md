@@ -123,10 +123,10 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - Boxes on K_F ride M's far V-groove; boxes on K_M (mirrored) ride F's far V-groove.
 
 **Parts, 5 per box:**
-- **CH cheek ×2 (35.45 × 87.20).**
+- **CH cheek ×2 (32.95 × 87.20).**
   - The near cheek lies on the keeper's inner face; the far cheek is beyond the wheel.
   - Both carry the axle, so the axle is held at both ends.
-- **TB top/bottom ×2 (25.45 × 38.30)** and **BK back ×1 (38.30 × 79.20).**
+- **TB top/bottom ×2 (23.95 × 38.30)** and **BK back ×1 (38.30 × 79.20).**
   - These tab through both cheeks, which makes them the compression struts.
   - TB and BK finger-joint to each other at the back corners: 3 fingers of 10.70 along the 32.10 inside depth.
 - The box is open toward the beam the wheel rides (open side at a = 62.00, 2 mm off M's far face).
@@ -137,16 +137,22 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
   - The 3rd bolt is the axle.
 - Bolt length: keeper outer face to far cheek outer face = 41.40, plus a 4.7 nut = 46.10. Use **M5×50**.
   - At T = 2.6 it's 44.60, still M5×50.
-  - Double 2.6 (5.2): recompute; probably M5×55 or ×60.
+  - Double 2.6 (5.2): 52.40, so M5×55 (the script now picks the length).
 
 **Wheel position:**
 - Axle at a = 69.85 (9.85 from the beam face, taken from the 39.7 c-c of the OpenBuilds 65.5 plate). Rim reaches a = 57.85.
 - **Along the axle (s):** set by two nuts locked on either side of the bearing's inner race (nut A, nut B), so the box needn't be precise in thickness.
   - Free space either side: 13.50 / 8.60 at T = 3.1.
   - Use shims or washers that touch only the inner race (assumed 1 mm).
-- **Across (a):** the axle sits in a ±1.5 slot in both cheeks and in the keeper. Push the wheel into the groove, then tighten.
+- **Across (a), i.e. wheel tension:** the axle hole is round. The keeper's row of M5 holes on its own beam (v = 10) are slots running across, ±1.5.
+  - Slide the keeper, with its boxes, until the wheels sit in the other beam's groove, then tighten those screws.
+  - At full slide the open side sits 60.50..63.50 from M's far face (60), and the cheek edge reaches 55.50 (the S_M/K_M bolt heads end at 54.25).
+  - Slot web to the keeper's edge: 6.00.
 
-**Keepers need a recut** to add the 2 axle slots (at u = 60 and 240, v = 69.85).
+**Keepers need a recut:**
+- the v = 10 row becomes slots across
+- the v = 70 row stays round (box bolts)
+- 2 round axle holes at u = 60 and 240, v = 69.85
 
 **Thinnest wood:** 4.00 mm (cheek, between the through-bolt hole and the TB slot). That's the min-web rule at both 3.1 and 2.6.
 
@@ -220,10 +226,10 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - [ ] **L5** Generate G-code for one wheel box plus a short keeper test piece with the axle slot. Validate.
 - [ ] **L6** Cut and dry-fit one box on a V-slot offcut with a polymer wheel. Check:
   - groove engagement (the 9.85 assumption)
-  - enough slot travel
+  - enough keeper-slot travel (±1.5) to seat and tension the wheels
   - room for nuts A/B and a wrench through the open side
   - bolt lengths
-- [ ] **L7** Recut both keepers with the 2 axle slots each (`lift_keeper`). Cut all 4 boxes.
+- [ ] **L7** Recut both keepers (slotted v = 10 row, 2 round axle holes each). Cut all 4 boxes.
 - [ ] **L8** Assemble the slide. Hand-cycle and note:
   - friction and rattle
   - whether the near-slot sieve edges rub (the squeeze stop)

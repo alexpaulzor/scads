@@ -38,7 +38,7 @@ v["b_assy_section"] = {"scene": "box_section.json", "cam": TOP, "title": "1b  Se
                ["near cheek CH (on K_F)", [89, NCi + T / 2, 60], "L", GF], ["back wall BK", [a_bi + T / 2, smid, 60], "R", GF],
                ["far cheek CH", [89, FCo + T / 2, 60], "R", GF], ["V-wheel (cut through axle)", [59.3, s_w, 60], "R", GF],
                ["nut A + washer", [74, s_w + 8, 60], "L", K], ["nut B + washer", [74, s_w - 9, 60], "R", K],
-               ["axle M5x50", [a_w, FCo - 3, 60], "R", K], ["bottom wall TB (below)", [80, smid + 6, 60 - H_i - T], "L", GF],
+               ["axle bolt", [a_w, FCo - 3, 60], "R", K], ["bottom wall TB (below)", [80, smid + 6, 60 - H_i - T], "L", GF],
                ["box on K_M (mirror)", mir([89, smid, 60]), "R", GM]],
     "dashed": ds, "ml": 360, "mr": 360,
     "notes": [{"t": "FRONT", "at": [100, 35, 60]}, {"t": "BACK", "at": [100, -30, 60]}]}
@@ -47,7 +47,8 @@ v["b_assy_front"] = {"scene": "box_assembly.json", "cam": FRONT, "title": "1c  F
     "labels": [["F", [10, 10, 315], "L", FC], ["M", [50, -1.6, 315], "R", MC], ["K_F keeper (see-through)", [5, 20 + T, 160], "L", FC],
                ["S_M sieve", [30, 11.6, 150], "R", MC], ["box on K_F (upper)", [89, 0, 240], "R", GF], ["box on K_F (lower)", [89, 0, 60], "R", GF],
                ["box on K_M (upper)", mir([89, 0, 240]), "L", GM], ["box on K_M (lower)", mir([89, 0, 60]), "L", GM],
-               ["axle + 2 bolts per box", [a_w, 30, 60], "R", K]]}
+               ["axle + 2 bolts per box", [a_w, 30, 60], "R", K], ["K_F slots: slide to set tension", [10, 25, 150], "L", FC]],
+    "arrows": [[[14, 30, 120], [6, 30, 120]], [[6, 30, 180], [14, 30, 180]]]}
 v["b_assy_side"] = {"scene": "box_assembly.json", "cam": SIDE, "title": "1d  Side view (from beyond M)", "w": 1300, "h": 1500,
     "sub": ["FRONT on the LEFT. You see the back walls of the K_F boxes."],
     "labels": [["M", [60, -1.6, 315], "R", MC], ["F", [20, 16, 315], "L", FC], ["K_F edge", [80, 20 + T / 2, 160], "L", FC],
@@ -61,7 +62,8 @@ v["b_assy_iso2"] = {"scene": "box_assembly.json", "cam": ISO2, "title": "1f  Ang
     "labels": [["F", [10, 10, 320], "L", FC], ["M", [50, -1.6, 320], "R", MC], ["K_M (see-through)", [40, -11.6 - T, 250], "R", MC],
                ["box on K_M (upper)", mir([a_bo, smid, 240]), "L", GM], ["box on K_M (lower)", mir([a_bo, smid, 60]), "L", GM], ["box on K_F", [a_c1, -10, 240], "R", GF]]}
 subb = [f"The lower box on K_F, with a stub of M and the edge of K_F. T = {T} mm.",
-        "5 plates: 2 cheeks (CH), top + bottom (TB), back (BK). Long M5 bolts: keeper -> near cheek -> far cheek, nut outside."]
+        "5 plates: 2 cheeks (CH), top + bottom (TB), back (BK). Long M5 bolts: keeper -> near cheek -> far cheek, nut outside.",
+        "Wheel tension is set by sliding the whole keeper (slotted holes into its own beam), not at the axle."]
 v["b_one_top"] = {"scene": "box_one.json", "cam": TOP, "title": "2a  One wheel box, top view", "ghost": ["boxF60"], "ghost_op": 0.12,
     "sub": subb + ["Box plates drawn as outlines so the wheel and nuts show. FRONT on the LEFT."],
     "labels": [["K_F edge", [60, 20 + T / 2, 110], "L", FC], ["near cheek CH", [89, NCi + T / 2, 60 + z_c], "L", GF],
@@ -71,10 +73,10 @@ v["b_one_top"] = {"scene": "box_one.json", "cam": TOP, "title": "2a  One wheel b
     "notes": [{"t": "FRONT", "at": [100, 35, 100]}, {"t": "BACK", "at": [100, -30, 100]}]}
 v["b_one_front"] = {"scene": "box_one.json", "cam": FRONT, "title": "2b  One wheel box, front view", "hide": ["K_F"], "ghost": ["boxF60"], "ghost_op": 0.12,
     "sub": subb + ["K_F hidden; box plates drawn as outlines."],
-    "labels": [["axle slot: push wheel to M, tighten", [a_w - 1.5, 0, 60], "L", GF], ["through bolt (keeper far-row hole)", [70, 25, 90], "R", K],
+    "labels": [["axle hole (round)", [a_w - 2.5, 0, 60], "L", GF], ["through bolt (keeper far-row hole)", [70, 25, 90], "R", K],
                ["through bolt", [70, 25, 30], "R", K], ["top wall tab in cheek", [73, 0, 60 + H_i + T / 2], "R", GF],
                ["back wall tabs in cheek", [a_bi + T / 2, 0, 60 + 20.75], "R", GF], ["V-wheel", [62, 0, 66], "L", GF], ["M stub (behind)", [50, 8.4, 20], "L", MC]],
-    "arrows": [[[80, 0, 49], [64, 0, 49]]]}
+    "arrows": []}
 v["b_one_side"] = {"scene": "box_one.json", "cam": SIDE, "title": "2c  One wheel box, side view (from the back)", "ghost": ["boxF60"], "ghost_op": 0.12,
     "sub": subb + ["FRONT on the LEFT; plates as outlines. Nuts A and B lock the wheel's position along the axle."],
     "labels": [["K_F edge", [80, 20 + T / 2, 25], "L", FC], ["near cheek CH", [a_c1, NCi + T / 2, 60 + 40], "L", GF],

@@ -14,8 +14,10 @@ polymer V-wheel, open on the side facing the beam the wheel rides:
 
 The wheel's position along its axle is set by two nuts on the axle bolt, one each
 side of the bearing's inner race, so the box does not need precise thickness.
-The axle bolt sits in a short slot (cheeks and keeper): push the wheel into the
-groove, then tighten.
+Wheel tension: the axle hole is round. Instead, the keeper's row of M5 holes on
+its OWN beam (v = 10, bolted to F for K_F, to M for K_M) are slots running across
+(toward / away from the other beam). Slide the keeper, with its boxes, until the
+wheels sit in the other beam's groove, then tighten those screws.
 
 Everything is parametric in T (sheet thickness) and KERF; run with --t 2.6 to
 check the plywood version. Coordinates as in the lift drawings: a = across
@@ -52,7 +54,7 @@ M5_U = [30.0, 90.0, 150.0, 210.0, 270.0]
 # polymer V-wheel (OpenBuilds solid): 24 OD, 10 wide, 5 bore (625 bearings)
 WOD, WW = 24.0, 10.0
 AX = 9.85                     # axle centre from the beam face (39.7 c-c across a 2020)
-SLOT = 1.5                    # axle slot travel each way
+ADJ = 1.5                     # keeper slot travel each way (sets wheel tension)
 NUT_H, NUT_AF, WASH = 4.7, 8.0, 1.0   # ISO M5 nut; shim/washer on the inner race (check yours)
 CLR_M = 2.0                   # box walls clear M's far face by this
 CLR_K = 0.5                   # far cheek clears the other keeper's outer face by this
@@ -67,11 +69,11 @@ FCi = -11.6 - T - CLR_K                   # far cheek inner face (clears K_M's o
 FCo = FCi - T
 D = NCi - FCi                             # inside depth between cheeks
 a_open = 60 + CLR_M                       # open side (toward M)
-a_bi = a_w + SLOT + WOD / 2 + 1.0         # back wall inner face
+a_bi = a_w + WOD / 2 + 1.0                # back wall inner face (wheel moves with the box)
 a_bo = a_bi + T
 BOLT_CLR = WEB
 H_i = BOLT_DZ + M5 / 2 + BOLT_CLR         # half inside height (z)
-a_c0 = 56.0                               # cheeks reach toward M past the walls (clear of S_M/K_M bolt heads at a 45.75..54.25)
+a_c0 = 57.0                               # cheeks reach toward M past the walls (clear of S_M/K_M bolt heads at a 45.75..54.25, even at -ADJ)
 a_c1 = a_bo + WEB
 z_c = H_i + T + WEB                       # cheek half height
 gapA = NCi - (s_w + WW / 2)               # near cheek to wheel face: washer + nut A + free thread
@@ -88,9 +90,13 @@ P(f"open side a = {a_open:.2f}; back wall a {a_bi:.2f}..{a_bo:.2f}; inside heigh
 P(f"cheek plate: a {a_c0:.2f}..{a_c1:.2f} ({a_c1-a_c0:.2f}) x z +/-{z_c:.2f} ({2*z_c:.2f})")
 P(f"near cheek inner face to wheel: {gapA:.2f} (washer {WASH} + nut {NUT_H} + {gapA-WASH-NUT_H:.2f} free)")
 P(f"wheel to far cheek inner face: {gapB:.2f} (washer {WASH} + nut {NUT_H} + {gapB-WASH-NUT_H:.2f} clear)")
-P(f"bolts: keeper outer s {k_out:.2f} to far cheek outer s {FCo:.2f} = {bolt_len:.2f} + nut {NUT_H} = {bolt_len+NUT_H:.2f} -> M5x50")
-web_slot = (a_w - SLOT - M5 / 2) - a_c0
-P(f"web between axle slot and cheek edge (toward M): {web_slot:.2f}")
+BOLT_STD = next(x for x in (40, 45, 50, 55, 60, 65, 70, 80) if x >= bolt_len + NUT_H)
+P(f"bolts: keeper outer s {k_out:.2f} to far cheek outer s {FCo:.2f} = {bolt_len:.2f} + nut {NUT_H} = {bolt_len+NUT_H:.2f} -> M5x{BOLT_STD}")
+web_slot = (a_w - M5 / 2) - a_c0
+P(f"web between axle hole and cheek edge (toward M): {web_slot:.2f}")
+P(f"keeper slides +/-{ADJ}: open side then {a_open - ADJ:.2f}..{a_open + ADJ:.2f} (M far face 60), "
+  f"cheek edge {a_c0 - ADJ:.2f} (bolt heads end at 54.25)")
+P(f"keeper slots: v {10 - ADJ:.2f}..{10 + ADJ:.2f}, web to the keeper's edge {10 - ADJ - M5 / 2:.2f}")
 
 # ---- tabs
 def tab_spans(L0, L1):
@@ -121,13 +127,13 @@ def hexagon(cx, cy, af):
     r = af / math.sqrt(3)
     return Polygon([(cx + r * math.cos(math.radians(60 * k)), cy + r * math.sin(math.radians(60 * k))) for k in range(6)])
 
-def axle_slot(cz=0.0):
-    return LineString([(a_w - SLOT, cz), (a_w + SLOT, cz)]).buffer(M5 / 2, 32)
+def axle_hole(cz=0.0):
+    return Point(a_w, cz).buffer(M5 / 2, 32)
 
 def cheek_2d():
     """(a, z - zc)"""
     g = box(a_c0, -z_c, a_c1, z_c)
-    cuts = [axle_slot()] + [Point(70.0, dz).buffer(M5 / 2, 32) for dz in (-BOLT_DZ, BOLT_DZ)]
+    cuts = [axle_hole()] + [Point(70.0, dz).buffer(M5 / 2, 32) for dz in (-BOLT_DZ, BOLT_DZ)]
     w = T + FIT
     for zs in (1, -1):
         z0 = H_i if zs > 0 else -H_i - T
@@ -155,10 +161,12 @@ def bk_2d():
     return unary_union([g] + fingers + tabs)
 
 def keeper_2d():
-    """K_F / K_M revised: 300 x 80, M5 rows at v 10 and 70, plus the axle slots at v = a_w, u = box centres."""
+    """K_F / K_M revised: 300 x 80. Row v = 10 (own beam): slots across, +/-ADJ. Row v = 70: round (box bolts).
+    Round axle holes at v = a_w, u = box centres."""
     g = box(0, 0, L, 80.0)
-    cuts = [Point(u, v).buffer(M5 / 2, 32) for u in M5_U for v in (10.0, 70.0)]
-    cuts += [LineString([(u, a_w - SLOT), (u, a_w + SLOT)]).buffer(M5 / 2, 32) for u in BOX_Z]
+    cuts = [LineString([(u, 10.0 - ADJ), (u, 10.0 + ADJ)]).buffer(M5 / 2, 32) for u in M5_U]
+    cuts += [Point(u, 70.0).buffer(M5 / 2, 32) for u in M5_U]
+    cuts += [Point(u, a_w).buffer(M5 / 2, 32) for u in BOX_Z]
     return g.difference(unary_union(cuts))
 
 # min web checks (thinnest material between a cut and an edge / another cut)
@@ -256,8 +264,8 @@ def box_parts(zc, tag, col, explode=0.0, hardware=True):
         add("az", f"na{tag}", "nut A", STEEL, hx, s_w + WW / 2 + WASH, s_w + WW / 2 + WASH + NUT_H, group=f"hw{tag}")
         add("az", f"nb{tag}", "nut B", STEEL, hx, s_w - WW / 2 - WASH, s_w - WW / 2 - WASH - NUT_H, group=f"hw{tag}")
         for a, dz, nm in ((a_w, 0, "axle"), (70.0, -BOLT_DZ, "bolt"), (70.0, BOLT_DZ, "bolt")):
-            add("az", f"{nm}{tag}{dz}", f"M5x50 {nm}", STEEL, Point(a, zc + dz).buffer(2.5, 24), k_out + 3, FCo - NUT_H - 1, group=f"hw{tag}")
-            add("az", f"{nm}h{tag}{dz}", f"M5x50 {nm}", STEEL, Point(a, zc + dz).buffer(4.25, 24), k_out, k_out + 5, group=f"hw{tag}")
+            add("az", f"{nm}{tag}{dz}", f"M5x{BOLT_STD} {nm}", STEEL, Point(a, zc + dz).buffer(2.5, 24), k_out + 3, FCo - NUT_H - 1, group=f"hw{tag}")
+            add("az", f"{nm}h{tag}{dz}", f"M5x{BOLT_STD} {nm}", STEEL, Point(a, zc + dz).buffer(4.25, 24), k_out, k_out + 5, group=f"hw{tag}")
             add("az", f"{nm}n{tag}{dz}", "nut", STEEL, hexagon(a, zc + dz, NUT_AF), FCo, FCo - NUT_H, group=f"hw{tag}")
     return parts[out_start:]
 
@@ -330,7 +338,7 @@ def thumbs(lst):
     return [{"key": k, "name": n, "per_fork": q, "polys": rings(g), "bounds": g.bounds} for k, n, q, g in lst]
 json.dump({"parts": thumbs([(k, n, q, g) for k, (n, g, q) in PARTS.items()]),
            "assy": thumbs([("S_F / S_M", "sieve 300 x 46 (lift_sieve)", 2, sieve2d(True)),
-                           ("K_F / K_M", "keeper 300 x 80, now with 2 axle slots", 2, affine := affinity.affine_transform(keeper_2d(), [1, 0, 0, 1, 0, 0])),
+                           ("K_F / K_M", "keeper, slotted row + axle holes", 2, affine := affinity.affine_transform(keeper_2d(), [1, 0, 0, 1, 0, 0])),
                            ("box", "wheel box: CH x2, TB x2, BK x1", 4, cheek_2d())])},
           open(OUT / "box_thumbs.json", "w"))
 json.dump({"T": T, "NCi": NCi, "FCi": FCi, "FCo": FCo, "a_w": a_w, "s_w": s_w, "a_bi": a_bi, "a_bo": a_bo, "H_i": H_i,
