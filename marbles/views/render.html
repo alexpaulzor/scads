@@ -1,0 +1,114 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  html,body{margin:0;background:#fbfaf7;font-family:"DejaVu Sans Mono",monospace}
+  #wrap{position:relative}
+  canvas{position:absolute;left:0;top:0}
+  svg{position:absolute;left:0;top:0}
+</style></head>
+<body><div id="wrap"><canvas id="c"></canvas><svg id="o"></svg></div>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const q = new URLSearchParams(location.search);
+const views = await (await fetch('scenes/views.json')).json();
+const V = views[q.get('v')];
+const scene_ = await (await fetch('scenes/' + V.scene)).json();
+const W = V.w || 1500, H = V.h || 1050, ML = V.ml ?? 330, MR = V.mr ?? 330, MT = 90, MB = 50;
+document.getElementById('wrap').style.width = W + 'px'; document.getElementById('wrap').style.height = H + 'px';
+const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true});
+renderer.setPixelRatio(2); renderer.setSize(W, H); renderer.setClearColor(0xfbfaf7);
+const scene = new THREE.Scene();
+scene.add(new THREE.AmbientLight(0xffffff, 1.6));
+const dl = new THREE.DirectionalLight(0xffffff, 1.4); dl.position.set(0.6, 1.0, 0.8); scene.add(dl);
+const dl2 = new THREE.DirectionalLight(0xffffff, 0.6); dl2.position.set(-0.7, -0.3, -0.6); scene.add(dl2);
+const ghost = new Set((V.ghost || []));
+const allPts = [];
+function shapeOf(poly, flipY, flipX) {
+  const f = p => new THREE.Vector2(flipX ? -p[0] : p[0], flipY ? -p[1] : p[1]);
+  const s = new THREE.Shape(poly.outer.map(f));
+  for (const h of poly.holes) s.holes.push(new THREE.Path(h.map(f)));
+  return s;
+}
+const hide = V.hide || [];
+for (const p of scene_.parts) {
+  if (hide.some(h => p.group.startsWith(h))) continue;
+  let op = p.opacity; let gh = false;
+  for (const g of ghost) if (p.group.startsWith(g)) { op = Math.min(op, V.ghost_op || 0.35); gh = true; }
+  const mat = new THREE.MeshLambertMaterial({color: p.color, transparent: op < 1, opacity: op, depthWrite: op >= 1, side: THREE.DoubleSide,
+                                               polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1});
+  for (const poly of p.polys) {
+    const geo = new THREE.ExtrudeGeometry(shapeOf(poly, p.kind === 'as', p.kind === 'sz'), {depth: p.hi - p.lo, bevelEnabled: false, curveSegments: 24});
+    const m = new THREE.Mesh(geo, mat);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), new THREE.LineBasicMaterial({color: 0x2a2a2a, transparent: op < 1, opacity: gh ? 0.95 : (op < 1 ? 0.55 : 1)}));
+    const grp = new THREE.Group(); grp.add(m); grp.add(e);
+    if (p.kind === 'az') { grp.position.z = p.lo; }
+    else if (p.kind === 'as') { grp.rotation.x = -Math.PI / 2; grp.position.y = p.lo; }
+    else { grp.rotation.y = Math.PI / 2; grp.position.x = p.lo; }
+    if (op < 1) m.renderOrder = 2;
+    scene.add(grp);
+    for (const c of poly.outer) for (const zz of [p.lo, p.hi])
+      allPts.push(p.kind === 'az' ? new THREE.Vector3(c[0], c[1], zz) : p.kind === 'as' ? new THREE.Vector3(c[0], zz, c[1]) : new THREE.Vector3(zz, c[1], c[0]));
+  }
+}
+for (const b of scene_.balls) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(b.r, 40, 24), new THREE.MeshLambertMaterial({color: 0x4f8fb0, transparent: true, opacity: 0.6, depthWrite: false}));
+  m.position.set(b.c[0], b.c[2], b.c[1]); m.renderOrder = 3; scene.add(m);
+}
+// camera: world X = a, Y = z (up the beams), Z = s (front)
+const dir = new THREE.Vector3(...V.cam.dir).normalize();
+const up = new THREE.Vector3(...V.cam.up);
+const box = new THREE.Box3().setFromPoints(allPts);
+const ctr = box.getCenter(new THREE.Vector3());
+const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, -5000, 5000);
+cam.position.copy(ctr).addScaledVector(dir, -1000); cam.up.copy(up); cam.lookAt(ctr); cam.updateMatrixWorld();
+// fit
+let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+const inv = cam.matrixWorldInverse;
+for (const p of allPts) { const v = p.clone().applyMatrix4(inv); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+const aw = W - ML - MR, ah = H - MT - MB;
+const sc = Math.min(aw / (x1 - x0), ah / (y1 - y0));
+const cx = (x0 + x1) / 2 - (ML - MR) / 2 / sc, cy = (y0 + y1) / 2 - (MB - MT) / 2 / sc;
+cam.left = cx - W / 2 / sc; cam.right = cx + W / 2 / sc; cam.top = cy + H / 2 / sc; cam.bottom = cy - H / 2 / sc;
+cam.updateProjectionMatrix();
+renderer.render(scene, cam);
+// overlay
+const svg = document.getElementById('o'); svg.setAttribute('width', W); svg.setAttribute('height', H);
+const NS = 'http://www.w3.org/2000/svg';
+function el(t, a, txt) { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (txt != null) e.textContent = txt; svg.appendChild(e); return e; }
+function proj(p) { const v = new THREE.Vector3(p[0], p[2], p[1]).project(cam); return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H]; }
+el('text', {x: 24, y: 38, 'font-size': 22, 'font-weight': 700, fill: '#222'}, V.title);
+(V.sub || []).forEach((s, i) => el('text', {x: 24, y: 62 + i * 19, 'font-size': 14, fill: '#555'}, s));
+// px per mm scale bar
+const bar = 20; el('line', {x1: 24, y1: H - 24, x2: 24 + bar * sc, y2: H - 24, stroke: '#333', 'stroke-width': 3});
+el('text', {x: 30 + bar * sc, y: H - 19, 'font-size': 13, fill: '#333'}, `${bar} mm`);
+// dashed connectors between pieces of one part split by the cut
+for (const c of (V.dashed || [])) {
+  const a = proj(c[0]), b = proj(c[1]);
+  el('line', {x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: c[2] || '#222', 'stroke-width': 2, 'stroke-dasharray': '6 4'});
+}
+for (const side of ['L', 'R']) {
+  const ls = (V.labels || []).filter(l => l[2] === side).map(l => ({t: l[0], p: proj(l[1]), col: l[3] || '#222'}));
+  const tx0 = side === 'L' ? ML : W - MR;
+  ls.sort((u, v) => (Math.round(u.p[1] / 6) - Math.round(v.p[1] / 6)) || (Math.abs(v.p[0] - tx0) - Math.abs(u.p[0] - tx0)));
+  let y = MT + 10; const gap = 24;
+  // spread around anchors
+  for (const l of ls) { l.y = Math.max(l.p[1], y); y = l.y + gap; }
+  let over = y - gap - (H - MB);
+  if (over > 0) for (let i = ls.length - 1; i >= 0; i--) { ls[i].y -= over; if (i > 0 && ls[i].y - ls[i - 1].y >= gap) { over = 0; break; } over = Math.max(0, gap - (ls[i].y - (i > 0 ? ls[i - 1].y : -1e9))); }
+  for (let i = 1; i < ls.length; i++) if (ls[i].y < ls[i - 1].y + gap) ls[i].y = ls[i - 1].y + gap;
+  for (const l of ls) {
+    const tx = side === 'L' ? ML - 18 : W - MR + 18;
+    el('polyline', {points: `${l.p[0]},${l.p[1]} ${side === 'L' ? tx + 8 : tx - 8},${l.y} ${tx},${l.y}`, fill: 'none', stroke: '#666', 'stroke-width': 1.2});
+    el('circle', {cx: l.p[0], cy: l.p[1], r: 3, fill: '#c0392b'});
+    el('text', {x: side === 'L' ? tx - 4 : tx + 4, y: l.y + 5, 'font-size': 14, fill: l.col, 'text-anchor': side === 'L' ? 'end' : 'start'}, l.t);
+  }
+}
+for (const a of (V.arrows || [])) {
+  const p = proj(a[0]), r = proj(a[1]);
+  el('line', {x1: p[0], y1: p[1], x2: r[0], y2: r[1], stroke: '#2e7d32', 'stroke-width': 3, 'marker-end': 'url(#ar)'});
+}
+for (const t of (V.notes || [])) { const p = t.at ? proj(t.at) : t.xy; el('text', {x: p[0], y: p[1], 'font-size': 14, 'font-weight': 700, fill: t.col || '#444', 'text-anchor': 'middle'}, t.t); }
+const defs = document.createElementNS(NS, 'defs'); defs.innerHTML = '<marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2e7d32"/></marker>'; svg.prepend(defs);
+document.title = 'done';
+</script></body></html>
