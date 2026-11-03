@@ -12,11 +12,13 @@ re-run after changing them there and here together.
   cam_disc       turns on its own fixed 8 mm shaft (plain 8 mm bore); pin
                  hole at the cam radius, handle hole near the rim.
   m_link         the fixed link from the anchor down to M's top pin (an M5
-                 into the centre hole of M's 2020 end).
+                 and T-nut in the side slot at the top of M's 2020).
   link_anchor    bolts to the frame above M; a slot lets you tune the link's
                  top point, i.e. where M sits against F.
-  keeper         lap plate + spacer: bolt to F's 2020 (T-nut), lap over M's
-                 strip edge so M slides up and down but can't pull away.
+  keeper         lap plate on a longer bolt through one of F's own M5 holes,
+                 stood off by M5 nuts/washers (16 mm: F's front face to just in
+                 front of M), lapping M's inner 6 mm edge so M slides up and
+                 down but can't pull away. Keep it left of the ball column.
 
     python3 marbles/clock/lift_parts.py      # writes marbles/gcode/lift_<part>.gcode
 """
@@ -99,11 +101,9 @@ def link_anchor():
 
 
 def keeper():
-    return rr(0, 0, 32, 26, 3).difference(holes([(10, 13)]))
-
-
-def keeper_spacer():
-    return rr(0, 0, 18, 26, 3).difference(holes([(10, 13)]))
+    # x 4..19.5 in the rig: from beside F's bolt (x = 10) over M's edge
+    # (x 14..20) but short of the ball column (x 20.5+)
+    return rr(0, 0, 15.5, 22, 3).difference(holes([(6, 11)]))
 
 
 PARTS = {
@@ -112,8 +112,7 @@ PARTS = {
     "cam_disc": (cam_disc, 3, "glue 3; 8 mm bore on a fixed shaft; M5 pin at the cam radius, M5 handle"),
     "m_link": (m_link, 2, "glue 2; 100 mm between M5 holes"),
     "link_anchor": (link_anchor, 2, "glue 2; slot tunes where M sits"),
-    "keeper": (keeper, 4, "lap plates, 2 per side of M's strip, top and bottom"),
-    "keeper_spacer": (keeper_spacer, 4, "one under each keeper (+ washers for clearance)"),
+    "keeper": (keeper, 2, "on F's top and bottom M5 bolts, 16 mm of nuts/washers under each"),
 }
 
 
