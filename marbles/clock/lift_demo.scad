@@ -8,6 +8,13 @@
 // Axes: x across (left/right), y toward the viewer (front), z up.
 // Back to front: back guard 2020 (fixed) | gap | F | balls | M | M's 2020.
 //
+// The whole rig ROCKS on a pivot under its base, in step with the crank,
+// so gravity does the hand-offs: tipped forward at the bottom of the
+// stroke (balls roll forward out of F into M), tipped back at the top (balls
+// roll back from M into F) and for the rest of the turn (balls lean on F /
+// the back guard). tilt = rock_amp * cos(360 t) - rock_bias, + = top forward.
+// A fixed front guard keeps riding balls in while it's tipped forward.
+//
 // motion = "slider": crank + connecting rod, M slides straight up and down
 //   on wooden keys in its right-hand slot. This is the default because the
 //   ball stays on F's face the whole lift.
@@ -21,7 +28,9 @@ t_fixed = -1;                 // set 0..1 to show one moment instead of animatin
 t = t_fixed >= 0 ? t_fixed : $t;   // 0..1, one crank turn
 motion = "slider";            // [slider, circle]
 swing = 17;                   // sideways radius for motion = "circle"
-lean = 5;                     // deg, top tipped back toward the wall
+rock_amp = 12;                // deg, rocking amplitude
+rock_bias = 6;                // deg, rocks more back than forward: +6 forward at the bottom, -18 back at the top
+pivot = [30, 0, -60];         // rocking axle (along x), under the base
 show_frame = true;
 section_view = false;         // cut away everything outside the ball column (x 22..38) to see the hand-offs
 
@@ -48,6 +57,9 @@ yG = -guard_gap;                // back guard face
 yB_rest = yG + ball_d / 2;      // ball resting in F, against the guard
 yM0 = yB_rest + ball_d / 2 + m_gap;   // M back face
 yB_ride = yF1 + ball_d / 2;     // ball riding in M, against F's face
+yGF = yB_ride + ball_d / 2 + 0.5;   // front guard face
+yB_front = yGF - ball_d / 2;    // ball in M, tipped forward against the front guard
+tilt = rock_amp * cos(360 * t) - rock_bias;
 echo(t = t, stroke = 2 * crank_r, ball_rest_y = yB_rest, ball_ride_y = yB_ride, M_back_face_y = yM0);
 assert(yB_ride + ball_d / 2 > yM0, "riding ball never reaches M's hole");
 
@@ -66,6 +78,7 @@ module stripF() { color("burlywood") translate([0, yF0, 0]) rotate([90, 0, 0]) m
 module stripM() { color("tan") translate([60, yM0, 0]) mirror([1, 0, 0]) rotate([90, 0, 0]) mirror([0, 0, 1])
     rotate([0, 0, 90]) mirror([0, 1, 0]) linear_extrude(T) strip2d(); }
 
+module t2020_w(w, len) { color("silver") cube([w, 20, len]); }
 module t2020(len) {
     color("silver") difference() {
         cube([20, 20, len]);
@@ -92,7 +105,8 @@ module ball_k(k) {
     give = sm(0.5, 0.56, t);                // M -> F at the top
     zride = rest_z(k) + zM;
     z = t < 0.5 ? max(rest_z(k), zride) : max(rest_z(k + 1), zride);
-    y = yB_rest + (yB_ride - yB_rest) * (pick - give);
+    fwd = (pick - give) * max(0, min(1, tilt / 2));     // tipped forward: rides against the front guard
+    y = yB_rest + (yB_ride - yB_rest) * (pick - give) + (yB_front - yB_ride) * fwd;
     x = 30 + xM * (pick - give);
     if (k + (t >= 0.5 ? 1 : 0) <= n_holes - 1)
         translate([x, y, z]) color("steelblue") sphere(d = ball_d, $fn = 32);
@@ -114,6 +128,8 @@ module rig() {
     stripF();
     translate([0, -20, -30]) t2020(L + 170);
     translate([20, yG - 20, hole_z(0) + 20]) t2020(hole_z(n_holes - 1) - hole_z(0) - 40);
+    // front guard (fixed), in front of the ball column, beside M's 2020
+    translate([20, yGF, hole_z(0) - 10]) t2020_w(19.5, hole_z(n_holes - 1) - hole_z(0) + 20);
     // moving: M and its 2020 (slot on the right rides fixed keys)
     translate([xM, 0, zM]) {
         stripM();
@@ -144,7 +160,9 @@ module rig() {
     }
     // frame
     if (show_frame) {
-        color("gainsboro") translate([-30, -90, -46]) cube([140, 170, 6]);
+        color("gainsboro") translate([-30, -90, -46]) cube([140, 170, 6]);      // rocking base
+        color("dimgray") translate(pivot + [-40, 0, 0]) rotate([0, 90, 0]) cylinder(d = 8, h = 160, $fn = 24);
+        for (x = [-30, 104]) color("peru") translate([x, -6, pivot[2]]) cube([6, 12, 14]);  // axle lugs
         translate([90, yM0 + T, -40]) t2020(crank_c[2] + 60);                  // right post
         translate([-20, yM0 + T + 30, crank_c[2] + 20]) rotate([0, 90, 0]) t2020(130);   // top bar
         if (motion == "slider") for (z = [5, L - 25]) color("peru")
@@ -152,7 +170,13 @@ module rig() {
     }
 }
 
-rotate([-lean, 0, 0]) {
+echo(t = t, tilt = tilt);
+// fixed stand with the rocking axle bearings
+if (show_frame && !section_view) {
+    color("dimgray") translate([-60, -120, pivot[2] - 30]) cube([200, 240, 6]);
+    for (x = [-46, 120]) color("burlywood") translate([x, -10, pivot[2] - 24]) cube([6, 20, 30]);
+}
+translate(pivot) rotate([-tilt, 0, 0]) translate(-pivot) {
     if (section_view) { intersection() { rig(); translate([22, -200, -100]) cube([16, 400, 700]); } balls(); }
     else { rig(); balls(); }
 }
