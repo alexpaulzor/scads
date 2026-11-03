@@ -122,13 +122,17 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - One box near each end of each keeper (box centres at z 60 and 240), 4 in total.
 - Boxes on K_F ride M's far V-groove; boxes on K_M (mirrored) ride F's far V-groove.
 
-**The keeper is the box's near wall.** No separate near cheek.
-- Each keeper (K_F, K_M) is 40 wide along most of its length.
-  - That covers its own beam plus the ball column.
-- At each box it curves out (r 15 fillets) to a lobe reaching 89.95 from its beam's outer face, so there's room for the back wall's tab slots.
-  - Lobes span u 16.40..103.60 and 196.40..283.60.
-- Each lobe has the box's tab slots, the 2 box bolt holes (v = 70, z ± 30) and the round axle hole (v = 69.85).
-- The keeper's row on its own beam (v = 10) is slots running across, ±1.5, for wheel tension.
+**Keepers, two kinds:**
+- **WK wheel keeper**, one per wheel: 150 × 89.95, so 2 fit along one 300 sheet edge.
+  - It is that wheel box's near wall: 40 wide, curving out (r 15) to a lobe (u 31.40..118.60) with the box's tab slots, 2 box bolt holes and a round axle hole.
+  - Its beam row (v = 10, u = 15 / 75 / 135) is slots running across, ±1.5.
+  - Each wheel is tensioned on its own; no two wheels are coupled.
+- **PK plain keeper**: 300 × 40, round M5 at the sieve's pattern (u 30/90/150/210/270, v = 10).
+  - Guard or backing wherever no wheel is needed. Quantity as needed.
+- **As drawn:** two WKs end to end on each beam (box centres at z 75 and 225), 4 wheels.
+  - Arrange WKs and PKs however testing shows.
+  - Both kinds mount flat on the beam face. Stacking a WK on top of a PK would move its box out by one sheet thickness, which the script doesn't model yet.
+- The sieve-pattern spacing doesn't matter for keepers bolted with T-nuts into the beam slot, since those can sit anywhere along it.
 
 **Parts per box, 4 + the keeper lobe:**
 - **FC far cheek ×1 (32.95 × 87.20):** beyond the wheel. The keeper lobe and the far cheek carry the axle at both ends.
@@ -151,12 +155,11 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - **Along the axle (s):** two nuts locked on either side of the bearing's inner race (nut A, nut B).
   - Free space either side: 16.60 (keeper side) / 8.60 at T = 3.1.
   - Use shims or washers that touch only the inner race (assumed 1 mm).
-- **Wheel tension (a):** loosen the keeper's slotted screws (v = 10), slide the keeper and its boxes until the wheels seat, then tighten.
+- **Wheel tension (a):** loosen that WK's slotted screws (v = 10), slide the WK and its box until the wheel seats, then tighten.
   - At full slide the open side sits 60.50..63.50 from M's far face (60).
   - The far cheek's edge reaches 55.50 (the S_M/K_M bolt heads end at 54.25).
-  - Both boxes on a keeper move together, so their two wheels can't be tensioned separately.
 
-**Thinnest wood:** 4.00 mm in the keeper and the far cheek at T = 3.1 and 2.6, and 5.20 at 5.2. That meets the min-web rule.
+**Thinnest wood:** 4.00 mm in the WK and the far cheek at T = 3.1 and 2.6, and 5.20 at 5.2. That meets the min-web rule.
 
 **Still true (same as the old guide rails):**
 - Swing-direction loads reach F through K_F, bending it across the ball gap; the same applies to K_M.
@@ -220,13 +223,13 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - [ ] **L2** Cut a kerf test in MDF (`marbles/kerf_test.py --material mdf_3mm`). Set the MDF kerf; re-confirm 0.10 on plywood.
 - [ ] **L3** Tab-fit coupon: slots T−0.1 … T+0.15 in 0.05 steps, in MDF and in 2.6 plywood. Pick `FIT` per material.
 - [ ] **L4** Check that the far faces of F and M are V-slot (wheels don't seat in T-slot). Swap beams if needed.
-- [ ] **L5** Generate G-code for one wheel box plus a short keeper-lobe test piece. Validate.
+- [ ] **L5** Generate G-code for one WK + its box (4 plates), and for the PK. Validate.
 - [ ] **L6** Cut and dry-fit one box on a V-slot offcut with a polymer wheel. Check:
   - groove engagement (the 9.85 assumption)
   - enough keeper-slot travel (±1.5) to seat and tension the wheels
   - room for nuts A/B and a wrench through the open side
   - bolt lengths
-- [ ] **L7** Recut both keepers (40 wide with 2 box lobes, slotted v = 10 row). Cut all 4 boxes.
+- [ ] **L7** Cut 4 WK wheel keepers + 4 boxes, and plain keepers (PK) as needed.
 - [ ] **L8** Assemble the slide. Hand-cycle and note:
   - friction and rattle
   - whether the near-slot sieve edges rub (the squeeze stop)

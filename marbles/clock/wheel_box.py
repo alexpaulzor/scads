@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """V-wheel boxes for the lift's captive slide (replace guide rails G_F/G_M and sliders L_F/L_M).
 
-One box per end of each keeper (4 total). The KEEPER IS THE NEAR WALL of each box:
-it is 40 wide along most of its length and widens (curving out) to a lobe at each
-box. Each box adds 4 plates around one polymer V-wheel, open on the side facing
+Each wheel has its own short keeper (WK, 150 long, 2 per 300 sheet edge) that IS the
+near wall of its box: 40 wide, curving out to a lobe at the box. A plain keeper (PK,
+300 x 40, sieve hole pattern) is the guard/backing wherever no wheel is needed. Each box adds 4 plates around one polymer V-wheel, open on the side facing
 the beam the wheel rides:
 
   FC  far cheek x1    parallel to the keeper, on the other side of the wheel.
@@ -60,7 +60,9 @@ NUT_H, NUT_AF, WASH = 4.7, 8.0, 1.0   # ISO M5 nut; shim/washer on the inner rac
 CLR_M = 2.0                   # box walls clear M's far face by this
 CLR_K = 0.5                   # far cheek clears the other keeper's outer face by this
 BOLT_CLR = None               # top/bottom walls clear the through bolts by this (= WEB, set below)
-BOX_Z = [60.0, 240.0]         # box centres along the keeper (between far-row holes 30/90, 210/270)
+WK_L = 150.0                  # wheel keeper length (2 fit along a 300 sheet edge)
+WK_SLOTS = [-60.0, 0.0, 60.0] # beam-row slots, relative to the wheel keeper's centre
+BOX_Z = [WK_L / 2, L - WK_L / 2]   # as drawn: two wheel keepers end to end on each beam
 BOLT_DZ = 30.0                # through bolts use the keeper's far-row holes at zc +/- 30
 
 # ---- W_F box, in assembly coordinates (W_M is the mirror: a -> 60 - a, s -> 8.4 - s)
@@ -166,18 +168,22 @@ def bk_2d():
     tabs = [box(NCi - 0.01, z0, NCi + T, z1) for z0, z1 in bk_tabs] + [box(FCi - T, z0, FCi + 0.01, z1) for z0, z1 in bk_tabs]
     return unary_union([g] + fingers + tabs)
 
-def keeper_2d():
-    """K_F / K_M in (u, v) = (along, across from its own beam's outer face).
-    KEEP_W wide, with a lobe out to the box's outer edge at each box, curving in with FILLET.
-    Row v = 10 (own beam): slots across, +/-ADJ. Lobes: the box's bolt holes, axle hole and tab slots."""
-    strip = box(0, 0, L, KEEP_W)
-    lobes = [box(zc - z_c, 0, zc + z_c, a_c1) for zc in BOX_Z]
-    g = unary_union([strip] + lobes)
-    g = g.buffer(FILLET, 64).buffer(-FILLET, 64).intersection(box(0, 0, L, a_c1))      # curve the inside corners
-    g = g.buffer(-3, 32).buffer(3, 32)                                                    # round the outside corners
-    cuts = [LineString([(u, 10.0 - ADJ), (u, 10.0 + ADJ)]).buffer(M5 / 2, 32) for u in M5_U]
-    cuts += [affinity.affine_transform(box_cuts(), [0, 1, 1, 0, zc, 0]) for zc in BOX_Z]   # (a, dz) -> (u, v)
+def wheel_keeper_2d():
+    """WK: one wheel box's keeper, (u, v) = (along the beam, across from its own beam's outer face).
+    WK_L long, KEEP_W wide, a lobe out to the box's outer edge in the middle (curving in with FILLET).
+    Beam row v = 10: slots across (+/-ADJ) to set this one wheel's tension. Lobe: the box's bolt holes,
+    round axle hole and tab slots."""
+    zc = WK_L / 2
+    g = unary_union([box(0, 0, WK_L, KEEP_W), box(zc - z_c, 0, zc + z_c, a_c1)])
+    g = g.buffer(FILLET, 64).buffer(-FILLET, 64).intersection(box(0, 0, WK_L, a_c1))   # curve the inside corners
+    g = g.buffer(-3, 32).buffer(3, 32)                                                  # round the outside corners
+    cuts = [LineString([(zc + du, 10.0 - ADJ), (zc + du, 10.0 + ADJ)]).buffer(M5 / 2, 32) for du in WK_SLOTS]
+    cuts.append(affinity.affine_transform(box_cuts(), [0, 1, 1, 0, zc, 0]))            # (a, dz) -> (u, v)
     return g.difference(unary_union(cuts))
+
+def plain_keeper_2d():
+    """PK: plain backing/guard, L x KEEP_W, round M5 holes in the sieve's pattern (v = 10)."""
+    return box(0, 0, L, KEEP_W).difference(unary_union([Point(u, 10.0).buffer(M5 / 2, 32) for u in M5_U]))
 
 # min web checks (thinnest material between a cut and an edge / another cut)
 def min_web(g):
@@ -193,9 +199,11 @@ def min_web(g):
                 best = d if best is None else min(best, d)
     return best
 PARTS = {"FC": ("far cheek", cheek_2d(), 1), "TB": ("top / bottom wall", tb_2d(), 2), "BK": ("back wall", bk_2d(), 1)}
-kp = keeper_2d()
-P(f"keeper: {L:g} long, {KEEP_W:g} wide, lobes to {a_c1:.2f} at u {BOX_Z[0]-z_c:.2f}..{BOX_Z[0]+z_c:.2f} and "
-  f"{BOX_Z[1]-z_c:.2f}..{BOX_Z[1]+z_c:.2f}, fillet r {FILLET:g}; narrowest web {min_web(kp):.2f}")
+kp = wheel_keeper_2d()
+P(f"wheel keeper WK: {WK_L:g} x {a_c1:.2f} (strip {KEEP_W:g} wide, lobe u {WK_L/2-z_c:.2f}..{WK_L/2+z_c:.2f}, fillet r {FILLET:g}); "
+  f"beam slots at u {[WK_L/2 + d for d in WK_SLOTS]}; narrowest web {min_web(kp):.2f}")
+pk = plain_keeper_2d()
+P(f"plain keeper PK: {L:g} x {KEEP_W:g}, M5 at u {M5_U} v 10; narrowest web {min_web(pk):.2f}")
 for k, (n, g, q) in PARTS.items():
     x0, y0, x1, y1 = g.bounds
     mw = min_web(g)
@@ -250,11 +258,12 @@ F_COL, M_COL = "#d4b07a", "#e6c995"
 BOX_F, BOX_M = "#9cc28a", "#c7a3d9"
 WHEEL, STEEL, WASHC = "#8d97a3", "#555b61", "#c9cdd2"
 
-def keeper_az(on_f):
-    k = keeper_2d()               # (u, v)
+def keeper_az(on_f, zc):
+    """wheel keeper centred at z = zc, in (a, z)"""
+    k = wheel_keeper_2d()         # (u, v)
     if on_f:                      # a = v, z = u
-        return affinity.affine_transform(k, [0, 1, 1, 0, 0, 0])
-    return affinity.affine_transform(k, [0, -1, 1, 0, 60, 0])   # a = 60 - v
+        return affinity.affine_transform(k, [0, 1, 1, 0, 0, zc - WK_L / 2])
+    return affinity.affine_transform(k, [0, -1, 1, 0, 60, zc - WK_L / 2])   # a = 60 - v
 
 def box_parts(zc, tag, col, explode=0.0, hardware=True):
     """W_F box at zc, as a list of part dicts (mirror for W_M)."""
@@ -287,8 +296,9 @@ def build_assembly(ghost_keepers=0.55):
     add("as", "M", "M", BEAM_M, profile2020(40, -11.6), -20, 320)
     add("az", "S_F", "S_F", F_COL, sieve2d(True), -T, 0)
     add("az", "S_M", "S_M", M_COL, sieve2d(False), 8.4, 8.4 + T)
-    add("az", "K_F", "K_F", F_COL, keeper_az(True), 20, 20 + T, ghost_keepers)
-    add("az", "K_M", "K_M", M_COL, keeper_az(False), -11.6 - T, -11.6, ghost_keepers)
+    for zc in BOX_Z:
+        add("az", f"K_F{int(zc)}", "WK on F", F_COL, keeper_az(True, zc), 20, 20 + T, ghost_keepers, group="K_F")
+        add("az", f"K_M{int(zc)}", "WK on M", M_COL, keeper_az(False, zc), -11.6 - T, -11.6, ghost_keepers, group="K_M")
     for zc in BOX_Z:
         fbox = box_parts(zc, f"F{int(zc)}", BOX_F)
         for p in fbox:
@@ -311,7 +321,7 @@ balls = [{"c": [30, 4.2, 15 + 30 * i - 0.5], "r": 9.525} for i in range(10)]
 assy = build_assembly()
 json.dump({"parts": assy, "balls": balls}, open(OUT / "box_assembly.json", "w"))
 
-ZC = 60.0
+ZC = BOX_Z[0]
 half = box(-500, -500, 500, ZC)
 sec = []
 for p in assy:
@@ -336,8 +346,8 @@ json.dump({"parts": sec, "balls": [b for b in balls if b["c"][2] + b["r"] <= ZC]
 
 # one box alone (W_F lower) with stubs of M and K_F
 parts.clear()
-add("as", "M", "M", BEAM_M, profile2020(40, -11.6), 10, 110)
-kf = affinity.affine_transform(keeper_2d(), [0, 1, 1, 0, 0, 0]).intersection(box(-5, 0, 100, 125))
+add("as", "M", "M", BEAM_M, profile2020(40, -11.6), 60 - WK_L / 2 - 5, 60 + WK_L / 2 + 5)
+kf = keeper_az(True, 60.0)
 add("az", "K_F", "K_F", F_COL, kf, 20, 20 + T, 0.55)
 box_parts(60.0, "F60", BOX_F)
 json.dump({"parts": list(parts), "balls": []}, open(OUT / "box_one.json", "w"))
@@ -350,7 +360,8 @@ def thumbs(lst):
     return [{"key": k, "name": n, "per_fork": q, "polys": rings(g), "bounds": g.bounds} for k, n, q, g in lst]
 json.dump({"parts": thumbs([(k, n, q, g) for k, (n, g, q) in PARTS.items()]),
            "assy": thumbs([("S_F / S_M", "sieve 300 x 46 (lift_sieve)", 2, sieve2d(True)),
-                           ("K_F / K_M", "keeper, slotted row + axle holes", 2, affine := affinity.affine_transform(keeper_2d(), [1, 0, 0, 1, 0, 0])),
+                           ("WK", f"wheel keeper {WK_L:g} long (one per wheel)", 4, wheel_keeper_2d()),
+                           ("PK", f"plain keeper {L:g} x {KEEP_W:g} (as needed)", 0, plain_keeper_2d()),
                            ("box", "wheel box: FC x1, TB x2, BK x1", 4, cheek_2d())])},
           open(OUT / "box_thumbs.json", "w"))
 json.dump({"T": T, "NCi": NCi, "FCi": FCi, "FCo": FCo, "a_w": a_w, "s_w": s_w, "a_bi": a_bi, "a_bo": a_bo, "H_i": H_i,
