@@ -7,6 +7,7 @@ greedily into the smallest bounding box (the notches beside the lobe first).
 
     python3 marbles/clock/wheel_box_gcode.py            # 3.1 mm MDF -> marbles/gcode/wheel_box_set.gcode
     python3 marbles/clock/wheel_box_gcode.py --t 2.6 --material plywood_veneer_3ply_3mm
+    python3 marbles/clock/wheel_box_gcode.py --plain     # plain keeper -> marbles/gcode/plain_keeper.gcode
 """
 import argparse
 import importlib.util
@@ -28,7 +29,8 @@ ap.add_argument("--fit", type=float, default=0.0)
 ap.add_argument("--material", default="mdf_3mm")
 ap.add_argument("--gap", type=float, default=2.0, help="clear wood between parts, mm")
 ap.add_argument("--step", type=float, default=1.0, help="nesting search grid, mm")
-ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode" / "wheel_box_set.gcode")
+ap.add_argument("--plain", action="store_true", help="the plain 300 x 40 keeper (PK) instead")
+ap.add_argument("-o", "--out", type=Path, default=None)
 args = ap.parse_args()
 
 # load wheel_box.py as a module with the same T / FIT
@@ -52,6 +54,10 @@ parts = [("WK wheel keeper", norm(k(wb.wheel_keeper_2d()))),            # (u, v)
          ("TB top wall", norm(k(wb.tb_2d()))),
          ("TB bottom wall", norm(k(wb.tb_2d())))]
 
+if args.plain:
+    parts = [("PK plain keeper", norm(k(wb.plain_keeper_2d())))]
+if args.out is None:
+    args.out = HERE.parent / "gcode" / ("plain_keeper.gcode" if args.plain else "wheel_box_set.gcode")
 placed = [(parts[0][0], parts[0][1])]
 def union_bounds(gs):
     b = [g.bounds for g in gs]
@@ -83,7 +89,7 @@ for name, g in parts[1:]:
 X0, Y0, X1, Y1 = union_bounds([p for _, p in placed])
 placed = [(n, affinity.translate(p, -X0, -Y0)) for n, p in placed]
 W, H = X1 - X0, Y1 - Y0
-print(f"footprint {W:.2f} x {H:.2f} mm (WK alone {parts[0][1].bounds[2]:.2f} x {parts[0][1].bounds[3]:.2f})")
+print(f"footprint {W:.2f} x {H:.2f} mm (first part alone {parts[0][1].bounds[2]:.2f} x {parts[0][1].bounds[3]:.2f})")
 
 # cut order: every hole / slot first (small to large), then the outlines (small to large)
 holes, outers = [], []
@@ -96,7 +102,7 @@ outers.sort(key=lambda pl: abs(Polygon(pl).area))
 
 s2g, motion, mat, job = load_profile(args.material, 1000, None)
 cuts = [s2g.Polyline(pl, True) for pl in holes + outers]
-lines = [f"; wheel_box_set -- marbles/clock/wheel_box_gcode.py: one wheel keeper + its box",
+lines = [f"; {args.out.stem} -- marbles/clock/wheel_box_gcode.py: " + ("plain keeper 300 x 40" if args.plain else "one wheel keeper + its box"),
          f"; parts: {', '.join(n for n, _ in placed)}",
          f"; T = {wb.T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
          f"kerf {KERF}, fit {wb.FIT}; X0 Y0 = bottom-left; footprint {W:.2f} x {H:.2f} mm",
