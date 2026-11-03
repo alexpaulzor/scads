@@ -6,7 +6,7 @@ its 40-wide strip along X and the lobe pointing +Y; the other parts are dropped
 greedily into the smallest bounding box (the notches beside the lobe first).
 
     python3 marbles/clock/wheel_box_gcode.py            # 3.1 mm MDF -> marbles/gcode/wheel_box_set.gcode
-    python3 marbles/clock/wheel_box_gcode.py --t 2.6 --material plywood_veneer_3ply_3mm
+    python3 marbles/clock/wheel_box_gcode.py --material plywood_veneer_3ply_3mm
     python3 marbles/clock/wheel_box_gcode.py --plain     # plain keeper -> marbles/gcode/plain_keeper.gcode
 """
 import argparse
@@ -24,9 +24,9 @@ sys.path.insert(0, str(HERE.parent))
 from laser_parts import emit_cut, load_profile, preamble  # noqa: E402
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--t", type=float, default=3.1)
-ap.add_argument("--fit", type=float, default=0.0)
-ap.add_argument("--material", default="mdf_3mm")
+ap.add_argument("--material", default="mdf_3mm", help="profile id: thickness, kerf and slot fit come from it")
+ap.add_argument("--t", type=float, default=None, help="override thickness")
+ap.add_argument("--fit", type=float, default=None, help="override extra slot width")
 ap.add_argument("--gap", type=float, default=2.0, help="clear wood between parts, mm")
 ap.add_argument("--step", type=float, default=1.0, help="nesting search grid, mm")
 ap.add_argument("--plain", action="store_true", help="the plain 300 x 40 keeper (PK) instead")
@@ -34,7 +34,8 @@ ap.add_argument("-o", "--out", type=Path, default=None)
 args = ap.parse_args()
 
 # load wheel_box.py as a module with the same T / FIT
-sys.argv = ["wheel_box.py", "--t", str(args.t), "--fit", str(args.fit)]
+sys.argv = ["wheel_box.py", "--material", args.material] + (["--t", str(args.t)] if args.t is not None else []) \
+    + (["--fit", str(args.fit)] if args.fit is not None else [])
 spec = importlib.util.spec_from_file_location("wheel_box", HERE / "wheel_box.py")
 wb = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(wb)

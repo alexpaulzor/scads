@@ -118,6 +118,23 @@ def part_layers(s2g, openscad, name, sheet_th, tmp):
     return layers
 
 
+def material_fit(material, quickcut=None):
+    """(thickness_mm, kerf_mm, slot_extra_mm) from the shared material profile.
+    kerf / slot extra come from the profile's verified `fit:` block (mdf_3mm: 3.1 / 0.10 / 0.0,
+    tabs tight and snug without deforming). Materials without one fall back to kerf 0.10, extra 0."""
+    sys.path.insert(0, str(find_quickcut(quickcut)))
+    from materials import SHARED_MATERIALS  # noqa: E402
+    import yaml  # noqa: E402
+    mats = {m["id"]: m for m in yaml.safe_load(Path(SHARED_MATERIALS).read_text())}
+    if material not in mats:
+        sys.exit(f"unknown material {material}")
+    m = mats[material]
+    fit = m.get("fit") or {}
+    if not fit:
+        print(f"note: {material} has no verified fit block; using kerf 0.10, slot extra 0", file=sys.stderr)
+    return float(m["thickness_mm"]), float(fit.get("kerf_mm", 0.10)), float(fit.get("slot_extra_mm", 0.0))
+
+
 def load_profile(material, s_full_power, quickcut):
     """(s2g module, motion module, material dict, cut CutJob) for a material id."""
     sys.path.insert(0, str(find_quickcut(quickcut)))

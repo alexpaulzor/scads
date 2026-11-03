@@ -30,7 +30,7 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 
 | stock | thickness to design with | notes |
 |---|---|---|
-| MDF (current prototypes) | **3.1 mm** | 3.10 with the calipers pressed firmly; up to ~3.2 relaxed or humid. Recorded in cnc_vibes `mdf_3mm` (`thickness_mm: 3.1`). |
+| MDF (current prototypes) | **3.1 mm** | Sold as 1/8". 3.10 with the calipers pressed firmly; up to ~3.2 relaxed or humid. Recorded in cnc_vibes `mdf_3mm` (`thickness_mm: 3.1`). |
 | Baltic birch veneer plywood (final) | **2.6 mm** (measured 2.63) | final version |
 
 **Two layers in a 2020 slot:**
@@ -52,13 +52,17 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
   - each edge is under-compensated by 0.0077 mm
   - outer sizes come out 0.016 mm small; holes 0.016 mm big
   - that's negligible next to the 0.1 mm thickness variation of the MDF
-- **Not yet measured on MDF:** MDF at 100% F500 ×2 likely burns a wider kerf than plywood. See task L2.
+- **MDF:** 0.10 is confirmed by fit, not by a strip test. The tab fit above came out perfect with it.
 
 ### Tab and slot fit
 
-- `FIT` = extra slot width, currently 0.
-  - MDF crushes a little, so a slot of exactly T should be a firm press fit at 3.1–3.2.
-  - Plywood probably needs about +0.05 (assumed). A fit coupon will settle it (task L3).
+- **MDF, verified 2026-11-03 on the first wheel box: PERFECT.**
+  - Settings: T = 3.1, kerf 0.10, slots drawn at exactly T (FIT = 0).
+  - Result: tabs tight and snug, with no deforming.
+  - **Use these for all MDF cuts.**
+  - Recorded in the cnc_vibes `mdf_3mm` profile's `fit:` block (`kerf_mm: 0.10`, `slot_extra_mm: 0.0`).
+  - `wheel_box.py`, `wheel_box_gcode.py`, `lift_parts.py` and `lift_sieve.py` read thickness, kerf and fit from that profile (`laser_parts.material_fit`).
+- **Plywood:** not verified yet. With no `fit:` block, the scripts fall back to kerf 0.10 and FIT 0 and print a note. It probably needs about +0.05 (assumed); task L3.
 - **Tabs and fingers are 10 mm wide.** Narrower ones fray MDF corners.
 - **M5 holes are exactly 5.0 mm.**
 
@@ -220,10 +224,11 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 ### Pendulum lift (now)
 
 - [x] **L1** Wheel-box concept: keeper is the near wall, plus far cheek + top/bottom + back, open toward the beam.
-- [ ] **L2** Cut a kerf test in MDF (`marbles/kerf_test.py --material mdf_3mm`). Set the MDF kerf; re-confirm 0.10 on plywood.
-- [ ] **L3** Tab-fit coupon: slots T−0.1 … T+0.15 in 0.05 steps, in MDF and in 2.6 plywood. Pick `FIT` per material.
+- [x] **L2 (MDF)** Kerf 0.10 confirmed by the perfect tab fit. Plywood: re-confirm 0.10 when we switch.
+- [x] **L3 (MDF)** Tab fit is perfect at T = 3.1, kerf 0.10, FIT 0.
+- [ ] **L3b (plywood)** Tab-fit coupon in 2.6 plywood; add a `fit:` block to its profile.
 - [ ] **L4** Check that the far faces of F and M are V-slot (wheels don't seat in T-slot). Swap beams if needed.
-- [ ] **L5** Generate G-code for one WK + its box (4 plates), and for the PK. Validate.
+- [x] **L5** G-code for one WK + its box (`wheel_box_set.gcode`) and for the PK (`plain_keeper.gcode`). Validated; the box set is cut.
 - [ ] **L6** Cut and dry-fit one box on a V-slot offcut with a polymer wheel. Check:
   - groove engagement (the 9.85 assumption)
   - enough keeper-slot travel (±1.5) to seat and tension the wheels

@@ -21,7 +21,7 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: E402
 
 LENGTH = 300.0
 WIDTH = 46.0
@@ -31,9 +31,8 @@ PITCH = 30.0
 M5_HOLE = 5.0
 M5_Y = 10.0
 M5_EVERY = 2             # every 2nd gap between ball holes
-MATERIAL = "mdf_3mm"     # cutting 3.2 mm MDF on the 3 mm MDF recipe (2 passes)
-STOCK_T = 3.2
-KERF = 0.105             # measured (marbles/kerf_test.py)
+MATERIAL = "mdf_3mm"     # 3.1 mm MDF (sold as 1/8") on the 3 mm MDF recipe (2 passes)
+STOCK_T, KERF, _ = material_fit(MATERIAL)   # from the profile's verified fit block (mdf_3mm: 3.1, 0.10)
 
 
 def part():

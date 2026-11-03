@@ -35,10 +35,10 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: E402
 
-MATERIAL = "mdf_3mm"     # 3.2 mm MDF, cut with the 3 mm MDF recipe
-KERF = 0.105             # measured on plywood; check on MDF
+MATERIAL = "mdf_3mm"     # 3.1 mm MDF (sold as 1/8"), cut with the 3 mm MDF recipe
+KERF = material_fit(MATERIAL)[1]   # from the profile's verified fit block (mdf_3mm: 0.10)
 M5 = 5.0
 BEARING = 22.0           # 608 outer diameter, press fit
 STRIP_L, STRIP_W, PITCH = 300.0, 46.0, 30.0
