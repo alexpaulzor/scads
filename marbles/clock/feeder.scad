@@ -57,7 +57,7 @@ BEAM_X = COL_W - 10;      // F's back-face slot line (sieve's v = 10)
 N_HOLES = 4;              // ball holes in the funnel's sieve column
 BAND = 20;                // wood under the bottom hole
 H = BAND + 15 + PITCH * (N_HOLES - 1) + 15;   // funnel height (140)
-W = 96;                   // funnel / keeper width
+W = 99;                   // funnel / keeper width
 F_END = 65;               // plate y of F's bottom end (no spacers inside F above this)
 FK_X0_LOW = COL_W - 12;   // front keeper's inner edge below F's end (reaches under F)
 FK_X0_HIGH = COL_W - 6;   // ... above F's end: 6 mm into F's far slot
@@ -66,19 +66,20 @@ BK_X0 = 6;                // back keeper's inner edge (clear of M's body at x < 
 /* [Gap and spacers] */
 SPACER_LAYERS = 3;        // laser-cut ring spacers per gap
 GAP = SPACER_LAYERS * T;  // funnel face to each keeper (9.3 at T 3.1); or set a standoff length here
-SPACER_D = 10;            // spacer outside diameter (rings or standoffs)
+SPACER_D = 10;            // laser-cut ring spacer outside diameter
+SPACER_ROOM = 13;         // diameter kept clear around every spacer (fits 1/2" plastic spacers too)
 SPACER_ID = 5.0;          // ring spacer hole (M5)
 SPACER_CLR = 1;           // keep spacers this far from the channel, holes and F
 
 /* [Channel] */
 CH_W = HOLE_D + 1;        // channel width (ball 19.05)
-PORT_C = [70, 108];       // pocket / port centre
+PORT_C = [73, 108];       // pocket / port centre
 CH_P1 = [PORT_C[0], 35];  // bezier control points of the channel centreline: pocket -> P1 -> P2 -> bottom hole
 CH_P2 = [HOLE_X + 26, 41];
 
 /* [Port] */
 PORT = 20;                // square opening = inside of a standard duct
-PORT_BOLT = 18;           // corner M5 offset from the port centre (x and y)
+PORT_BOLT = 19;           // corner M5 offset from the port centre (x and y)
 
 /* [Bolts] */
 M5 = 5.0;                 // all M5 holes exactly 5.0
@@ -112,19 +113,19 @@ function chan_d(p) = min([for (q = PATH) norm(q - p)]) - CH_W / 2;        // poi
 function fk_x0(y) = y < F_END ? FK_X0_LOW : FK_X0_HIGH;
 function r2(x) = round(x * 100) / 100;
 // spacer (circle of SPACER_D at p): clearances in the gaps
-function spacer_clear(p) = let(r = SPACER_D / 2) [
+function spacer_clear(p) = let(r = SPACER_ROOM / 2) [
   ["channel", chan_d(p) - r],
   ["ball holes", minl([for (h = HOLES) norm(h - p) - HOLE_D / 2 - r])],
-  ["beam-bolt spacers (back gap)", minl([for (b = BEAM_BOLTS) if (b != p) norm(b - p) - SPACER_D])],
+  ["beam-bolt spacers (back gap)", minl([for (b = BEAM_BOLTS) if (b != p) norm(b - p) - SPACER_ROOM])],
   ["port opening (front gap)", minl([for (q = port_rects(true)) rp(q, p) - r])],
   ["F beam (front gap)", p[1] + r <= F_END || p[0] - r >= COL_W || p[0] + r <= COL_W - 20 ? 999
                           : max(COL_W - 20 - (p[0] + r), p[0] - r - COL_W, F_END - (p[1] + r))],
-  ["other spacers", minl([for (q = THRU) if (q != p) norm(q - p) - SPACER_D])]];
+  ["other spacers", minl([for (q = THRU) if (q != p) norm(q - p) - SPACER_ROOM])]];
 // a beam-bolt spacer sits in the back gap only (in front of the funnel is F itself)
-function beam_spacer_clear(p) = let(r = SPACER_D / 2) [
+function beam_spacer_clear(p) = let(r = SPACER_ROOM / 2) [
   ["channel", chan_d(p) - r],
   ["ball holes", minl([for (h = HOLES) norm(h - p) - HOLE_D / 2 - r])],
-  ["other spacers", minl([for (q = concat(THRU, BEAM_BOLTS)) if (q != p) norm(q - p) - SPACER_D])],
+  ["other spacers", minl([for (q = concat(THRU, BEAM_BOLTS)) if (q != p) norm(q - p) - SPACER_ROOM])],
   ["back keeper edge (hole wood)", min(p[0] - BK_X0, W - p[0], p[1], H - p[1]) - M5 / 2]];
 // wood around a through-bolt hole in each plate
 function hole_wood(p) = let(r = M5 / 2) [
