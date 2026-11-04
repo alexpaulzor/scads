@@ -43,8 +43,8 @@ show_bolts = true;
 show_sieve = true;        // S_F stub above the funnel
 
 /* [Material] */
-T = 3.1;                  // sheet thickness (mdf_3mm profile; plywood 2.6)
-KERF = 0.10;              // mdf_3mm profile
+T = 3.1;                  // sheet thickness (mdf3 profile; plywood 2.6)
+KERF = 0.10;              // mdf3 profile
 FIT = 0.0;                // extra slot width (port tab slots)
 WEB = max(4, T);          // thinnest wood allowed between any cut and an edge or another cut
 TAB = 10;                 // port tab slot length

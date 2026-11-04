@@ -285,8 +285,8 @@ def polylines(geom):
 
 def write_gcode(name, geom, note, copies, outdir):
     sys.path.insert(0, str(HERE.parent))
-    from laser_parts import emit_cut, load_profile, preamble
-    s2g, motion, mat, job = load_profile("plywood_veneer_3ply_3mm", 1000, None)
+    from laser_parts import emit_cut, load_profile, preamble, std_path
+    s2g, motion, mat, job = load_profile("ply3", 1000, None)
     g = geom.buffer(KERF / 2, join_style=1)          # kept part grows, its holes shrink
     x0, y0, x1, y1 = g.bounds
     loops = [[(x - x0, y - y0) for x, y in pl] for pl in polylines(g)]
@@ -297,10 +297,11 @@ def write_gcode(name, geom, note, copies, outdir):
     lines += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
         lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-    lines += s2g._footer()
+    lines += s2g._footer(lines)
     outdir.mkdir(parents=True, exist_ok=True)
-    (outdir / f"clock_{name}.gcode").write_text("\n".join(lines))
-    return x1 - x0, y1 - y0
+    out = std_path(outdir, f"clock_{name}", lines, mat['id'])
+    out.write_text("\n".join(lines))
+    return x1 - x0, y1 - y0, out.name
 
 
 def preview(path, th=0.0, phi=0.0):
@@ -342,8 +343,8 @@ def main():
     if a.check:
         sys.exit(0 if ok else 1)
     for name, (geom, copies, note) in parts().items():
-        w, h = write_gcode(name, geom, note, copies, a.out)
-        print(f"clock_{name}.gcode: {w:.2f} x {h:.2f} mm, cut {copies}" + (f" ({note})" if note else ""))
+        w, h, fn = write_gcode(name, geom, note, copies, a.out)
+        print(f"{fn}: {w:.2f} x {h:.2f} mm, cut {copies}" + (f" ({note})" if note else ""))
     preview(HERE.parent / "gcode" / "clock_preview.png")
     sys.exit(0 if ok else 1)
 

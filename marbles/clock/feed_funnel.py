@@ -13,7 +13,7 @@ FEED FUNNEL (FF) -- one plate in the sieve's plane, below S_F:
 SHORT KEEPER (SK) -- 150 x 40 plain keeper: M5 every 3/4" (19.05) on v = 10, and
   the standard 60 mm spacing on v = 30.
 
-Thickness, kerf and slot fit come from the material profile (mdf_3mm: 3.1 / 0.10).
+Thickness, kerf and slot fit come from the material profile (mdf3: 3.1 / 0.10).
 
     python3 marbles/clock/feed_funnel.py      # -> marbles/gcode/feed_funnel.gcode, feed_keeper.gcode, short_keeper.gcode
 """
@@ -28,10 +28,10 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path  # noqa: E402
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--material", default="mdf_3mm")
+ap.add_argument("--material", default="mdf3")
 ap.add_argument("--sk-len", type=float, default=150.0, help="short keeper length")
 args = ap.parse_args()
 T, KERF, _ = material_fit(args.material)
@@ -143,9 +143,10 @@ for name, g, note in (("feed_funnel", ff, "bottom feed funnel plate (sieve colum
     lines += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
         lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-    lines += s2g._footer()
-    (out_dir / f"{name}.gcode").write_text("\n".join(lines))
-    print(f"wrote {name}.gcode: {x1 - x0:.2f} x {y1 - y0:.2f} mm, {len(cuts)} cuts")
+    lines += s2g._footer(lines)
+    out = std_path(out_dir, name, lines, mat['id'])
+    out.write_text("\n".join(lines))
+    print(f"wrote {out.name}: {x1 - x0:.2f} x {y1 - y0:.2f} mm, {len(cuts)} cuts")
 
 # ---------------------------------------------------------------- scene for the views
 def rings(g):

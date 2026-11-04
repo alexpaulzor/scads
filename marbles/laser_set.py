@@ -142,7 +142,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--gap", type=float, default=1.5, help="min mm between parts' toolpaths")
     ap.add_argument("--res", type=float, default=0.25, help="nesting raster, mm/px")
-    ap.add_argument("--material", default="plywood_veneer_3ply_3mm")
+    ap.add_argument("--material", default="ply3")
     ap.add_argument("--s-full-power", type=int, default=1000, help="GRBL $30")
     ap.add_argument("--quickcut", help="path to cnc_vibes/quickcut")
     ap.add_argument("--openscad", default="openscad")
@@ -192,7 +192,7 @@ def main():
         if c.closed and c.points[0] != c.points[-1]:
             c.points = c.points + [c.points[0]]
         g += emit_cut(s2g, motion, c, i, len(cuts), job)
-    g += s2g._footer()
+    g += s2g._footer(g)
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text("\n".join(g))
     print(f"{a.out.name}: footprint {W:.2f} x {H:.2f} mm, min gap {min_gap:.2f} mm, "

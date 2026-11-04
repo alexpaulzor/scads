@@ -6,7 +6,7 @@ its 40-wide strip along X and the lobe pointing +Y; the other parts are dropped
 greedily into the smallest bounding box (the notches beside the lobe first).
 
     python3 marbles/clock/wheel_box_gcode.py            # 3.1 mm MDF -> marbles/gcode/wheel_box_set.gcode
-    python3 marbles/clock/wheel_box_gcode.py --material plywood_veneer_3ply_3mm
+    python3 marbles/clock/wheel_box_gcode.py --material ply3
     python3 marbles/clock/wheel_box_gcode.py --plain     # plain keeper -> marbles/gcode/plain_keeper.gcode
 """
 import argparse
@@ -21,10 +21,10 @@ from shapely.prepared import prep
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, preamble, std_path  # noqa: E402
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--material", default="mdf_3mm", help="profile id: thickness, kerf and slot fit come from it")
+ap.add_argument("--material", default="mdf3", help="profile id: thickness, kerf and slot fit come from it")
 ap.add_argument("--t", type=float, default=None, help="override thickness")
 ap.add_argument("--fit", type=float, default=None, help="override extra slot width")
 ap.add_argument("--gap", type=float, default=2.0, help="clear wood between parts, mm")
@@ -111,7 +111,9 @@ lines = [f"; {args.out.stem} -- marbles/clock/wheel_box_gcode.py: " + ("plain ke
 lines += preamble(s2g, job)
 for i, c in enumerate(cuts, 1):
     lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-lines += s2g._footer()
+lines += s2g._footer(lines)
+if args.out.parent == HERE.parent / "gcode":      # default location: standard name
+    args.out = std_path(args.out.parent, args.out.stem, lines, mat['id'])
 args.out.parent.mkdir(parents=True, exist_ok=True)
 args.out.write_text("\n".join(lines))
 print(f"wrote {args.out} ({len(cuts)} cuts)")

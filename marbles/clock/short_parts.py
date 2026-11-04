@@ -10,7 +10,7 @@ KEEPER (keeper_<n>h): same length, 40 wide.
     pair of holes joined: slot 19.05 + 5 = 24.05 long, 5 wide, then 19.05 - 5 = 14.05 solid,
     repeated, centred. 5 wide is far too narrow for a 3/4" ball to catch in.
   - Y = 30 (over the beam): rail M5 at the sieve's M5 positions for that length.
-Thickness, kerf and fit come from the material profile (mdf_3mm: 3.1 / 0.10).
+Thickness, kerf and fit come from the material profile (mdf3: 3.1 / 0.10).
 
     python3 marbles/clock/short_parts.py                 # -> marbles/gcode/{sieve,keeper}_<n>h_<W>x<H>.gcode, n = 3..10
     python3 marbles/clock/short_parts.py --sizes 4 7
@@ -85,7 +85,7 @@ def min_web(g):
 def main():
     from laser_parts import emit_cut, load_profile, material_fit, preamble
     ap = argparse.ArgumentParser()
-    ap.add_argument("--material", default="mdf_3mm")
+    ap.add_argument("--material", default="mdf3")
     ap.add_argument("--sizes", type=int, nargs="+", default=list(range(3, 11)), help="ball holes per piece")
     args = ap.parse_args()
     T, KERF, _ = material_fit(args.material)
@@ -98,7 +98,7 @@ def main():
         for kind, g in (("sieve", sieve(n)), ("keeper", keeper(n))):
             gk = g.buffer(KERF / 2, join_style=2)
             x0, y0, x1, y1 = gk.bounds
-            name = f"{kind}_{n}h_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}"
+            name = f"{kind}_{n}h_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}_{args.material}"
             loops = [list(r.coords) for r in gk.interiors]
             loops.sort(key=lambda pl: abs(Polygon(pl).area))
             loops.append(list(gk.exterior.coords))
@@ -112,7 +112,7 @@ def main():
             lines += preamble(s2g, job)
             for i, c in enumerate(cuts, 1):
                 lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-            lines += s2g._footer()
+            lines += s2g._footer(lines)
             (out_dir / f"{name}.gcode").write_text("\n".join(lines))
             print(f"{name}.gcode: {note}; narrowest web {min_web(g):.2f}")
             thumbs.append({"key": name, "polys": [{"outer": list(g.exterior.coords), "holes": [list(h.coords) for h in g.interiors]}]})

@@ -30,7 +30,7 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 
 | stock | thickness to design with | notes |
 |---|---|---|
-| MDF (current prototypes) | **3.1 mm** | Sold as 1/8". 3.10 with the calipers pressed firmly; up to ~3.2 relaxed or humid. Recorded in cnc_vibes `mdf_3mm` (`thickness_mm: 3.1`). |
+| MDF (current prototypes) | **3.1 mm** | Sold as 1/8". 3.10 with the calipers pressed firmly; up to ~3.2 relaxed or humid. Recorded in cnc_vibes `mdf3` (`thickness_mm: 3.1`). |
 | Baltic birch veneer plywood (final) | **2.6 mm** (measured 2.63) | final version |
 
 **Two layers in a 2020 slot:**
@@ -60,7 +60,7 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
   - Settings: T = 3.1, kerf 0.10, slots drawn at exactly T (FIT = 0).
   - Result: tabs tight and snug, with no deforming.
   - **Use these for all MDF cuts.**
-  - Recorded in the cnc_vibes `mdf_3mm` profile's `fit:` block (`kerf_mm: 0.10`, `slot_extra_mm: 0.0`).
+  - Recorded in the cnc_vibes `mdf3` profile's `fit:` block (`kerf_mm: 0.10`, `slot_extra_mm: 0.0`).
   - `wheel_box.py`, `wheel_box_gcode.py`, `lift_parts.py` and `lift_sieve.py` read thickness, kerf and fit from that profile (`laser_parts.material_fit`).
 - **Plywood:** not verified yet. With no `fit:` block, the scripts fall back to kerf 0.10 and FIT 0 and print a note. It probably needs about +0.05 (assumed); task L3.
 - **Tabs and fingers are 10 mm wide.** Narrower ones fray MDF corners.
@@ -70,7 +70,7 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 
 - **Driver:** cnc_vibes quickcut through `marbles/laser_parts.py`.
   - `emit_cut` puts a warm-up wiggle at every cut start, and closed loops overlap past their start.
-- **MDF recipe:** `mdf_3mm`, 100% power, F500, 2 passes. Use air assist.
+- **MDF recipe:** `mdf3`, 100% power, F500, 2 passes. Use air assist.
 - **Validate before cutting:** `cd cnc_vibes/cnc_vibes && python3 cnc.py validate <file>`.
   - Engraves at F5000 get flagged against the unconfirmed 3000 cap.
 
@@ -355,7 +355,7 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
   - Ring ID = bore 20 + 2 × wire (2.05) = 24.10, OD 28.20; wire cut length π × 26.15 = 82.15.
   - Jig: base + top + core, with a groove one wire wide and a 15 mm iron hole on the joint.
   - Spiders: notches for the straight wires at 45/135/225/315°, M5 centre, 15° tick marks.
-  - The etch recipe for MDF is borrowed from plywood_baltic_birch_3mm and is **unverified on MDF**.
+  - The etch recipe for MDF is borrowed from birch3 and is **unverified on MDF**.
 - [ ] **W2** Make a test length of tube track; check the 3/4" ball rolls through straight, curved and twisted runs without pinching.
 - [ ] **W3** Pick the straight-wire count and angles; re-run with `--angles`.
 - [ ] **W4** Standard connectors / end fittings so tube sections plug into features modularly.

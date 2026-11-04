@@ -16,7 +16,7 @@ PORT (the standard interface for whatever loads balls next): a 20 x 20 square op
   10 mm tab slot centred on each side where a 20-inside square duct's walls land, and 4 M5
   at the corners. Same pattern (without the opening) on BK, so a box can bolt on either side.
 Inside spacing between keepers = 20 (the same 20 as the port), funnel centred between them.
-Thickness, kerf, fit come from the material profile (mdf_3mm: 3.1 / 0.10 / 0).
+Thickness, kerf, fit come from the material profile (mdf3: 3.1 / 0.10 / 0).
 
     python3 marbles/clock/feeder_box.py       # -> marbles/gcode/feeder_box.gcode (nested) + one file per part,
                                               #    feeder_<part>_<W>x<H>.gcode (bbox rounded up, longest side X)
@@ -34,10 +34,10 @@ from shapely.prepared import prep
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path  # noqa: E402
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--material", default="mdf_3mm")
+ap.add_argument("--material", default="mdf3")
 ap.add_argument("--f-end", type=float, default=65.0, help="height (plate y) of F's bottom end")
 args = ap.parse_args()
 T, KERF, FIT = material_fit(args.material)
@@ -257,8 +257,8 @@ lines = [f"; feeder_box -- marbles/clock/feeder_box.py: side-entry feeder box (f
 lines += preamble(s2g, job)
 for i, cc in enumerate(cuts, 1):
     lines += emit_cut(s2g, motion, cc, i, len(cuts), job)
-lines += s2g._footer()
-out = HERE.parent / "gcode" / "feeder_box.gcode"
+lines += s2g._footer(lines)
+out = std_path(HERE.parent / "gcode", "feeder_box", lines, mat['id'])
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text("\n".join(lines))
 print(f"wrote {out.name}: {X1 - X0:.2f} x {Y1 - Y0:.2f} mm, {len(cuts)} cuts")
@@ -273,7 +273,7 @@ for n, g in PARTS:
     if gk.bounds[3] > gk.bounds[2]:
         gk = norm(affinity.rotate(gk, 90, origin=(0, 0)))
     w, h = gk.bounds[2], gk.bounds[3]
-    name = f"{SLUG[n.split()[0]]}_{math.ceil(w - 1e-9)}x{math.ceil(h - 1e-9)}"
+    name = f"{SLUG[n.split()[0]]}_{math.ceil(w - 1e-9)}x{math.ceil(h - 1e-9)}_{mat['id']}"
     hs, os_ = [], []
     for poly in ([gk] if gk.geom_type == "Polygon" else list(gk.geoms)):
         hs += [list(r.coords) for r in poly.interiors]
@@ -286,7 +286,7 @@ for n, g in PARTS:
     ln += preamble(s2g, job)
     for i, cc in enumerate(pc, 1):
         ln += emit_cut(s2g, motion, cc, i, len(pc), job)
-    ln += s2g._footer()
+    ln += s2g._footer(ln)
     (out.parent / f"{name}.gcode").write_text("\n".join(ln))
     print(f"wrote {name}.gcode: {w:.2f} x {h:.2f} mm, {len(pc)} cuts")
 

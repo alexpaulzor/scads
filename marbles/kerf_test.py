@@ -24,7 +24,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from laser_parts import emit_cut, find_quickcut, preamble  # noqa: E402
+from laser_parts import emit_cut, find_quickcut, preamble, std_path  # noqa: E402
 
 
 def main():
@@ -34,7 +34,7 @@ def main():
     ap.add_argument("--length", type=float, default=40.0, help="strip length, mm")
     ap.add_argument("--over", type=float, default=3.0,
                     help="lines run this far past the box; turnarounds live there")
-    ap.add_argument("--material", default="plywood_veneer_3ply_3mm")
+    ap.add_argument("--material", default="ply3")
     ap.add_argument("--s-full-power", type=int, default=1000, help="GRBL $30")
     ap.add_argument("--quickcut", help="path to cnc_vibes/quickcut")
     ap.add_argument("-o", "--out", type=Path, default=HERE / "gcode" / "kerf_test.gcode")
@@ -79,8 +79,10 @@ def main():
     g += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
         g += emit_cut(s2g, motion, c, i, len(cuts), job)
-    g += s2g._footer()
+    g += s2g._footer(g)
     a.out.parent.mkdir(parents=True, exist_ok=True)
+    if a.out.parent == HERE / "gcode" and a.out.stem in ("kerf_test", "ring_jig"):   # default: standard name
+        a.out = std_path(a.out.parent, a.out.stem, g, a.material)
     a.out.write_text("\n".join(g))
     print(f"{a.out.name}: {W:.2f} x {L + 2 * o:.2f} mm, {strips} strips of "
           f"{P:g} x {L:g} mm nominal; stack {stack_n}: kerf = "

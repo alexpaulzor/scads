@@ -18,7 +18,7 @@ past its start), not the 1 s cut warmup.
 
     python3 marbles/laser_parts.py                       # all parts
     python3 marbles/laser_parts.py hook_rib backer       # some parts
-    python3 marbles/laser_parts.py --material plywood_baltic_birch_3mm
+    python3 marbles/laser_parts.py --material birch3
 """
 
 import argparse
@@ -45,31 +45,25 @@ def find_quickcut(arg):
     sys.exit("can't find quickcut/svg2gcode.py; pass --quickcut PATH")
 
 
-# Short material names ("slugs") -> profile ids. Use the slug in file names and on the command line.
-# (Task: rename the profile ids themselves to these slugs.)
-SLUGS = {
-    "mdf3": "mdf_3mm",
-    "ply3": "plywood_veneer_3ply_3mm",
-    "birch3": "plywood_baltic_birch_3mm",
-    "birch6": "plywood_baltic_birch_6mm",
-    "acrylic3": "cast_acrylic_3mm_black",
-}
-SLUG_OF = {v: k for k, v in SLUGS.items()}
+_XY_RE = re.compile(r"\b([XY])(-?[0-9.]+)")
 
 
-def material_id(name):
-    """profile id for a slug or an id"""
-    return SLUGS.get(name, name)
+def cut_extent(lines):
+    """(w, h) of the G1 moves in a job (comments ignored): the cut footprint from X0 Y0"""
+    xs, ys = [0.0], [0.0]
+    for ln in lines:
+        c = ln.split(";")[0].strip()
+        if c.startswith("G1"):
+            for ax, v in _XY_RE.findall(c):
+                (xs if ax == "X" else ys).append(float(v))
+    return max(xs), max(ys)
 
 
-def slug(name):
-    """slug for an id or a slug (falls back to the id)"""
-    return SLUG_OF.get(material_id(name), material_id(name))
-
-
-def park(y_max):
-    """end-of-job park: laser off, then X0 at the piece's max Y (work coords), clear of the part"""
-    return ["; park: laser off, X0 at the piece's max Y", "M5", f"G0 X0 Y{y_max:.3f}", ""]
+def std_path(out_dir, base, lines, material):
+    """the standard output path <out_dir>/<base>_<W>x<H>_<material>.gcode, W x H from the cut moves"""
+    import math
+    w, h = cut_extent(lines)
+    return Path(out_dir) / f"{base}_{math.ceil(w - 1e-9)}x{math.ceil(h - 1e-9)}_{material}.gcode"
 
 
 def emit_cut(s2g, motion, pl, i, n, job):
@@ -147,9 +141,8 @@ def part_layers(s2g, openscad, name, sheet_th, tmp):
 
 def material_fit(material, quickcut=None):
     """(thickness_mm, kerf_mm, slot_extra_mm) from the shared material profile.
-    kerf / slot extra come from the profile's verified `fit:` block (mdf_3mm: 3.1 / 0.10 / 0.0,
+    kerf / slot extra come from the profile's verified `fit:` block (mdf3: 3.1 / 0.10 / 0.0,
     tabs tight and snug without deforming). Materials without one fall back to kerf 0.10, extra 0."""
-    material = material_id(material)
     sys.path.insert(0, str(find_quickcut(quickcut)))
     from materials import SHARED_MATERIALS  # noqa: E402
     import yaml  # noqa: E402
@@ -164,8 +157,7 @@ def material_fit(material, quickcut=None):
 
 
 def load_profile(material, s_full_power, quickcut):
-    """(s2g module, motion module, material dict, cut CutJob) for a material id or slug."""
-    material = material_id(material)
+    """(s2g module, motion module, material dict, cut CutJob) for a material id."""
     sys.path.insert(0, str(find_quickcut(quickcut)))
     import svg2gcode as s2g  # noqa: E402
     import motion  # noqa: E402
@@ -185,7 +177,7 @@ def load_profile(material, s_full_power, quickcut):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("parts", nargs="*", help="part names (default: all)")
-    ap.add_argument("--material", default="plywood_veneer_3ply_3mm")
+    ap.add_argument("--material", default="ply3")
     ap.add_argument("--s-full-power", type=int, default=1000, help="GRBL $30")
     ap.add_argument("--quickcut", help="path to cnc_vibes/quickcut")
     ap.add_argument("--openscad", default="openscad")
@@ -258,8 +250,8 @@ def main():
         cuts = s2g.order_cuts(layers["cut"])
         for i, pl in enumerate(cuts, 1):
             g += emit_cut(s2g, motion, pl, i, len(cuts), cut_job)
-        g += s2g._footer()
-        out = a.out / f"{name}.gcode"
+        g += s2g._footer(g)
+        out = std_path(a.out, name, g, a.material)
         out.write_text("\n".join(g))
         print(f"{out.name}: {x1 - x0:.2f} x {y1 - y0:.2f} mm, "
               f"{len(layers['etch'])} etch loops, {len(cuts)} cuts")

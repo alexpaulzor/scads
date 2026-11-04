@@ -99,7 +99,7 @@ does the rolling and the hanging.
   engraved with its clearance), `backer`, `crossmember`, `loop_guide`, `rail_rib`, `rail_m45`, `rail_p45`, `rail_p90`, `straightness` (200 mm rail
   gauge slot for scrap, at least 1/2" from any edge). Recipes come from
   `cnc_vibes/material_profiles/laser_materials.yaml` (default
-  `plywood_veneer_3ply_3mm`; `--material` to change). Kerf is the 0.1 mm
+  `ply3`; `--material` to change). Kerf is the 0.1 mm
   guess in hybrid.scad.
 - **One set from scrap** (`python3 marbles/laser_set.py`): rib, crossmember
   and backer in one row, `gcode/hook_rib_set.gcode`.

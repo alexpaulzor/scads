@@ -35,10 +35,10 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path  # noqa: E402
 
-MATERIAL = "mdf_3mm"     # 3.1 mm MDF (sold as 1/8"), cut with the 3 mm MDF recipe
-KERF = material_fit(MATERIAL)[1]   # from the profile's verified fit block (mdf_3mm: 0.10)
+MATERIAL = "mdf3"     # 3.1 mm MDF (sold as 1/8"), cut with the 3 mm MDF recipe
+KERF = material_fit(MATERIAL)[1]   # from the profile's verified fit block (mdf3: 0.10)
 M5 = 5.0
 BEARING = 22.0           # 608 outer diameter, press fit
 STRIP_L, STRIP_W, PITCH = 300.0, 46.0, 30.0
@@ -145,9 +145,10 @@ def main():
         lines += preamble(s2g, job)
         for i, c in enumerate(cuts, 1):
             lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-        lines += s2g._footer()
-        (out_dir / f"lift_{name}.gcode").write_text("\n".join(lines))
-        print(f"lift_{name}.gcode: {x1 - x0:.2f} x {y1 - y0:.2f} mm, cut {n} ({note})")
+        lines += s2g._footer(lines)
+        out = std_path(out_dir, f"lift_{name}", lines, mat['id'])
+        out.write_text("\n".join(lines))
+        print(f"{out.name}: {x1 - x0:.2f} x {y1 - y0:.2f} mm, cut {n} ({note})")
 
 
 if __name__ == "__main__":

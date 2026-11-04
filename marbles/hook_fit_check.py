@@ -34,7 +34,7 @@ TY = (-8.0, 8.0)      # slide up/down, mm
 
 
 def main():
-    s2g, motion, mat, job = load_profile("plywood_veneer_3ply_3mm", 1000, None)
+    s2g, motion, mat, job = load_profile("ply3", 1000, None)
     th = mat["thickness_mm"]
     out = subprocess.run(["openscad", "-o", "/dev/null", "--export-format", "csg",
                           "-D", 'hy_part="none"', "-D", f"sheet_th={th}", str(HERE / "hybrid.scad")],

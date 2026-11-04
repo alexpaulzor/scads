@@ -25,8 +25,8 @@ check the plywood version. Coordinates as in the lift drawings: a = across
 (F at a 0..20, M at a 40..60), s = swing (+ = front), z = along the beams.
 
     python3 marbles/clock/wheel_box.py              # prints dims, writes marbles/views/scenes/*.json
-    python3 marbles/clock/wheel_box.py --material plywood_veneer_3ply_3mm      # 2.6 mm plywood
-    python3 marbles/clock/wheel_box.py --material plywood_veneer_3ply_3mm --t 5.2   # two plywood layers
+    python3 marbles/clock/wheel_box.py --material ply3      # 2.6 mm plywood
+    python3 marbles/clock/wheel_box.py --material ply3 --t 5.2   # two plywood layers
 """
 import argparse
 import json
@@ -44,15 +44,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from short_parts import keeper as rail_keeper, view_slots  # noqa: E402
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--material", default="mdf_3mm", help="material profile id (thickness, kerf, slot fit)")
+ap.add_argument("--material", default="mdf3", help="material profile id (thickness, kerf, slot fit)")
 ap.add_argument("--t", type=float, default=None, help="override sheet thickness (e.g. 5.2 for two plywood layers)")
 ap.add_argument("--fit", type=float, default=None, help="override extra slot width for tabs")
 args = ap.parse_args()
 
 _t, _kerf, _extra = material_fit(args.material)
-T = args.t if args.t is not None else _t            # mdf_3mm: 3.1
-FIT = args.fit if args.fit is not None else _extra  # mdf_3mm: 0 (verified: tight, snug, no deforming)
-KERF = _kerf                                        # mdf_3mm: 0.10
+T = args.t if args.t is not None else _t            # mdf3: 3.1
+FIT = args.fit if args.fit is not None else _extra  # mdf3: 0 (verified: tight, snug, no deforming)
+KERF = _kerf                                        # mdf3: 0.10
 M5 = 5.0
 TAB = 10.0                    # tab / finger width (narrower frays MDF corners)
 MIN_WEB = 4.0                 # no strip of material narrower than this (or T, if larger)

@@ -25,7 +25,7 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, park, preamble, slug  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--jig-material", default="ply3")
@@ -85,7 +85,7 @@ def write(name_base, polys, material, note):
         g = affinity.translate(g, -x0, -y0)
         order += sorted([list(r.coords) for r in g.interiors], key=lambda pl: abs(Polygon(pl).area))
         order.append(list(g.exterior.coords))
-    name = f"{name_base}_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}_{slug(material)}"
+    name = f"{name_base}_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}_{material}"
     cuts = [s2g.Polyline(pl, True) for pl in order]
     lines = [f"; {name} -- marbles/clock/ring_jig_compact.py: {note}",
              f"; {mat['id']} (T {T}) recipe {job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}; kerf {KERF}; "
@@ -93,7 +93,7 @@ def write(name_base, polys, material, note):
     lines += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
         lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-    lines += park(y1 - y0)
+    lines += s2g._footer(lines)
     out = HERE.parent / "gcode" / f"{name}.gcode"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines))

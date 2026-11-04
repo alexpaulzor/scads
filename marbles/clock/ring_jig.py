@@ -18,7 +18,7 @@ SPIDER SP (several) - disc = ring ID with notches one wire deep at the straight-
   out of the finished tube. Etched ticks every 15 degrees for other wire layouts.
   Also the forming core: wrap the wire round a spider's rim to pre-bend a ring.
 
-Thickness, kerf from the material profile (mdf_3mm: 3.1 / 0.10). Etch recipe: the
+Thickness, kerf from the material profile (mdf3: 3.1 / 0.10). Etch recipe: the
 material's own, else --etch-from (unverified on MDF until you test it).
 
     python3 marbles/clock/ring_jig.py                      # -> marbles/gcode/ring_jig.gcode
@@ -38,12 +38,12 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import (ETCH_LEAD_IN_MM, ETCH_MIN_SEG_MM, emit_cut, load_profile,  # noqa: E402
+from laser_parts import (ETCH_LEAD_IN_MM, ETCH_MIN_SEG_MM, emit_cut, load_profile, std_path,  # noqa: E402
                          material_fit, preamble)
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--material", default="plywood_veneer_3ply_3mm")   # wire jigs: veneer plywood
-ap.add_argument("--etch-from", default="plywood_baltic_birch_3mm", help="etch recipe if the material has none")
+ap.add_argument("--material", default="ply3")   # wire jigs: veneer plywood
+ap.add_argument("--etch-from", default="birch3", help="etch recipe if the material has none")
 ap.add_argument("--wire", type=float, default=2.05, help="wire diameter (hybrid.scad rail_d)")
 ap.add_argument("--bore", type=float, default=20.0, help="clear bore for the marble")
 ap.add_argument("--iron", type=float, default=15.0, help="soldering iron clearance hole")
@@ -235,8 +235,10 @@ lines += ["; ===== CUT ====="]
 cuts = [s2g.Polyline(pl, True) for pl in holes + outers]
 for i, c in enumerate(cuts, 1):
     lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-lines += s2g._footer()
+lines += s2g._footer(lines)
 args.out.parent.mkdir(parents=True, exist_ok=True)
+if args.out.parent == HERE.parent / "gcode" and args.out.stem in ("kerf_test", "ring_jig"):   # default: standard name
+    args.out = std_path(args.out.parent, args.out.stem, lines, mat['id'])
 args.out.write_text("\n".join(lines))
 print(f"wrote {args.out.name}: {W:.2f} x {H:.2f} mm, {len(etches)} etch strokes, {len(cuts)} cuts")
 

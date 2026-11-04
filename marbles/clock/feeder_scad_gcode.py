@@ -8,7 +8,7 @@ also prints feeder.scad's CHECK report and refuses to write files if it has a WA
 line (use --force to write anyway).
 
     python3 marbles/clock/feeder_scad_gcode.py
-    python3 marbles/clock/feeder_scad_gcode.py --material plywood_veneer_3ply_3mm
+    python3 marbles/clock/feeder_scad_gcode.py --material ply3
 """
 import argparse
 import math
@@ -27,7 +27,7 @@ from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: 
 
 SCAD = HERE / "feeder.scad"
 ap = argparse.ArgumentParser()
-ap.add_argument("--material", default="mdf_3mm")
+ap.add_argument("--material", default="mdf3")
 ap.add_argument("--openscad", default="openscad")
 ap.add_argument("--force", action="store_true", help="write files even if the CHECK report has WARN lines")
 ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
@@ -75,7 +75,7 @@ with tempfile.TemporaryDirectory() as td:
             g = affinity.rotate(g, 90, origin=(0, 0))
         g = affinity.translate(g, -g.bounds[0], -g.bounds[1])
         w, h = g.bounds[2], g.bounds[3]
-        name = f"{slug}_{math.ceil(w - 1e-9)}x{math.ceil(h - 1e-9)}"
+        name = f"{slug}_{math.ceil(w - 1e-9)}x{math.ceil(h - 1e-9)}_{args.material}"
         holes = sorted([list(r.coords) for r in g.interiors], key=lambda pl: abs(Polygon(pl).area))
         cuts = [s2g.Polyline(pl, True) for pl in holes + [list(g.exterior.coords)]]
         gl = [f"; {name} -- marbles/clock/feeder.scad via feeder_scad_gcode.py",
@@ -85,6 +85,6 @@ with tempfile.TemporaryDirectory() as td:
         gl += preamble(s2g, job)
         for i, c in enumerate(cuts, 1):
             gl += emit_cut(s2g, motion, c, i, len(cuts), job)
-        gl += s2g._footer()
+        gl += s2g._footer(gl)
         (args.out / f"{name}.gcode").write_text("\n".join(gl))
         print(f"wrote {name}.gcode: {w:.2f} x {h:.2f} mm, {len(holes)} holes/slots")

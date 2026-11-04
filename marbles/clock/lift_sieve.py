@@ -21,7 +21,7 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path  # noqa: E402
 
 LENGTH = 300.0
 WIDTH = 46.0
@@ -31,8 +31,8 @@ PITCH = 30.0
 M5_HOLE = 5.0
 M5_Y = 10.0
 M5_EVERY = 2             # every 2nd gap between ball holes
-MATERIAL = "mdf_3mm"     # 3.1 mm MDF (sold as 1/8") on the 3 mm MDF recipe (2 passes)
-STOCK_T, KERF, _ = material_fit(MATERIAL)   # from the profile's verified fit block (mdf_3mm: 3.1, 0.10)
+MATERIAL = "mdf3"     # 3.1 mm MDF (sold as 1/8") on the 3 mm MDF recipe (2 passes)
+STOCK_T, KERF, _ = material_fit(MATERIAL)   # from the profile's verified fit block (mdf3: 3.1, 0.10)
 
 
 def part():
@@ -64,8 +64,8 @@ def main():
     lines += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
         lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-    lines += s2g._footer()
-    out = HERE.parent / "gcode" / "lift_sieve.gcode"
+    lines += s2g._footer(lines)
+    out = std_path(HERE.parent / "gcode", "lift_sieve", lines, mat['id'])
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines))
     print(f"{out.name}: {w:.2f} x {h:.2f} mm, {n_ball} ball holes, M5 at X {xs}, {len(cuts)} cuts, "
