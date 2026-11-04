@@ -12,7 +12,7 @@ JIG (veneer plywood by default): one D-shaped plate stuck to scrap backing.
 SPIDERS (veneer plywood by default): discs = ring inside diameter with notches one wire deep at the
   straight-wire angles and an M5 centre hole; string them on an M5 rod as a mandrel.
 
-    python3 marbles/clock/ring_jig_compact.py      # -> marbles/gcode/ring_jig_d_<W>x<H>.gcode, ring_spiders_x4_<W>x<H>.gcode
+    python3 marbles/clock/ring_jig_compact.py      # -> marbles/gcode/ring_jig_d_<W>x<H>_ply3.gcode, ring_mandrel_<W>x<H>_ply3.gcode
 """
 import argparse
 import math
@@ -25,18 +25,18 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, park, preamble, slug  # noqa: E402
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--jig-material", default="plywood_veneer_3ply_3mm")
-ap.add_argument("--spider-material", default="plywood_veneer_3ply_3mm")
+ap.add_argument("--jig-material", default="ply3")
+ap.add_argument("--spider-material", default="ply3")
 ap.add_argument("--wire", type=float, default=2.05)
 ap.add_argument("--bore", type=float, default=20.0, help="clear bore for the ball inside the straight wires")
 ap.add_argument("--groove-clr", type=float, default=0.3)
 ap.add_argument("--iron", type=float, default=15.0)
 ap.add_argument("--wall", type=float, default=10.0, help="wood round the ring hole")
 ap.add_argument("--angles", type=float, nargs="+", default=[45, 135, 225, 315])
-ap.add_argument("--spiders", type=int, default=4)
+ap.add_argument("--spiders", type=int, default=1, help="mandrel discs in the mandrel file")
 args = ap.parse_args()
 
 WD = args.wire
@@ -85,7 +85,7 @@ def write(name_base, polys, material, note):
         g = affinity.translate(g, -x0, -y0)
         order += sorted([list(r.coords) for r in g.interiors], key=lambda pl: abs(Polygon(pl).area))
         order.append(list(g.exterior.coords))
-    name = f"{name_base}_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}"
+    name = f"{name_base}_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}_{slug(material)}"
     cuts = [s2g.Polyline(pl, True) for pl in order]
     lines = [f"; {name} -- marbles/clock/ring_jig_compact.py: {note}",
              f"; {mat['id']} (T {T}) recipe {job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}; kerf {KERF}; "
@@ -93,7 +93,7 @@ def write(name_base, polys, material, note):
     lines += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
         lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-    lines += s2g._footer()
+    lines += park(y1 - y0)
     out = HERE.parent / "gcode" / f"{name}.gcode"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines))
@@ -110,4 +110,5 @@ gap = 3.0
 write("ring_jig_d", [core, plate], args.jig_material,
       "core (spider shape minus the iron hole) cut in place inside the D plate's hole, then the D plate (flat edge = wire cut length)")
 sp = [affinity.translate(spider(), RING_ID / 2 + i * (RING_ID + gap), RING_ID / 2) for i in range(args.spiders)]
-write(f"ring_spiders_x{args.spiders}", sp, args.spider_material, f"spacing spiders, notches at {args.angles} deg, M5 centre")
+write("ring_mandrel" if args.spiders == 1 else f"ring_mandrel_x{args.spiders}", sp, args.spider_material,
+      f"mandrel / spacing spider x{args.spiders}, notches at {args.angles} deg, M5 centre")

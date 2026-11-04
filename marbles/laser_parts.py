@@ -45,6 +45,33 @@ def find_quickcut(arg):
     sys.exit("can't find quickcut/svg2gcode.py; pass --quickcut PATH")
 
 
+# Short material names ("slugs") -> profile ids. Use the slug in file names and on the command line.
+# (Task: rename the profile ids themselves to these slugs.)
+SLUGS = {
+    "mdf3": "mdf_3mm",
+    "ply3": "plywood_veneer_3ply_3mm",
+    "birch3": "plywood_baltic_birch_3mm",
+    "birch6": "plywood_baltic_birch_6mm",
+    "acrylic3": "cast_acrylic_3mm_black",
+}
+SLUG_OF = {v: k for k, v in SLUGS.items()}
+
+
+def material_id(name):
+    """profile id for a slug or an id"""
+    return SLUGS.get(name, name)
+
+
+def slug(name):
+    """slug for an id or a slug (falls back to the id)"""
+    return SLUG_OF.get(material_id(name), material_id(name))
+
+
+def park(y_max):
+    """end-of-job park: laser off, then X0 at the piece's max Y (work coords), clear of the part"""
+    return ["; park: laser off, X0 at the piece's max Y", "M5", f"G0 X0 Y{y_max:.3f}", ""]
+
+
 def emit_cut(s2g, motion, pl, i, n, job):
     """Wiggle first on every path; closed loops also overlap their seam."""
     pts = motion.decimate(pl.points, job.min_segment_mm)
@@ -122,6 +149,7 @@ def material_fit(material, quickcut=None):
     """(thickness_mm, kerf_mm, slot_extra_mm) from the shared material profile.
     kerf / slot extra come from the profile's verified `fit:` block (mdf_3mm: 3.1 / 0.10 / 0.0,
     tabs tight and snug without deforming). Materials without one fall back to kerf 0.10, extra 0."""
+    material = material_id(material)
     sys.path.insert(0, str(find_quickcut(quickcut)))
     from materials import SHARED_MATERIALS  # noqa: E402
     import yaml  # noqa: E402
@@ -136,7 +164,8 @@ def material_fit(material, quickcut=None):
 
 
 def load_profile(material, s_full_power, quickcut):
-    """(s2g module, motion module, material dict, cut CutJob) for a material id."""
+    """(s2g module, motion module, material dict, cut CutJob) for a material id or slug."""
+    material = material_id(material)
     sys.path.insert(0, str(find_quickcut(quickcut)))
     import svg2gcode as s2g  # noqa: E402
     import motion  # noqa: E402
