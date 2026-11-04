@@ -23,7 +23,8 @@ parts = [P("FF", "funnel", WOOD, "az", d["FF"], -T, 0),
          P("FK", "front keeper", KEEP, "az", d["FK"], sfk, sfk + T, 0.6),
          P("BK", "back keeper", KEEP, "az", d["BK"], sbk - T, sbk, 0.6),
          P("OW", "outer wall", WALL, "sz", d["OW"], d["OW_a"][0], d["OW_a"][1]),
-         P("TW", "top wall", WALL, "as", d["TW"], d["TW_z"][0], d["TW_z"][1])]
+         P("TW", "top wall", WALL, "as", d["TW"], d["TW_z"][0], d["TW_z"][1]),
+         P("BW", "bottom wall", WALL, "as", d["BW"], d["BW_z"][0], d["BW_z"][1])]
 sf = box(0, 0, 46, 130).difference(unary_union([Point(30, 15 + 30 * i).buffer(10, 64) for i in range(4)] + [Point(10, u).buffer(2.5, 32) for u in (30, 90)]))
 parts.append(P("S_F", "S_F", "#d4b07a", "az", rings(sf), -T, 0))
 parts.append(P("F", "F", BEAM, "as", rings(profile2020(0, 0)), F_END, 130))
@@ -70,7 +71,7 @@ sub = ["Side-entry feeder box under S_F. Balls come in sideways through the port
 lab = [["F (ends above the channel)", [10, 10, F_END + 5], "R", FC], ["M", [50, -1.6, 100], "R", MC], ["S_F", [5, -T / 2, 100], "L", FC],
        ["funnel FF (closed top, bridge over the pocket)", [-30, -T / 2, -8], "L", O],
        ["front keeper FK, edge in F's far slot (see-through)", [-5, sfk + T, -40], "L", GK],
-       ["back keeper BK (see-through)", [-40, sbk - T, -130], "L", GK], ["outer wall OW", [-47.5, 0, -70], "L", GK], ["top wall TW", [-30, 0, 1.5], "R", GK],
+       ["back keeper BK (see-through)", [-40, sbk - T, -130], "L", GK], ["outer wall OW", [-47.5, 0, -70], "L", GK], ["top wall TW", [-30, 0, 1.5], "R", GK], ["bottom wall BW (box closed, no beam)", [-30, 0, -H - 1.5], "R", GK],
        ["port: 20 square, 10 mm tab slots, 4 x M5", [pc[0] + 10, sfk + T, pc[1] + 14], "R", DC], ["example 20-inside duct", [pc[0] + 11, sfk + T + 25, pc[1]], "R", DC],
        ["queued balls", [-10, -T / 2, -80], "L", "#24546b"], ["bottom hole: M picks up here", [30, -T / 2, -105], "R", "#24546b"]]
 v = {}

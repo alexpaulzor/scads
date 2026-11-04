@@ -281,6 +281,8 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
     - **Port = standard interface:** 20 × 20 opening, a 10 mm tab slot at each side where a 20-inside duct's walls land, 4 × M5 at ±17.
     - The back keeper has the same pattern without the opening.
     - Use the same port for the catch / side loader and for the top exit.
+    - **Revised (your call):** the 3 bottom-band M5 holes for a short 2020 are gone. A bottom wall (BW), tabbed through both keepers, now closes the box under the outer part; the funnel's bottom edge tabs into it.
+    - One G-code per part, longest side on X, named with the bbox rounded up: `feeder_<part>_<W>x<H>.gcode`.
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.

@@ -10,6 +10,8 @@ A small boxes.py-style box around the funnel, below S_F at the bottom of the lif
   BK  back keeper   behind the funnel; covers the bottom hole and channel from behind.
   OW  outer wall    tabbed through both keepers; the funnel's outer edge tabs into its middle.
   TW  top wall      over the channel side, tabbed through both keepers.
+  BW  bottom wall   under the funnel's outer part, tabbed through both keepers; the funnel's
+                 bottom edge tabs into it. (Replaces the old band's 3 M5 into a short 2020.)
 PORT (the standard interface for whatever loads balls next): a 20 x 20 square opening, a
   10 mm tab slot centred on each side where a 20-inside square duct's walls land, and 4 M5
   at the corners. Same pattern (without the opening) on BK, so a box can bolt on either side.
@@ -55,8 +57,10 @@ CH_W = HOLE_D + 1.0
 OWX = (W, W + T)                                # outer wall
 TWY = (H, H + T)                                # top wall
 TW_X0 = 50.0
+BWY = (-T, 0.0)                                # bottom wall, under the funnel's outer part
 KW = W + T + WEB                                # keepers reach past the outer wall
 KH = H + T + WEB                                # ... and above the top wall (outer part only)
+KB = -T - WEB                                   # ... and below the bottom wall (outer part only)
 FK_X0_LOW, FK_X0_HIGH = COL_W - 12.0, COL_W - 6.0   # FK inner edge: under F's end / in F's far slot (a 12 / a 6)
 BK_X0 = 6.0                                     # BK clears M's body (a <= 40)
 y_holes = [BAND + 15.0 + PITCH * i for i in range(N_HOLES)]
@@ -84,6 +88,9 @@ def spans(L0, L1, k=None):
 OW_TABS = spans(0, H)                 # outer wall -> keepers, along y
 FF_TABS = spans(BAND, H, 3)           # funnel -> outer wall
 TW_TABS = spans(TW_X0, W)             # top wall -> keepers, along x
+BW_X0 = FK_X0_LOW + WEB                # bottom wall from here (FK covers x >= FK_X0_LOW) to the outer wall
+BW_TABS = spans(BW_X0, W)             # bottom wall -> keepers, along x
+FF_BTABS = spans(BW_X0, W, 2)         # funnel's bottom edge -> bottom wall
 c = lambda p, d: Point(p).buffer(d / 2, 48)
 
 
@@ -102,20 +109,23 @@ def wall_slots():
     """slots in a keeper for the outer wall and top wall tabs"""
     s = [box(OWX[0], y0, OWX[1] + FIT, y1) for y0, y1 in OW_TABS]
     s += [box(x0, TWY[0], x1, TWY[1] + FIT) for x0, x1 in TW_TABS]
+    s += [box(x0, BWY[0] - FIT, x1, BWY[1]) for x0, x1 in BW_TABS]
     return s
 
 
-band_m5 = [(x, BAND / 2) for x in (HOLE_X, COL_W, W - HOLE_X)]
+band_m5 = []                                    # dropped: a bottom wall closes the box instead
 beam_m5 = [(M5_X, y) for y in ((y_holes[1] + y_holes[2]) / 2, (y_holes[2] + y_holes[3]) / 2)]
 
 
 def keeper_outline(x0_low, x0_high, y_split):
-    g = unary_union([box(x0_low, 0, KW, y_split), box(x0_high, y_split, KW, H), box(COL_W, H, KW, KH)])
+    g = unary_union([box(x0_low, 0, KW, y_split), box(x0_high, y_split, KW, H), box(COL_W, H, KW, KH),
+                     box(BW_X0 - WEB, KB, KW, 0.01)])
     return g.buffer(-2, join_style=2).buffer(2, join_style=2)
 
 
 def funnel():
-    g = unary_union([box(0, 0, W, H)] + [box(W - 0.01, y0, OWX[1], y1) for y0, y1 in FF_TABS])
+    g = unary_union([box(0, 0, W, H)] + [box(W - 0.01, y0, OWX[1], y1) for y0, y1 in FF_TABS]
+                    + [box(x0, BWY[0], x1, 0.01) for x0, x1 in FF_BTABS])
     cuts = [channel] + [c((HOLE_X, y), HOLE_D) for y in y_holes] + [c(p, M5) for p in band_m5 + beam_m5]
     return g.difference(unary_union(cuts))
 
@@ -148,6 +158,14 @@ def top_wall():
     return g
 
 
+def bottom_wall():
+    """(x, v): spans BW_X0 .. outer wall's outside face; mortises for the funnel's bottom tabs"""
+    g = unary_union([box(BW_X0, 0, OWX[1], INSIDE)] + [box(x0, -T, x1, 0.01) for x0, x1 in BW_TABS]
+                    + [box(x0, INSIDE - 0.01, x1, INSIDE + T) for x0, x1 in BW_TABS])
+    mort = [box(x0 - FIT / 2, GAP - FIT / 2, x1 + FIT / 2, GAP + T + FIT / 2) for x0, x1 in FF_BTABS]
+    return g.difference(unary_union(mort))
+
+
 def min_web(g):
     best = None
     for poly in ([g] if g.geom_type == "Polygon" else list(g.geoms)):
@@ -161,7 +179,7 @@ def min_web(g):
 
 
 PARTS = [("FF funnel", funnel()), ("FK front keeper", front_keeper()), ("BK back keeper", back_keeper()),
-         ("OW outer wall", outer_wall()), ("TW top wall", top_wall())]
+         ("OW outer wall", outer_wall()), ("TW top wall", top_wall()), ("BW bottom wall", bottom_wall())]
 ff = PARTS[0][1]
 bridge = H - (PORT_C[1] + CH_W / 2)
 print(f"T = {T}, KERF = {KERF}, FIT = {FIT}; inside {INSIDE:g} (funnel {GAP:.2f} off each keeper)")
@@ -227,7 +245,8 @@ out.write_text("\n".join(lines))
 print(f"wrote {out.name}: {X1 - X0:.2f} x {Y1 - Y0:.2f} mm, {len(cuts)} cuts")
 
 # ---------------------------------------------------------------- one file per part, longest side along X
-SLUG = {"FF": "feeder_funnel", "FK": "feeder_front_keeper", "BK": "feeder_back_keeper", "OW": "feeder_outer_wall", "TW": "feeder_top_wall"}
+SLUG = {"FF": "feeder_funnel", "FK": "feeder_front_keeper", "BK": "feeder_back_keeper", "OW": "feeder_outer_wall", "TW": "feeder_top_wall",
+        "BW": "feeder_bottom_wall"}
 for n, g in PARTS:
     gk = norm(g.buffer(KERF / 2, join_style=2))
     if gk.bounds[3] > gk.bounds[2]:
@@ -264,6 +283,7 @@ json.dump({"T": T, "H": H, "W": W, "GAP": GAP, "INSIDE": INSIDE, "s_bk_in": s_bk
            "FF": rings(to_az(funnel())), "FK": rings(to_az(front_keeper())), "BK": rings(to_az(back_keeper())),
            "OW": rings(affinity.affine_transform(ow, [0, 1, 1, 0, s_bk_in, -H])), "OW_a": [COL_W - OWX[1], COL_W - OWX[0]],
            "TW": rings(affinity.affine_transform(tw, [-1, 0, 0, 1, COL_W, s_bk_in])), "TW_z": [TWY[0] - H, TWY[1] - H],
+           "BW": rings(affinity.affine_transform(bottom_wall(), [-1, 0, 0, 1, COL_W, s_bk_in])), "BW_z": [BWY[0] - H, BWY[1] - H],
            "ball_path": [(COL_W - x, y - H) for x, y in path],
            "thumbs": [{"key": n.split()[0], "name": " ".join(n.split()[1:]), "per_fork": 1, "polys": rings(g), "bounds": g.bounds}
                       for n, g in PARTS]},
