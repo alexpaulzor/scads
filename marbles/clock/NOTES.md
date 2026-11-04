@@ -299,6 +299,10 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
     - The console prints a CHECK report: each wall's clearance from the channel, ball holes, bolts, bolt heads and F, plus the wood around every tab slot. WARN lines need fixing.
     - G-code: `python3 marbles/clock/feeder_scad_gcode.py`. It refuses to write if CHECK has WARN lines; thickness, kerf and fit come from the material profile.
     - This supersedes `feeder_box.py`.
+    - **Revised (your call): no side walls.** Spacers on M5 through-bolts hold the three layers apart.
+      - The bolts pass through all three: the 4 port bolts plus 4 more, listed in `EXTRA_BOLTS`.
+      - Gap = 3 × T = 9.3, so laser-cut 10 mm ring spacers stack 3 per gap (48 for 8 bolts); or use bought standoffs of length `GAP`.
+      - The port moved to x 70 so the inner port bolts' spacers clear F.
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.
