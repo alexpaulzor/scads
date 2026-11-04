@@ -259,6 +259,15 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
     - The bottom hopper feeds a short fixed chute ending in a wire catch. The catch holds exactly one ball in a known spot, with the rest queued behind it by gravity.
     - The swinging rig carries a wire hook that snags that one ball as it passes and drops it into a short chute on the rig.
     - That chute queues a few balls for the bottom sieve hole.
+  - **Feed funnel FF (from your sketch, cut file made 2026-11-04):** `marbles/clock/feed_funnel.py` → `feed_funnel.gcode`, 92 × 140.
+    - It sits in the sieve's plane under S_F. Its 4 ball holes continue S_F's 30 pitch.
+    - A J channel, 21 wide, runs from the top of the outer column down into the bottom hole.
+    - A 20 mm bottom band carries 3 × M5 into a short 2020. Beam M5 holes sit where they clear the channel.
+    - Still to design: the lever-finger catch at the channel mouth and the crossover funnel. Your sketch asks whether the same part could also work at the top.
+    - The channel only steers the ball within the plate's plane. Like the sieve column, it needs a guard on each face within about a ball radius (9.5) of the plate, or the ball tips off the 3.1 mm edge.
+  - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
+    - M5 every 3/4" (19.05) on the row 10 mm from one edge.
+    - The standard 60 mm spacing on the row 10 mm from the other edge.
   - **Details to settle (Claude's suggestions):**
     - Put the pickup near one end of the swing, or make the hook a one-way hinged finger, so the hook doesn't hit the next ball on the return pass.
     - Pushing the ball sideways off an open-sided cradle may be easier than lifting it.
