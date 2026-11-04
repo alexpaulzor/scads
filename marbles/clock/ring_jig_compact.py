@@ -4,9 +4,9 @@
 JIG (veneer plywood by default): one D-shaped plate stuck to scrap backing.
   - The FLAT EDGE is exactly one ring's wire length (pi x wire centreline diameter): lay the
     wire along it and snip at the corner.
-  - A round hole = ring outside diameter + clearance; the CORE (separate disc = ring inside
-    diameter) sits in it, leaving a groove one wire wide. To centre the core, wrap the wire
-    round it, drop both in, then press onto the sticky backing.
+  - A round hole = ring outside diameter + clearance; the CORE (= ring inside diameter) is cut
+    in place inside it, already centred: a spider shape (notches, M5 centre) with the iron hole
+    carved out of it too. Stick the plate and the core down together, or pin the core with M5.
   - A 15 mm iron hole centred on the wire's circle, at the top of the dome.
   - At least 10 mm of wood round the ring hole, at least 4 round the iron hole.
 SPIDERS (MDF by default): discs = ring inside diameter with notches one wire deep at the
@@ -56,7 +56,10 @@ def jig_and_core():
     outline = unary_union([box(0, 0, CUT_LEN, 0.01), Point(c).buffer(R, 128)]).convex_hull.intersection(box(0, 0, CUT_LEN, 1000))
     iron = Point(c[0], c[1] + RING_CL / 2).buffer(args.iron / 2, 96)
     plate = outline.difference(unary_union([Point(c).buffer(HOLE / 2, 128), iron]))
-    core = Point(0, 0).buffer(RING_ID / 2, 128)
+    # core: a spider (notches + M5 centre, so it can also be bolted/pinned to the backing) with the
+    # iron hole carved out, cut in place inside the plate's hole with the bite lined up
+    core = spider().difference(Point(0, RING_CL / 2).buffer(args.iron / 2, 96))
+    core = affinity.translate(core, *c)
     return plate, core, R, yc
 
 
@@ -70,20 +73,20 @@ def spider():
 
 
 def write(name_base, polys, material, note):
+    """polys are cut in list order, each one's holes before its outline (put parts that sit inside
+    another part's hole first)"""
     T, KERF, _ = material_fit(material)
     s2g, motion, mat, job = load_profile(material, 1000, None)
     gs = [p.buffer(KERF / 2, join_style=2) for p in polys]
     x0 = min(g.bounds[0] for g in gs); y0 = min(g.bounds[1] for g in gs)
     x1 = max(g.bounds[2] for g in gs); y1 = max(g.bounds[3] for g in gs)
-    holes, outers = [], []
+    order = []
     for g in gs:
         g = affinity.translate(g, -x0, -y0)
-        holes += [list(r.coords) for r in g.interiors]
-        outers.append(list(g.exterior.coords))
-    holes.sort(key=lambda pl: abs(Polygon(pl).area))
-    outers.sort(key=lambda pl: abs(Polygon(pl).area))
+        order += sorted([list(r.coords) for r in g.interiors], key=lambda pl: abs(Polygon(pl).area))
+        order.append(list(g.exterior.coords))
     name = f"{name_base}_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}"
-    cuts = [s2g.Polyline(pl, True) for pl in holes + outers]
+    cuts = [s2g.Polyline(pl, True) for pl in order]
     lines = [f"; {name} -- marbles/clock/ring_jig_compact.py: {note}",
              f"; {mat['id']} (T {T}) recipe {job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}; kerf {KERF}; "
              f"X0 Y0 = bottom-left; {x1 - x0:.2f} x {y1 - y0:.2f} mm", ";"]
@@ -104,7 +107,7 @@ print(f"jig: flat edge {CUT_LEN:.2f} (the cut-length gauge), hole d{HOLE:.2f}, d
       f"wood: hole to flat edge {yc - HOLE / 2:.2f}, hole to dome {R - HOLE / 2:.2f}, "
       f"iron hole to dome {R - RING_CL / 2 - args.iron / 2:.2f}; groove {(HOLE - RING_ID) / 2:.2f} for a {WD} wire")
 gap = 3.0
-core_placed = affinity.translate(core, CUT_LEN + gap + RING_ID / 2, RING_ID / 2)
-write("ring_jig_d", [plate, core_placed], args.jig_material, "D plate (flat edge = wire cut length) + core disc")
+write("ring_jig_d", [core, plate], args.jig_material,
+      "core (spider shape minus the iron hole) cut in place inside the D plate's hole, then the D plate (flat edge = wire cut length)")
 sp = [affinity.translate(spider(), RING_ID / 2 + i * (RING_ID + gap), RING_ID / 2) for i in range(args.spiders)]
 write(f"ring_spiders_x{args.spiders}", sp, args.spider_material, f"spacing spiders, notches at {args.angles} deg, M5 centre")
