@@ -293,6 +293,12 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
         - An inner back wall sits beside the two beam bolts, so they clamp onto wood instead of an empty gap.
         - To make it all fit: the funnel and keepers are 4 mm wider (96), the port moved to (68, 108) with M5 at ±18, and the channel runs straight down from the pocket before it curves.
         - Every wall has at least one tab; the thinnest wood is 4.0.
+  - **Feeder assembly, now one editable OpenSCAD file (2026-11-04): `marbles/clock/feeder.scad`.**
+    - Parameters at the top; walls and their tab positions are an editable list.
+    - The beam bolts' heads sit on the funnel's back face, and the back keeper has access holes over them. No spacer is needed on those bolts.
+    - The console prints a CHECK report: each wall's clearance from the channel, ball holes, bolts, bolt heads and F, plus the wood around every tab slot. WARN lines need fixing.
+    - G-code: `python3 marbles/clock/feeder_scad_gcode.py`. It refuses to write if CHECK has WARN lines; thickness, kerf and fit come from the material profile.
+    - This supersedes `feeder_box.py`.
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.
