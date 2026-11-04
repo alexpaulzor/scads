@@ -34,7 +34,7 @@
 //   python3 marbles/clock/feeder_scad_gcode.py   # one G-code per part from this file
 
 /* [View] */
-part = "assembly";        // [assembly, funnel, front_keeper, back_keeper, spacer]
+part = "assembly";        // [assembly, funnel, front_keeper, back_keeper, spacer, trough_floor, trough_side_x2, trough_cap]
 laser = false;            // grow 2D parts by kerf/2 (cut files)
 explode = 0;              // [0:60] pull the layers apart in the assembly
 show_beams = true;
@@ -82,6 +82,11 @@ CH_P2 = [HOLE_X + 26, 41];
 /* [Port] */
 PORT = 20;                // square opening = inside of a standard duct
 PORT_BOLT = 19;           // corner M5 offset from the port centre (x and y)
+
+/* [Trough] */
+// open-top trough on the port: floor + 2 side walls + end cap, tabbed into the front keeper's
+// port notches. Inside length from the back keeper's inner face to the cap's inner face:
+TROUGH_IN = 60;
 
 /* [Bolts] */
 M5 = 5.0;                 // all M5 holes exactly 5.0
@@ -189,6 +194,32 @@ module back_keeper2d() difference() {     // no port pattern: nothing attaches f
 }
 module spacer2d() difference() { circle(d = SPACER_D); circle(d = SPACER_ID, $fn = 48); }
 
+// ---- trough: v = distance out from the front keeper's outer face
+TR_L = TROUGH_IN - 2 * GAP - 2 * T;      // inside length outside the front keeper (35.2)
+TR_PB = PORT_C[1] - PORT / 2;            // floor top = port bottom
+TR_HW = PORT / 2 + T + WEB;              // half width of floor and cap
+module trough_floor2d() difference() {   // (x, v)
+  union() {
+    translate([PORT_C[0] - TR_HW, 0]) square([2 * TR_HW, TR_L]);
+    translate([PORT_C[0] - TAB / 2, -T]) square([TAB, T + 0.01]);              // into the port's bottom notch
+    translate([PORT_C[0] - TAB / 2, TR_L - 0.01]) square([TAB, T + 0.01]);    // into the cap
+  }
+  for (sx = [-1, 1]) translate([PORT_C[0] + sx * (PORT / 2 + T / 2) - T / 2 - FIT / 2, TR_L / 2 - TAB / 2])
+    square([T + FIT, TAB]);                                                   // side walls' bottom tabs
+}
+module trough_side2d() union() {         // (v, z): z = plate y
+  translate([0, TR_PB]) square([TR_L, PORT]);
+  translate([-T, PORT_C[1] - TAB / 2]) square([T + 0.01, TAB]);              // into the port's side notch
+  translate([TR_L - 0.01, PORT_C[1] - TAB / 2]) square([T + 0.01, TAB]);     // into the cap
+  translate([TR_L / 2 - TAB / 2, TR_PB - T]) square([TAB, T + 0.01]);        // into the floor
+}
+module trough_cap2d() difference() {     // (x, z)
+  translate([PORT_C[0] - TR_HW, TR_PB - T - WEB]) square([2 * TR_HW, PORT + T + WEB]);
+  translate([PORT_C[0] - TAB / 2 - FIT / 2, TR_PB - T - FIT / 2]) square([TAB + FIT, T + FIT]);   // floor tab
+  for (sx = [-1, 1]) translate([PORT_C[0] + sx * (PORT / 2 + T / 2) - T / 2 - FIT / 2, PORT_C[1] - TAB / 2])
+    square([T + FIT, TAB]);                                                   // side walls' end tabs
+}
+
 // ------------------------------------------------------------------ 3D assembly
 module plate3d(y0) translate([0, y0 + T, 0]) rotate([90, 0, 0]) linear_extrude(T) children();   // occupies Y [y0, y0 + T]
 Y_FK = -GAP - T - explode;             // front keeper
@@ -216,15 +247,25 @@ module assembly() {
     for (b = BEAM_BOLTS) { rodY(b, Y_BK + T, Y_BK + T + HEAD_H, HEAD_D); rodY(b, -8, Y_BK + T, M5); }   // head on the back keeper, into F
     for (p = THRU) { rodY(p, Y_FK - HEAD_H, Y_FK, HEAD_D); rodY(p, Y_FK, Y_BK + T + 5, M5); rodY(p, Y_BK + T, Y_BK + T + 4.7, 9); }
   }
+  // trough (v out from the front keeper's outer face, at Y = Y_FK)
+  color("peru") {
+    translate([0, Y_FK, TR_PB - T]) mirror([0, 1, 0]) linear_extrude(T) trough_floor2d();
+    for (sx = [-1, 1]) translate([PORT_C[0] + sx * (PORT / 2 + T / 2) - T / 2, Y_FK, 0])
+      rotate([0, 0, 0]) multmatrix([[0, 0, 1, 0], [-1, 0, 0, 0], [0, 1, 0, 0]]) linear_extrude(T) trough_side2d();
+    translate([0, Y_FK - TR_L - T, 0]) plate3d(0) trough_cap2d();
+  }
   if (show_balls) color("steelblue") {
     for (i = [0 : 4]) translate([PATH[60 - i * 12][0], T / 2, PATH[60 - i * 12][1]]) sphere(d = BALL_D);
-    translate([PORT_C[0], Y_FK - 14, PORT_C[1]]) sphere(d = BALL_D);                          // one coming in through the port
+    translate([PORT_C[0], T / 2, PORT_C[1]]) sphere(d = BALL_D);                               // one in the pocket
+    for (k = [1, 2]) translate([PORT_C[0], Y_FK - TR_L + BALL_D / 2 + (k - 1) * BALL_D + 0.2, TR_PB + BALL_D / 2]) sphere(d = BALL_D);   // two waiting
   }
 }
 
 // ------------------------------------------------------------------ output
 module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
-echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer"]);
+echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap"]);
+echo(str("CHECK trough: back keeper inner face to cap inner face ", r2(2 * GAP + 2 * T + TR_L), " (", TROUGH_IN, "); outside the front keeper ",
+         r2(TR_L + T), " (inside ", r2(TR_L), "), ", PORT, " wide inside, ", PORT, " tall walls, open top"));
 echo(spacer_qty = (len(THRU) * 2 + len(BEAM_BOLTS)) * SPACER_LAYERS);
 report();
 if (part == "assembly") assembly();
@@ -232,3 +273,6 @@ else if (part == "funnel") out2d() funnel2d();
 else if (part == "front_keeper") out2d() front_keeper2d();
 else if (part == "back_keeper") out2d() back_keeper2d();
 else if (part == "spacer") out2d() spacer2d();
+else if (part == "trough_floor") out2d() trough_floor2d();
+else if (part == "trough_side_x2") out2d() trough_side2d();
+else if (part == "trough_cap") out2d() trough_cap2d();
