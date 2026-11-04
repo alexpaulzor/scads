@@ -16,7 +16,7 @@ PORT (the standard interface for whatever loads balls next): a 20 x 20 square op
   10 mm tab slot centred on each side where a 20-inside square duct's walls land, and 4 M5
   at the corners. Same pattern (without the opening) on BK, so a box can bolt on either side.
 Inside spacing between keepers = 20 (the same 20 as the port), funnel centred between them.
-Thickness, kerf, fit come from the material profile (mdf3: 3.1 / 0.10 / 0).
+Thickness, kerf, fit come from the material profile (mdf3: 2.82 / 0.10 / 0).
 
     python3 marbles/clock/feeder_box.py       # -> marbles/gcode/feeder_box.gcode (nested) + one file per part,
                                               #    feeder_<part>_<W>x<H>.gcode (bbox rounded up, longest side X)

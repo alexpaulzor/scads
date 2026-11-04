@@ -37,7 +37,7 @@ and spring back after being wedged apart.
 triangle shapes; finger overlap and spring rate; how many fingers; how the hopper track releases
 exactly one ball; how the snagged ball gets from the fingers into the trough.
 
-## 2. Spider tunnel to feeder interface adapter (near top of the to-do list)
+## 2. Spider tunnel to feeder interface adapter: DONE 2026-11-04 (`feeder.scad` tunnel_flange, see NOTES L14a)
 
 A part that joins a spiderweb wire tunnel to the standard feeder port: the 20 x 20 opening with tab
 slots and M5 bolt pattern (`feeder.scad`: PORT, PORT_BOLT, MID_ALL). The trough cap already shows the

@@ -141,7 +141,7 @@ def part_layers(s2g, openscad, name, sheet_th, tmp):
 
 def material_fit(material, quickcut=None):
     """(thickness_mm, kerf_mm, slot_extra_mm) from the shared material profile.
-    kerf / slot extra come from the profile's verified `fit:` block (mdf3: 3.1 / 0.10 / 0.0,
+    kerf / slot extra come from the profile's verified `fit:` block (mdf3: 2.82 / 0.10 / 0.0,
     tabs tight and snug without deforming). Materials without one fall back to kerf 0.10, extra 0."""
     sys.path.insert(0, str(find_quickcut(quickcut)))
     from materials import SHARED_MATERIALS  # noqa: E402

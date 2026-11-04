@@ -50,7 +50,7 @@ ap.add_argument("--fit", type=float, default=None, help="override extra slot wid
 args = ap.parse_args()
 
 _t, _kerf, _extra = material_fit(args.material)
-T = args.t if args.t is not None else _t            # mdf3: 3.1
+T = args.t if args.t is not None else _t            # from the profile (mdf3: 2.82)
 FIT = args.fit if args.fit is not None else _extra  # mdf3: 0 (verified: tight, snug, no deforming)
 KERF = _kerf                                        # mdf3: 0.10
 M5 = 5.0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cut parts for the rocking ball lift (geometry from lift_demo.scad), 3.2 mm MDF.
+"""Cut parts for the rocking ball lift (geometry from lift_demo.scad), mdf3 (thickness from the profile).
 
 All parts are in the rig's side view: u = forward (toward the viewer, the
 demo's +y), v = up (+z). Numbers are taken from lift_demo.scad's defaults;
@@ -37,8 +37,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path  # noqa: E402
 
-MATERIAL = "mdf3"     # 3.1 mm MDF (sold as 1/8"), cut with the 3 mm MDF recipe
-KERF = material_fit(MATERIAL)[1]   # from the profile's verified fit block (mdf3: 0.10)
+MATERIAL = "mdf3"     # 3 mm MDF (profile thickness: 2.82 new batch)
+STOCK_T, KERF, _ = material_fit(MATERIAL)   # from the profile (mdf3: 2.82, kerf 0.10)
 M5 = 5.0
 BEARING = 22.0           # 608 outer diameter, press fit
 STRIP_L, STRIP_W, PITCH = 300.0, 46.0, 30.0
@@ -140,7 +140,7 @@ def main():
         loops.sort(key=lambda pl: abs(Polygon(pl).area))
         cuts = [s2g.Polyline(pl, True) for pl in loops]
         lines = [f"; lift_{name} -- marbles/clock/lift_parts.py; cut {n}: {note}",
-                 f"; 3.2 mm MDF on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
+                 f"; mdf3 ({STOCK_T} mm) on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
                  f"X0 Y0 = bottom-left; {x1 - x0:.2f} x {y1 - y0:.2f} mm; kerf {KERF}", ";"]
         lines += preamble(s2g, job)
         for i, c in enumerate(cuts, 1):

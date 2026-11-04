@@ -219,6 +219,14 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 
 ---
 
+## 5b. MDF stock change (2026-11-04)
+
+The new supplier's MDF measures **2.82** (better quality). The `mdf3` profile is now 2.82; the old 3.1 stock is `mdf3old`, which keeps its verified fit.
+- Kerf 0.10 / slot = thickness are carried over, **not yet verified on the new batch**. Cut a tab-fit coupon first.
+- The cut recipe (F500 x2) is carried over too; the thinner stock may sever in 1 pass.
+- The feeder's GAP (3 spacer layers) is now 8.46 instead of 9.3. CHECK is clean. The front-keeper → back-keeper bolt is now 30.08 long.
+- Every mdf3 file was regenerated at 2.82. The 3.1-mm versions are in `marbles/gcode/_old_mdf31/` (local only). Parts already cut from the old stock won't mate with new-stock slots.
+
 ## 6. Tasks
 
 ### Pendulum lift (now)
@@ -254,7 +262,11 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - [ ] **L10a** Chain length and swing: measure d, h, L, e and the two tilts; use the tuner page (https://claude.ai/artifact/4cPu2Bs5Xj2CbjY5Lb4qQ5).
   - Stroke ≈ d × (sin tilt1 + sin tilt2); target = pitch + 2 × drop.
   - The chain and turnbuckle only place the stroke (registration).
-- [ ] **L14a** Spider-tunnel to feeder-port adapter (near the top of the list). See `PICKUP_LOG.md` §2.
+- [x] **L14a** Spider-tunnel to feeder-port adapter: `tunnel_flange` in `feeder.scad` → `feeder_tunnel_flange_54x54_mdf3.gcode` (2026-11-04).
+  - Same outline and 8 bolt holes as the trough cap. Bolts on the port in place of the trough.
+  - A 20 bore with a notch per straight wire, so the wires pass through into the port and can't rotate. The tunnel's last ring bears on the flange.
+  - CHECKs: wires reach 8.82 of the port's 10 half-width; 5.3 of wood from the notches to the bolt holes; rings clear beam F by 13.9.
+  - View it with `-D port_fit="tunnel"`. A ring-pocket collar layer was dropped: only 3.25 of wood to the bolts, and not needed.
 - [ ] **L14b** Pendulum pickup: wire fishhook grabber + hopper wire track with sloped triangle ends. See `PICKUP_LOG.md` §1 (the user's concept, 2026-11-04).
 - [ ] **L14** Bottom pickup: how balls enter the first hole (feed chute or ramp from the clock's return).
   - **Your design (2026-11-04):**

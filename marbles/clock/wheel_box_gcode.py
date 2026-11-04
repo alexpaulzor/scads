@@ -5,7 +5,7 @@ Geometry comes from wheel_box.py (same T, KERF, FIT). The WK is placed first wit
 its 40-wide strip along X and the lobe pointing +Y; the other parts are dropped
 greedily into the smallest bounding box (the notches beside the lobe first).
 
-    python3 marbles/clock/wheel_box_gcode.py            # 3.1 mm MDF -> marbles/gcode/wheel_box_set.gcode
+    python3 marbles/clock/wheel_box_gcode.py            # mdf3 -> marbles/gcode/wheel_box_set.gcode
     python3 marbles/clock/wheel_box_gcode.py --material ply3
     python3 marbles/clock/wheel_box_gcode.py --plain     # plain keeper -> marbles/gcode/plain_keeper.gcode
 """

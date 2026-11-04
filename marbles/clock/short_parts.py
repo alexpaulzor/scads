@@ -10,7 +10,7 @@ KEEPER (keeper_<n>h): same length, 40 wide.
     pair of holes joined: slot 19.05 + 5 = 24.05 long, 5 wide, then 19.05 - 5 = 14.05 solid,
     repeated, centred. 5 wide is far too narrow for a 3/4" ball to catch in.
   - Y = 30 (over the beam): rail M5 at the sieve's M5 positions for that length.
-Thickness, kerf and fit come from the material profile (mdf3: 3.1 / 0.10).
+Thickness, kerf and fit come from the material profile (mdf3: 2.82 / 0.10).
 
     python3 marbles/clock/short_parts.py                 # -> marbles/gcode/{sieve,keeper}_<n>h_<W>x<H>.gcode, n = 3..10
     python3 marbles/clock/short_parts.py --sizes 4 7

@@ -13,7 +13,7 @@ FEED FUNNEL (FF) -- one plate in the sieve's plane, below S_F:
 SHORT KEEPER (SK) -- 150 x 40 plain keeper: M5 every 3/4" (19.05) on v = 10, and
   the standard 60 mm spacing on v = 30.
 
-Thickness, kerf and slot fit come from the material profile (mdf3: 3.1 / 0.10).
+Thickness, kerf and slot fit come from the material profile (mdf3: 2.82 / 0.10).
 
     python3 marbles/clock/feed_funnel.py      # -> marbles/gcode/feed_funnel.gcode, feed_keeper.gcode, short_keeper.gcode
 """

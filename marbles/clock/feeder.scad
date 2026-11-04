@@ -43,7 +43,7 @@ show_bolts = true;
 show_sieve = true;        // S_F stub above the funnel
 
 /* [Material] */
-T = 3.1;                  // sheet thickness (mdf3 profile; plywood 2.6)
+T = 2.82;                 // sheet thickness (mdf3 profile: new batch 2.82; mdf3old 3.1; ply3 2.63)
 KERF = 0.10;              // mdf3 profile
 FIT = 0.0;                // extra slot width (port tab slots)
 WEB = max(4, T);          // thinnest wood allowed between any cut and an edge or another cut
@@ -67,7 +67,7 @@ BK_X0 = 6;                // back keeper's inner edge (clear of M's body at x < 
 
 /* [Gap and spacers] */
 SPACER_LAYERS = 3;        // laser-cut ring spacers per gap
-GAP = SPACER_LAYERS * T;  // funnel face to each keeper (9.3 at T 3.1); or set a standoff length here
+GAP = SPACER_LAYERS * T;  // funnel face to each keeper (8.46 at T 2.82, 9.3 at 3.1); or set a standoff length here
 SPACER_D = 10;            // laser-cut ring spacer outside diameter
 SPACER_ROOM = 13;         // diameter kept clear around every spacer (fits 1/2" plastic spacers too)
 SPACER_ID = 5.0;          // ring spacer hole (M5)
@@ -99,6 +99,13 @@ VS_START = 6;             // first slot starts this far down the channel from th
 // front keeper short):
 TROUGH_OUT = 25;
 NUT_H = 4.7;              // M5 nut height, for the bolt-length report
+
+/* [Spider tunnel adapter (bolts on the port instead of the trough)] */
+TUN_WIRE = 2.05;          // straight wire diameter (12 ga), as ring_jig_compact.py
+TUN_BORE = 20;            // clear bore inside the straight wires (ring jig --bore)
+TUN_ANGLES = [45, 135, 225, 315];   // straight-wire angles (ring jig --angles); 0 = +x, 90 = up
+TUN_CLR = 0.3;            // clearance on the wire notches and the ring pocket
+port_fit = "trough";      // assembly shows "trough" or "tunnel" on the port
 NUT_R = 4.7;              // M5 nut corner radius, for the clearance check
 
 /* [Bolts] */
@@ -258,6 +265,24 @@ module trough_cap2d() difference() {     // (x, z): 4-fold symmetric; carries ho
   port2d(false);                         // the port's 4 tab slots, no opening: floor + side walls use 3, the top is spare
 }
 
+// spider tunnel adapter: one FLANGE against the front keeper: the bore plus a notch per straight wire,
+// so the wires pass through into the port and can't rotate. The tunnel's last ring bears on the
+// flange's outer face. Same outline and 8 port-bolt holes as the trough cap. (A ring-pocket collar
+// was tried: only 3.25 of wood to the bolt holes, and the notches already locate the wires.)
+TUN_RW = TUN_BORE / 2 + TUN_WIRE / 2;                // straight-wire centre radius
+TUN_RING_OD = TUN_BORE + 4 * TUN_WIRE;               // ring OD (ring ID = bore + 2 wires)
+module port_plate2d() difference() {
+  offset(r = 2) offset(delta = -2) translate(PORT_C - [CAP_HW, CAP_HW]) square([2 * CAP_HW, 2 * CAP_HW]);
+  m5s(concat(PORT_BOLTS, MID_ALL));
+}
+module tunnel_flange2d() difference() {
+  port_plate2d();
+  translate(PORT_C) {
+    circle(d = TUN_BORE, $fn = 96);
+    for (a = TUN_ANGLES) rotate(a) translate([0, -(TUN_WIRE + TUN_CLR) / 2]) square([TUN_RW + (TUN_WIRE + TUN_CLR) / 2, TUN_WIRE + TUN_CLR]);
+  }
+}
+
 // ------------------------------------------------------------------ 3D assembly
 module plate3d(y0) translate([0, y0 + T, 0]) rotate([90, 0, 0]) linear_extrude(T) children();   // occupies Y [y0, y0 + T]
 Y_FK = -GAP - T - explode;             // front keeper
@@ -285,8 +310,15 @@ module assembly() {
     for (b = BEAM_BOLTS) { rodY(b, Y_BK + T, Y_BK + T + HEAD_H, HEAD_D); rodY(b, -8, Y_BK + T, M5); }   // head on the back keeper, into F
     for (p = THRU) { rodY(p, Y_FK - HEAD_H, Y_FK, HEAD_D); rodY(p, Y_FK, Y_BK + T + 5, M5); rodY(p, Y_BK + T, Y_BK + T + 4.7, 9); }
   }
+  if (port_fit == "tunnel") color("peru") {
+    translate([0, Y_FK - T, 0]) plate3d(0) tunnel_flange2d();
+  }
+  if (port_fit == "tunnel") color("silver") translate([PORT_C[0], 0, PORT_C[1]]) {
+    for (a = TUN_ANGLES) translate([TUN_RW * cos(a), Y_FK - T - 60, TUN_RW * sin(a)]) rotate([-90, 0, 0]) cylinder(d = TUN_WIRE, h = 60 + 2 * T, $fn = 16);
+    for (k = [0 : 2]) translate([0, Y_FK - T - TUN_WIRE / 2 - k * 25, 0]) rotate([90, 0, 0]) rotate_extrude($fn = 64) translate([(TUN_RING_OD - TUN_WIRE) / 2, 0]) circle(d = TUN_WIRE, $fn = 12);
+  }
   // trough (v out from the front keeper's outer face, at Y = Y_FK)
-  color("peru") {
+  if (port_fit == "trough") color("peru") {
     translate([0, Y_FK, TR_PB - T]) mirror([0, 1, 0]) linear_extrude(T) trough_floor2d();
     for (sx = [-1, 1]) translate([PORT_C[0] + sx * (PORT / 2 + T / 2) - T / 2, Y_FK, 0])
       rotate([0, 0, 0]) multmatrix([[0, 0, 1, 0], [-1, 0, 0, 0], [0, 1, 0, 0]]) linear_extrude(T) trough_side2d();
@@ -303,7 +335,17 @@ module assembly() {
 module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
 echo(str("CHECK view slots: ", N_VS, " along the channel; front keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, true)) k]),
          ", back keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false)) k])));
-echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap"]);
+echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange"]);
+// tunnel adapter checks: the straight wires must fit inside the port's square opening (corners at PORT / 2)
+TUN_WIRE_REACH = max([for (a = TUN_ANGLES) max(abs(TUN_RW * cos(a)), abs(TUN_RW * sin(a)))]) + TUN_WIRE / 2;
+echo(str(TUN_WIRE_REACH <= PORT / 2 ? "ok   " : "WARN ", "tunnel wires inside the ", PORT, " port opening: reach ", r2(TUN_WIRE_REACH), " of ", PORT / 2,
+         "; bore ", TUN_BORE, " for a ", BALL_D, " ball"));
+echo(str(TUN_RW + (TUN_WIRE + TUN_CLR) / 2 + WEB <= PORT_BOLT - M5 / 2 ? "ok   " : "WARN ", "tunnel flange: wood from the wire notches to the port bolt holes ",
+         r2(PORT_BOLT - M5 / 2 - TUN_RW - (TUN_WIRE + TUN_CLR) / 2), " (need ", WEB, "); last ring OD ", r2(TUN_RING_OD), " bears on the flange"));
+echo(str(PORT_C[0] - TUN_RING_OD / 2 - COL_W >= 3 ? "ok   " : "WARN ", "tunnel rings clear beam F (x ", COL_W - 20, "..", COL_W, ") by ", r2(PORT_C[0] - TUN_RING_OD / 2 - COL_W)));
+echo(str("CHECK tunnel bolt lengths (plates + spacers + nut ", NUT_H, "): flange -> back keeper ", r2(4 * T + 2 * GAP + NUT_H),
+         ", flange -> front keeper (mid-side) ", r2(2 * T + NUT_H), "; straight wires past the last ring: at least ", r2(2 * T),
+         " to reach through the flange and front keeper"));
 echo(str("CHECK trough: back keeper inner face to cap inner face ", r2(2 * GAP + 2 * T + TR_L), "; outside the front keeper ",
          r2(TR_L + T), " (inside ", r2(TR_L), "), ", PORT, " wide inside, ", PORT, " tall walls, open top; cap ", 2 * CAP_HW, " square"));
 echo(str("CHECK bolt lengths (plates + spacers + nut ", NUT_H, "): front keeper -> back keeper ", r2(3 * T + 2 * GAP + NUT_H),
@@ -321,3 +363,4 @@ else if (part == "spacer") out2d() spacer2d();
 else if (part == "trough_floor") out2d() trough_floor2d();
 else if (part == "trough_side_x2") out2d() trough_side2d();
 else if (part == "trough_cap") out2d() trough_cap2d();
+else if (part == "tunnel_flange") out2d() tunnel_flange2d();

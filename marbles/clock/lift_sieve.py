@@ -31,8 +31,8 @@ PITCH = 30.0
 M5_HOLE = 5.0
 M5_Y = 10.0
 M5_EVERY = 2             # every 2nd gap between ball holes
-MATERIAL = "mdf3"     # 3.1 mm MDF (sold as 1/8") on the 3 mm MDF recipe (2 passes)
-STOCK_T, KERF, _ = material_fit(MATERIAL)   # from the profile's verified fit block (mdf3: 3.1, 0.10)
+MATERIAL = "mdf3"     # 3 mm MDF (profile thickness: 2.82 new batch)
+STOCK_T, KERF, _ = material_fit(MATERIAL)   # from the profile's verified fit block (mdf3: 2.82, 0.10)
 
 
 def part():

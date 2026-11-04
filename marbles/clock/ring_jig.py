@@ -18,7 +18,7 @@ SPIDER SP (several) - disc = ring ID with notches one wire deep at the straight-
   out of the finished tube. Etched ticks every 15 degrees for other wire layouts.
   Also the forming core: wrap the wire round a spider's rim to pre-bend a ring.
 
-Thickness, kerf from the material profile (mdf3: 3.1 / 0.10). Etch recipe: the
+Thickness, kerf from the material profile (mdf3: 2.82 / 0.10). Etch recipe: the
 material's own, else --etch-from (unverified on MDF until you test it).
 
     python3 marbles/clock/ring_jig.py                      # -> marbles/gcode/ring_jig.gcode
