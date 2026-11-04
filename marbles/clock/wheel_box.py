@@ -40,6 +40,8 @@ from shapely.ops import unary_union
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from laser_parts import material_fit  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from short_parts import keeper as rail_keeper, view_slots  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--material", default="mdf_3mm", help="material profile id (thickness, kerf, slot fit)")
@@ -186,11 +188,12 @@ def wheel_keeper_2d():
     g = g.buffer(-3, 32).buffer(3, 32)                                                  # round the outside corners
     cuts = [LineString([(zc + du, 10.0 - ADJ), (zc + du, 10.0 + ADJ)]).buffer(M5 / 2, 32) for du in WK_SLOTS]
     cuts.append(affinity.affine_transform(box_cuts(), [0, 1, 1, 0, zc, 0]))            # (a, dz) -> (u, v)
+    cuts += view_slots(WK_L, 30.0)                                                      # over the ball column
     return g.difference(unary_union(cuts))
 
 def plain_keeper_2d():
-    """PK: plain backing/guard, L x KEEP_W, round M5 holes in the sieve's pattern (v = 10)."""
-    return box(0, 0, L, KEEP_W).difference(unary_union([Point(u, 10.0).buffer(M5 / 2, 32) for u in M5_U]))
+    """PK: plain backing/guard = short_parts keeper_10h (view slots + rail M5)."""
+    return rail_keeper(10)
 
 # min web checks (thinnest material between a cut and an edge / another cut)
 def min_web(g):
@@ -210,7 +213,7 @@ kp = wheel_keeper_2d()
 P(f"wheel keeper WK: {WK_L:g} x {a_c1:.2f} (strip {KEEP_W:g} wide, lobe u {WK_L/2-z_c:.2f}..{WK_L/2+z_c:.2f}, fillet r {FILLET:g}); "
   f"beam slots at u {[WK_L/2 + d for d in WK_SLOTS]}; narrowest web {min_web(kp):.2f}")
 pk = plain_keeper_2d()
-P(f"plain keeper PK: {L:g} x {KEEP_W:g}, M5 at u {M5_U} v 10; narrowest web {min_web(pk):.2f}")
+P(f"plain keeper PK = short_parts keeper_10h (view slots + rail M5); narrowest web {min_web(pk):.2f}")
 for k, (n, g, q) in PARTS.items():
     x0, y0, x1, y1 = g.bounds
     mw = min_web(g)
