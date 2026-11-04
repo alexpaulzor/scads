@@ -7,12 +7,14 @@
 //                 + a J channel from a pocket (balls enter sideways) down to the bottom hole.
 //   front keeper  GAP in front of the funnel; above F's end its inner edge rides in F's
 //                 far slot. Carries the PORT.
-//   back keeper   GAP behind the funnel; plain M5 holes for the beam bolts.
+//   back keeper   GAP behind the funnel; plain M5 holes for all bolts, no port pattern.
 //   spacers       one stack per through-bolt in each gap (laser-cut rings, SPACER_LAYERS
 //                 thick, or bought standoffs of length GAP).
 //   port          standard interface: PORT x PORT opening, a TAB slot centred on each side
 //                 (where a PORT-inside duct's walls land), 4 M5 at the corners. The port
-//                 bolts are through-bolts too.
+//                 bolts are through-bolts too. The tab slots run into the opening (a
+//                 duct's walls stand right at its edge), so the port reads as a notched
+//                 square. Only the front keeper has a port; the back keeper is plain.
 //
 // Coordinates (all parts share them):
 //   plate x  across: x = 0 is the sieve's 6 mm edge (toward M), x = COL_W is F's far face,
@@ -181,9 +183,8 @@ module front_keeper2d() difference() {
   port2d(true);
   m5s(THRU);
 }
-module back_keeper2d() difference() {
+module back_keeper2d() difference() {     // no port pattern: nothing attaches from behind
   translate([BK_X0, 0]) square([W - BK_X0, H]);
-  port2d(false);
   m5s(concat(THRU, BEAM_BOLTS));
 }
 module spacer2d() difference() { circle(d = SPACER_D); circle(d = SPACER_ID, $fn = 48); }
