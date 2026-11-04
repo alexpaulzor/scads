@@ -59,7 +59,7 @@ BEAM_X = COL_W - 10;      // F's back-face slot line (sieve's v = 10)
 N_HOLES = 4;              // ball holes in the funnel's sieve column
 BAND = 20;                // wood under the bottom hole
 H = BAND + 15 + PITCH * (N_HOLES - 1) + 15;   // funnel height (140)
-W = 99;                   // funnel / keeper width
+W = 101;                  // funnel / keeper width
 F_END = 65;               // plate y of F's bottom end (no spacers inside F above this)
 FK_X0_LOW = COL_W - 12;   // front keeper's inner edge below F's end (reaches under F)
 FK_X0_HIGH = COL_W - 6;   // ... above F's end: 6 mm into F's far slot
@@ -75,13 +75,13 @@ SPACER_CLR = 1;           // keep spacers this far from the channel, holes and F
 
 /* [Channel] */
 CH_W = HOLE_D + 1;        // channel width (ball 19.05)
-PORT_C = [73, 108];       // pocket / port centre
+PORT_C = [74, 108];       // pocket / port centre
 CH_P1 = [PORT_C[0], 35];  // bezier control points of the channel centreline: pocket -> P1 -> P2 -> bottom hole
 CH_P2 = [HOLE_X + 26, 41];
 
 /* [Port] */
 PORT = 20;                // square opening = inside of a standard duct
-PORT_BOLT = 19;           // corner M5 offset from the port centre (x and y)
+PORT_BOLT = 20;           // corner M5 offset from the port centre (x and y); mid-side bolts at the same offset
 
 /* [Viewing slots] */
 // 5 mm slots in both keepers along the ball channel (same rhythm as the plain keepers:
@@ -95,8 +95,11 @@ VS_START = 6;             // first slot starts this far down the channel from th
 
 /* [Trough] */
 // open-top trough on the port: floor + 2 side walls + end cap, tabbed into the front keeper's
-// port notches. Inside length from the back keeper's inner face to the cap's inner face:
-TROUGH_IN = 60;
+// port notches. Length outside the front keeper, cap included (keeps bolts from the cap to the
+// front keeper short):
+TROUGH_OUT = 25;
+NUT_H = 4.7;              // M5 nut height, for the bolt-length report
+NUT_R = 4.7;              // M5 nut corner radius, for the clearance check
 
 /* [Bolts] */
 M5 = 5.0;                 // all M5 holes exactly 5.0
@@ -112,6 +115,11 @@ $fn = 64;
 HOLES = [for (i = [0 : N_HOLES - 1]) [HOLE_X, BAND + 15 + PITCH * i]];
 BEAM_BOLTS = [for (y = BEAM_BOLT_Y) [BEAM_X, y]];
 PORT_BOLTS = [for (sx = [-1, 1], sy = [-1, 1]) PORT_C + [sx * PORT_BOLT, sy * PORT_BOLT]];
+// mid-side bolts: trough cap -> front keeper only (nut in the front gap). One whose nut would sit
+// over the ball channel is left out (the CHECK report says which).
+MID_ALL = [PORT_C + [-PORT_BOLT, 0], PORT_C + [PORT_BOLT, 0], PORT_C + [0, PORT_BOLT], PORT_C + [0, -PORT_BOLT]];
+function chan_d0(p) = min([for (i = [0 : 60]) norm(bez(PORT_C, CH_P1, CH_P2, [HOLE_X, BAND + 15], i / 60) - p)]) - (HOLE_D + 1) / 2;
+PORT_MIDS = [for (p = MID_ALL) if (chan_d0(p) - NUT_R >= 1) p];
 THRU = concat(PORT_BOLTS, EXTRA_BOLTS);
 INSIDE = 2 * GAP + T;     // keeper to keeper, inside
 function bez(p0, p1, p2, p3, t) = pow(1 - t, 3) * p0 + 3 * pow(1 - t, 2) * t * p1 + 3 * (1 - t) * t * t * p2 + pow(t, 3) * p3;
@@ -214,7 +222,7 @@ module front_keeper2d() difference() {
     translate([FK_X0_HIGH, F_END - 0.01]) square([W - FK_X0_HIGH, H - F_END + 0.01]);
   }
   port2d(true);
-  m5s(THRU);
+  m5s(concat(THRU, PORT_MIDS));
   view_slots2d(true);
 }
 module back_keeper2d() difference() {     // no port pattern: nothing attaches from behind
@@ -225,7 +233,7 @@ module back_keeper2d() difference() {     // no port pattern: nothing attaches f
 module spacer2d() difference() { circle(d = SPACER_D); circle(d = SPACER_ID, $fn = 48); }
 
 // ---- trough: v = distance out from the front keeper's outer face
-TR_L = TROUGH_IN - 2 * GAP - 2 * T;      // inside length outside the front keeper (35.2)
+TR_L = TROUGH_OUT - T;                   // inside length outside the front keeper
 TR_PB = PORT_C[1] - PORT / 2;            // floor top = port bottom
 TR_HW = PORT / 2 + T + WEB;              // half width of floor and cap
 module trough_floor2d() difference() {   // (x, v)
@@ -243,8 +251,10 @@ module trough_side2d() union() {         // (v, z): z = plate y
   translate([TR_L - 0.01, PORT_C[1] - TAB / 2]) square([T + 0.01, TAB]);     // into the cap
   translate([TR_L / 2 - TAB / 2, TR_PB - T]) square([TAB, T + 0.01]);        // into the floor
 }
-module trough_cap2d() difference() {     // (x, z)
-  translate([PORT_C[0] - TR_HW, TR_PB - T - WEB]) square([2 * TR_HW, PORT + T + WEB]);
+CAP_HW = PORT_BOLT + M5 / 2 + WEB;        // cap reaches past every port bolt
+module trough_cap2d() difference() {     // (x, z): carries holes for all 8 port bolts
+  offset(r = 2) offset(delta = -2) translate(PORT_C - [CAP_HW, CAP_HW]) square([2 * CAP_HW, 2 * CAP_HW]);
+  m5s(concat(PORT_BOLTS, MID_ALL));
   translate([PORT_C[0] - TAB / 2 - FIT / 2, TR_PB - T - FIT / 2]) square([TAB + FIT, T + FIT]);   // floor tab
   for (sx = [-1, 1]) translate([PORT_C[0] + sx * (PORT / 2 + T / 2) - T / 2 - FIT / 2, PORT_C[1] - TAB / 2])
     square([T + FIT, TAB]);                                                   // side walls' end tabs
@@ -287,7 +297,7 @@ module assembly() {
   if (show_balls) color("steelblue") {
     for (i = [0 : 4]) translate([PATH[60 - i * 12][0], T / 2, PATH[60 - i * 12][1]]) sphere(d = BALL_D);
     translate([PORT_C[0], T / 2, PORT_C[1]]) sphere(d = BALL_D);                               // one in the pocket
-    for (k = [1, 2]) translate([PORT_C[0], Y_FK - TR_L + BALL_D / 2 + (k - 1) * BALL_D + 0.2, TR_PB + BALL_D / 2]) sphere(d = BALL_D);   // two waiting
+    for (k = [1 : max(1, floor(TR_L / BALL_D))]) translate([PORT_C[0], Y_FK - TR_L + BALL_D / 2 + (k - 1) * BALL_D + 0.2, TR_PB + BALL_D / 2]) sphere(d = BALL_D);   // two waiting
   }
 }
 
@@ -296,8 +306,13 @@ module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
 echo(str("CHECK view slots: ", N_VS, " along the channel; front keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, true)) k]),
          ", back keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false)) k])));
 echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap"]);
-echo(str("CHECK trough: back keeper inner face to cap inner face ", r2(2 * GAP + 2 * T + TR_L), " (", TROUGH_IN, "); outside the front keeper ",
-         r2(TR_L + T), " (inside ", r2(TR_L), "), ", PORT, " wide inside, ", PORT, " tall walls, open top"));
+echo(str("CHECK trough: back keeper inner face to cap inner face ", r2(2 * GAP + 2 * T + TR_L), "; outside the front keeper ",
+         r2(TR_L + T), " (inside ", r2(TR_L), "), ", PORT, " wide inside, ", PORT, " tall walls, open top; cap ", 2 * CAP_HW, " square"));
+echo(str("CHECK bolt lengths (plates + spacers + nut ", NUT_H, "): front keeper -> back keeper ", r2(3 * T + 2 * GAP + NUT_H),
+         ", cap -> front keeper ", r2(T + TR_L + T + NUT_H), ", cap -> back keeper ", r2(T + TR_L + 3 * T + 2 * GAP + NUT_H)));
+echo(str(len(PORT_MIDS) == len(MID_ALL) ? "ok   " : "note ", "mid-side port bolts on the front keeper: ", PORT_MIDS,
+         len(PORT_MIDS) == len(MID_ALL) ? "" : str("; left out (nut would sit over the channel): ", [for (p = MID_ALL) if (chan_d0(p) - NUT_R < 1) p], " (the cap keeps its hole)")));
+echo(str("CHECK mid-side holes, wood to the port notches: ", [for (p = PORT_MIDS) r2(minl([for (q = port_rects(true)) rp(q, p)]) - M5 / 2)]));
 echo(spacer_qty = (len(THRU) * 2 + len(BEAM_BOLTS)) * SPACER_LAYERS);
 report();
 if (part == "assembly") assembly();

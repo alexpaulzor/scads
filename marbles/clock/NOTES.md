@@ -305,6 +305,13 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
       - The port moved to x 70 so the inner port bolts' spacers clear F.
       - **Beam bolts (your call):** no oversized access holes. The 2 beam bolts go through the back keeper, a spacer stack in the back gap and the funnel into F, so both plates bolt to the beam together. That makes 54 ring spacers.
       - **Spacer room (your call):** 13 mm kept clear around every spacer, so your ~10 mm plastic spacers and 1/2" ones both fit. To make room: the port moved to x 73 with bolts at ±19, and the plates are 99 wide.
+  - **Trough (2026-11-04):** open top, 20 inside; 25 outside the front keeper including the cap, so bolts from the cap to the front keeper stay short.
+    - The cap is 53 square with all 8 port-bolt holes: 4 corners plus 4 mid-sides at ±20 from the port centre.
+    - The front keeper also has the mid-side holes, except the bottom one: its nut would sit over the ball channel.
+    - Bolt lengths, plates + spacers + nut:
+      - front keeper → back keeper: 32.6
+      - cap → front keeper: 32.8
+      - cap → back keeper: 57.6
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.
