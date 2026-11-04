@@ -250,8 +250,19 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - [ ] **L11** Re-size cam_arm, cam_disc, m_link and link_anchor (`lift_parts.py`) to the real geometry. Re-check stroke 34, tilt +6/−18 and the link solve.
 - [ ] **L12** Cut and fit the cam/link parts. Hand-crank test: every ball steps up one hole per turn, with no jams or double-feeds.
 - [ ] **L13** Tune the hand-off drop (2 mm each way), the tilt angles, and the forward/back roll timing.
+- [x] **2026-11-04:** The lift works by hand with one wheel box per side, the top pivot on pillow blocks, and M hung by a chain + turnbuckle.
+- [ ] **L10a** Chain length and swing: measure d, h, L, e and the two tilts; use the tuner page (https://claude.ai/artifact/4cPu2Bs5Xj2CbjY5Lb4qQ5).
+  - Stroke ≈ d × (sin tilt1 + sin tilt2); target = pitch + 2 × drop.
+  - The chain and turnbuckle only place the stroke (registration).
 - [ ] **L14** Bottom pickup: how balls enter the first hole (feed chute or ramp from the clock's return).
+  - Ideas:
+    - Run feed and exit tracks **parallel to the pivot axle**, so rocking only banks them and never changes their slope.
+    - Bottom moves most: either a short queue ramp riding on F into a window in the guard at the bottom hole, fed from a fixed spout over a catch mouth wider than the bottom's swing, or pivot the lift at the bottom instead.
+    - Keep the queue short so it doesn't press on M.
+    - The holes themselves meter one ball per cycle.
 - [ ] **L15** Top dispense: exit chute from the top hole onto a track, into a hopper.
+  - Ideas: a window in the guard at the top hole on the side the last hand-off rolls toward, then a short chute on the rig (parallel to the axle) dropping onto a fixed track.
+  - The top is near the pivot, so it barely moves.
 - [ ] **L16** Hopper with an overflow track for excess balls (and maybe a "full" switch).
 - [ ] **L17** Front/back guards: keepers as guards; check that nothing can escape anywhere along the travel.
 - [ ] **L18** Balance and counterweight for the rocking rig, so the drive torque is even.
