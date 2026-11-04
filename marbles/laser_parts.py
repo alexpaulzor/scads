@@ -36,7 +36,8 @@ ETCH_MIN_SEG_MM = 0.3
 
 def find_quickcut(arg):
     candidates = [Path(arg)] if arg else []
-    candidates += [HERE.parent.parent / "cnc_vibes" / "quickcut",
+    candidates += [HERE / "cnc_vibes" / "quickcut",               # own repo: cnc_vibes as a submodule
+                   HERE.parent.parent / "cnc_vibes" / "quickcut",  # scads/marbles next to a cnc_vibes checkout
                    Path.home() / "src" / "vibes" / "quickcut",
                    Path.home() / "src" / "cnc_vibes" / "quickcut"]
     for c in candidates:
