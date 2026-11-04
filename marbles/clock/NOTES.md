@@ -268,6 +268,9 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.
+  - **Short pieces (`short_parts.py`, 2026-11-04):** sieves and keepers 3 / 4 / 5 holes long (90 / 120 / 150).
+    - Sieve: M5 in the first and last gap.
+    - Keeper: 40 wide, 3/4" M5 row at y 10, plus the sieve's M5 positions at y 30.
   - **Details to settle (Claude's suggestions):**
     - Put the pickup near one end of the swing, or make the hook a one-way hinged finger, so the hook doesn't hit the next ball on the return pass.
     - Pushing the ball sideways off an open-sided cradle may be easier than lifting it.
