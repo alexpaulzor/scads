@@ -9,7 +9,7 @@ JIG (veneer plywood by default): one D-shaped plate stuck to scrap backing.
     carved out of it too. Stick the plate and the core down together, or pin the core with M5.
   - A 15 mm iron hole centred on the wire's circle, at the top of the dome.
   - At least 10 mm of wood round the ring hole, at least 4 round the iron hole.
-SPIDERS (MDF by default): discs = ring inside diameter with notches one wire deep at the
+SPIDERS (veneer plywood by default): discs = ring inside diameter with notches one wire deep at the
   straight-wire angles and an M5 centre hole; string them on an M5 rod as a mandrel.
 
     python3 marbles/clock/ring_jig_compact.py      # -> marbles/gcode/ring_jig_d_<W>x<H>.gcode, ring_spiders_x4_<W>x<H>.gcode
@@ -29,7 +29,7 @@ from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: 
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--jig-material", default="plywood_veneer_3ply_3mm")
-ap.add_argument("--spider-material", default="mdf_3mm")
+ap.add_argument("--spider-material", default="plywood_veneer_3ply_3mm")
 ap.add_argument("--wire", type=float, default=2.05)
 ap.add_argument("--bore", type=float, default=20.0, help="clear bore for the ball inside the straight wires")
 ap.add_argument("--groove-clr", type=float, default=0.3)

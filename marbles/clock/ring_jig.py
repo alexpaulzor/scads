@@ -42,7 +42,7 @@ from laser_parts import (ETCH_LEAD_IN_MM, ETCH_MIN_SEG_MM, emit_cut, load_profil
                          material_fit, preamble)
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--material", default="mdf_3mm")
+ap.add_argument("--material", default="plywood_veneer_3ply_3mm")   # wire jigs: veneer plywood
 ap.add_argument("--etch-from", default="plywood_baltic_birch_3mm", help="etch recipe if the material has none")
 ap.add_argument("--wire", type=float, default=2.05, help="wire diameter (hybrid.scad rail_d)")
 ap.add_argument("--bore", type=float, default=20.0, help="clear bore for the marble")
