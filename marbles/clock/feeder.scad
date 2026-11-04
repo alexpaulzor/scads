@@ -83,6 +83,16 @@ CH_P2 = [HOLE_X + 26, 41];
 PORT = 20;                // square opening = inside of a standard duct
 PORT_BOLT = 19;           // corner M5 offset from the port centre (x and y)
 
+/* [Viewing slots] */
+// 5 mm slots in both keepers along the ball channel (same rhythm as the plain keepers:
+// 3/4" + 5 long, 3/4" - 5 solid). Far too narrow for a ball to catch in. A slot is dropped
+// wherever it would come near a spacer, a bolt, the port or a keeper edge.
+VIEW = true;
+VS_W = 5;
+VS_P = 19.05;             // centre-to-centre length of a slot (slot is VS_P + VS_W long)
+VS_SOLID = VS_P - VS_W;   // wood between slots
+VS_START = 6;             // first slot starts this far down the channel from the pocket centre
+
 /* [Trough] */
 // open-top trough on the port: floor + 2 side walls + end cap, tabbed into the front keeper's
 // port notches. Inside length from the back keeper's inner face to the cap's inner face:
@@ -172,6 +182,24 @@ module channel2d() {
   translate(PORT_C) circle(d = CH_W);
 }
 module m5s(pts) for (p = pts) translate(p) circle(d = M5, $fn = 48);
+
+// ---- viewing slots along the channel centreline
+function cumlen(i) = i == 0 ? 0 : cumlen(i - 1) + norm(PATH[i] - PATH[i - 1]);
+CUM = [for (i = [0 : len(PATH) - 1]) cumlen(i)];
+function seg_i(sv) = max([for (i = [0 : len(PATH) - 2]) if (CUM[i] <= sv) i]);
+function path_at(sv) = let(i = seg_i(sv), f = (sv - CUM[i]) / (CUM[i + 1] - CUM[i])) PATH[i] + f * (PATH[i + 1] - PATH[i]);
+N_VS = floor((CUM[len(CUM) - 1] - VS_START + VS_SOLID) / (VS_P + VS_W + VS_SOLID));
+function vs_pts(k) = [for (j = [0 : 6]) path_at(VS_START + k * (VS_P + VS_W + VS_SOLID) + VS_W / 2 + j * VS_P / 6)];
+function vs_ok(k, front) = let(pts = vs_pts(k), r = VS_W / 2,
+    bolts = front ? THRU : concat(THRU, BEAM_BOLTS)) min([for (p = pts) min(
+  minl([for (b = bolts) norm(b - p) - SPACER_ROOM / 2 - r]),
+  front ? minl([for (q = port_rects(true)) rp(q, p) - WEB - r]) : 999,
+  (front ? p[0] - fk_x0(p[1]) : p[0] - BK_X0) - WEB - r,
+  W - p[0] - WEB - r, p[1] - WEB - r, H - p[1] - WEB - r)]) >= 0;
+module view_slots2d(front) if (VIEW) for (k = [0 : N_VS - 1]) if (vs_ok(k, front)) {
+  pts = vs_pts(k);
+  for (j = [0 : len(pts) - 2]) hull() { translate(pts[j]) circle(d = VS_W, $fn = 24); translate(pts[j + 1]) circle(d = VS_W, $fn = 24); }
+}
 module port2d(open) for (r = port_rects(open)) rect2d(r);
 
 module funnel2d() difference() {
@@ -187,10 +215,12 @@ module front_keeper2d() difference() {
   }
   port2d(true);
   m5s(THRU);
+  view_slots2d(true);
 }
 module back_keeper2d() difference() {     // no port pattern: nothing attaches from behind
   translate([BK_X0, 0]) square([W - BK_X0, H]);
   m5s(concat(THRU, BEAM_BOLTS));
+  view_slots2d(false);
 }
 module spacer2d() difference() { circle(d = SPACER_D); circle(d = SPACER_ID, $fn = 48); }
 
@@ -263,6 +293,8 @@ module assembly() {
 
 // ------------------------------------------------------------------ output
 module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
+echo(str("CHECK view slots: ", N_VS, " along the channel; front keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, true)) k]),
+         ", back keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false)) k])));
 echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap"]);
 echo(str("CHECK trough: back keeper inner face to cap inner face ", r2(2 * GAP + 2 * T + TR_L), " (", TROUGH_IN, "); outside the front keeper ",
          r2(TR_L + T), " (inside ", r2(TR_L), "), ", PORT, " wide inside, ", PORT, " tall walls, open top"));
