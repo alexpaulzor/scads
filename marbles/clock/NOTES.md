@@ -300,6 +300,17 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - [ ] **L23** Plywood version: run every lift generator at T = 2.6 / 5.2 and decide single vs double layer per part.
 - [ ] **L24** Photo or video of the working lift; record the final numbers here.
 
+### Wire tube track (2026-11-04)
+
+- [ ] **W1** Ring jig + spacing spiders (`marbles/clock/ring_jig.py` → `ring_jig.gcode`).
+  - Ring ID = bore 20 + 2 × wire (2.05) = 24.10, OD 28.20; wire cut length π × 26.15 = 82.15.
+  - Jig: base + top + core, with a groove one wire wide and a 15 mm iron hole on the joint.
+  - Spiders: notches for the straight wires at 45/135/225/315°, M5 centre, 15° tick marks.
+  - The etch recipe for MDF is borrowed from plywood_baltic_birch_3mm and is **unverified on MDF**.
+- [ ] **W2** Make a test length of tube track; check the 3/4" ball rolls through straight, curved and twisted runs without pinching.
+- [ ] **W3** Pick the straight-wire count and angles; re-run with `--angles`.
+- [ ] **W4** Standard connectors / end fittings so tube sections plug into features modularly.
+
 ### Clock milestones (after the lift)
 
 - [ ] **M1 Frame:** 1 m square 2020 frame, wall mount and French cleat, ≤150 mm depth. Layout of every subsystem in the frame.
