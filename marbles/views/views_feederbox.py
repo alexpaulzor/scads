@@ -71,7 +71,7 @@ sub = ["Side-entry feeder box under S_F. Balls come in sideways through the port
 lab = [["F (ends above the channel)", [10, 10, F_END + 5], "R", FC], ["M", [50, -1.6, 100], "R", MC], ["S_F", [5, -T / 2, 100], "L", FC],
        ["funnel FF (closed top, bridge over the pocket)", [-30, -T / 2, -8], "L", O],
        ["front keeper FK, edge in F's far slot (see-through)", [-5, sfk + T, -40], "L", GK],
-       ["back keeper BK (see-through)", [-40, sbk - T, -130], "L", GK], ["outer spacer walls (front + back, in line)", [-40.5, 4, -90], "L", GK], ["top spacer walls", [-30, 4, -5.5], "R", GK],
+       ["back keeper BK (see-through)", [-40, sbk - T, -130], "L", GK], ["outer walls, full height, beside the port bolts", [-44.5, 4, -90], "L", GK], ["inner back wall beside the beam bolts", [5.5, -7, -60], "R", GK], ["top spacer walls", [-30, 4, -5.5], "R", GK],
        ["bottom spacer walls", [-30, 4, -H + 5.5], "R", GK],
        ["port: 20 square, 10 mm tab slots, 4 x M5", [pc[0] + 10, sfk + T, pc[1] + 14], "R", DC], ["example 20-inside duct", [pc[0] + 11, sfk + T + 25, pc[1]], "R", DC],
        ["queued balls", [-10, -T / 2, -80], "L", "#24546b"], ["bottom hole: M picks up here", [30, -T / 2, -105], "R", "#24546b"]]

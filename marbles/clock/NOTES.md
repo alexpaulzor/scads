@@ -288,9 +288,11 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
       - Front and back walls share lines through the funnel, so load goes straight through to the funnel and its M5 bolts into F.
       - Their tabs alternate on a shared 10 mm grid, so no funnel slot takes tabs from both sides.
       - The funnel no longer tabs into anything.
-      - Open items:
-        - The outer walls stop below the port's M5 holes (gap from y 87.5 to 132.9 on the outer edge).
-        - The two beam M5 bolts need an 8.45 spacer (tube or locked nuts) between the back keeper and the funnel.
+      - **Fixed (2026-11-04):**
+        - The port M5 holes now go through all three plates. The outer walls run the full height right beside the port's outer bolts.
+        - An inner back wall sits beside the two beam bolts, so they clamp onto wood instead of an empty gap.
+        - To make it all fit: the funnel and keepers are 4 mm wider (96), the port moved to (68, 108) with M5 at ±18, and the channel runs straight down from the pocket before it curves.
+        - Every wall has at least one tab; the thinnest wood is 4.0.
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.
