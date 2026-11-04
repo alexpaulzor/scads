@@ -274,6 +274,13 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
     - Front keeper in F's side-slot plane (s 8.4..11.5).
     - Back keeper on 8.4 spacers.
     - Short 2020 behind the band.
+  - **Side-entry feeder box (v2, `feeder_box.py` → `feeder_box.gcode`, 2026-11-04):**
+    - Funnel with a closed channel top (19.50 bridge over the pocket, so the neck problem is gone).
+    - Front keeper in F's side-slot plane carries the **port**; back keeper; outer wall + top wall tabbed through both keepers.
+    - Keepers 20 apart inside, funnel centred, 8.45 off each.
+    - **Port = standard interface:** 20 × 20 opening, a 10 mm tab slot at each side where a 20-inside duct's walls land, 4 × M5 at ±17.
+    - The back keeper has the same pattern without the opening.
+    - Use the same port for the catch / side loader and for the top exit.
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.
