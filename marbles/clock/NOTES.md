@@ -265,6 +265,7 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
     - A 20 mm bottom band carries 3 × M5 into a short 2020. Beam M5 holes sit where they clear the channel.
     - Still to design: the lever-finger catch at the channel mouth and the crossover funnel. Your sketch asks whether the same part could also work at the top.
     - The channel only steers the ball within the plate's plane. Like the sieve column, it needs a guard on each face within about a ball radius (9.5) of the plate, or the ball tips off the 3.1 mm edge.
+  - **Feed keeper FK ×2** (`feed_keeper.gcode`): same 92 × 140 outline and M5 holes as the funnel (beam holes at x 36, y 80/110; band holes at y 10, x 16/46/76), no ball holes or channel. One goes on each face of the funnel to keep the balls in its plane.
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.

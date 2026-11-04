@@ -15,7 +15,7 @@ SHORT KEEPER (SK) -- 150 x 40 plain keeper: M5 every 3/4" (19.05) on v = 10, and
 
 Thickness, kerf and slot fit come from the material profile (mdf_3mm: 3.1 / 0.10).
 
-    python3 marbles/clock/feed_funnel.py      # -> marbles/gcode/feed_funnel.gcode, short_keeper.gcode
+    python3 marbles/clock/feed_funnel.py      # -> marbles/gcode/feed_funnel.gcode, feed_keeper.gcode, short_keeper.gcode
 """
 import argparse
 import json
@@ -105,6 +105,9 @@ def min_web(g):
 
 
 ff, m5, band = funnel_2d()
+# FEED KEEPER (FK): same outline and M5 holes as the funnel, no ball holes, no channel.
+# One on each face of the funnel keeps the balls in its plane (same part both sides, no flip).
+fk = box(0, 0, W, H).difference(unary_union([Point(p).buffer(M5 / 2, 32) for p in m5 + band]))
 sk, row10, row30 = short_keeper_2d(args.sk_len)
 # narrowest neck of the funnel plate: where the sieve column joins the rest (below the channel)
 print(f"T = {T}, KERF = {KERF}")
@@ -122,7 +125,9 @@ print(f"SK short keeper: {args.sk_len:g} x 40; M5 v=10 every 19.05 at x {[round(
 s2g, motion, mat, job = load_profile(args.material, 1000, None)
 out_dir = HERE.parent / "gcode"
 out_dir.mkdir(parents=True, exist_ok=True)
+print(f"FK feed keeper: {W:g} x {H:g}, M5 at {[(round(x, 1), round(y, 1)) for x, y in m5 + band]}; narrowest web {min_web(fk):.2f}")
 for name, g, note in (("feed_funnel", ff, "bottom feed funnel plate (sieve column + J channel + 20 mm band)"),
+                      ("feed_keeper", fk, "feed keeper: funnel outline + M5 holes, no ball holes or channel; cut 2"),
                       ("short_keeper", sk, f"short plain keeper {args.sk_len:g} x 40")):
     gk = g.buffer(KERF / 2, join_style=2)
     x0, y0, x1, y1 = gk.bounds
