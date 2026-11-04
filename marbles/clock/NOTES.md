@@ -303,6 +303,7 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
       - The bolts pass through all three: the 4 port bolts plus 4 more, listed in `EXTRA_BOLTS`.
       - Gap = 3 × T = 9.3, so laser-cut 10 mm ring spacers stack 3 per gap (48 for 8 bolts); or use bought standoffs of length `GAP`.
       - The port moved to x 70 so the inner port bolts' spacers clear F.
+      - **Beam bolts (your call):** no oversized access holes. The 2 beam bolts go through the back keeper, a spacer stack in the back gap and the funnel into F, so both plates bolt to the beam together. That makes 54 ring spacers.
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.

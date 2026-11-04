@@ -1,12 +1,13 @@
 // Side-entry feeder box for the bottom of the rocking ball lift.
 //
 // Three laser-cut layers held apart by spacers on M5 bolts that pass through all three:
-//   funnel        in S_F's plane, directly under S_F, bolted to F's back slot with 2 M5
-//                 (heads in the back gap). Sieve column (ball holes continue S_F's line)
+//   funnel        in S_F's plane, directly under S_F. Two M5 beam bolts go through the back
+//                 keeper, a spacer stack in the back gap and the funnel into F's back slot,
+//                 so both plates bolt to the beam together. Sieve column (ball holes continue S_F's line)
 //                 + a J channel from a pocket (balls enter sideways) down to the bottom hole.
 //   front keeper  GAP in front of the funnel; above F's end its inner edge rides in F's
 //                 far slot. Carries the PORT.
-//   back keeper   GAP behind the funnel; access holes over the beam-bolt heads.
+//   back keeper   GAP behind the funnel; plain M5 holes for the beam bolts.
 //   spacers       one stack per through-bolt in each gap (laser-cut rings, SPACER_LAYERS
 //                 thick, or bought standoffs of length GAP).
 //   port          standard interface: PORT x PORT opening, a TAB slot centred on each side
@@ -25,7 +26,7 @@
 //   part = "funnel" | "front_keeper" | "back_keeper" | "spacer"   2D shape
 //   laser = true       2D shape grown by kerf/2 (what the G-code script cuts)
 // The console prints a CHECK report: every through-bolt spacer's clearance from the
-// channel, ball holes, bolt heads, F, other spacers and the keeper edges, and the wood
+// channel, ball holes, F, other spacers and the keeper edges, and the wood
 // around every hole. Lines starting "WARN" need fixing.
 //
 //   python3 marbles/clock/feeder_scad_gcode.py   # one G-code per part from this file
@@ -67,7 +68,7 @@ SPACER_LAYERS = 3;        // laser-cut ring spacers per gap
 GAP = SPACER_LAYERS * T;  // funnel face to each keeper (9.3 at T 3.1); or set a standoff length here
 SPACER_D = 10;            // spacer outside diameter (rings or standoffs)
 SPACER_ID = 5.0;          // ring spacer hole (M5)
-SPACER_CLR = 1;           // keep spacers this far from the channel, holes, heads, F
+SPACER_CLR = 1;           // keep spacers this far from the channel, holes and F
 
 /* [Channel] */
 CH_W = HOLE_D + 1;        // channel width (ball 19.05)
@@ -82,9 +83,8 @@ PORT_BOLT = 18;           // corner M5 offset from the port centre (x and y)
 /* [Bolts] */
 M5 = 5.0;                 // all M5 holes exactly 5.0
 BEAM_BOLT_Y = [80, 110];  // funnel -> F's back slot, on BEAM_X, in the gaps between ball holes
-HEAD_D = 9.5;             // M5 head diameter (button 9.5, socket 8.5)
-HEAD_H = 5;               // head height (socket 5, button 2.75); must be < GAP
-ACCESS_D = HEAD_D + 1;    // back keeper access hole over each beam-bolt head (0 = none)
+HEAD_D = 9.5;             // M5 head diameter (button 9.5, socket 8.5), drawing only
+HEAD_H = 5;               // head height, drawing only
 // through-bolts besides the 4 port bolts (all through funnel + both keepers, a spacer in each gap)
 EXTRA_BOLTS = [[42, 9], [70, 9], [W - 8, 9], [W - 8, 55]];
 
@@ -115,11 +115,17 @@ function r2(x) = round(x * 100) / 100;
 function spacer_clear(p) = let(r = SPACER_D / 2) [
   ["channel", chan_d(p) - r],
   ["ball holes", minl([for (h = HOLES) norm(h - p) - HOLE_D / 2 - r])],
-  ["bolt heads (back gap)", minl([for (b = BEAM_BOLTS) norm(b - p) - HEAD_D / 2 - r])],
+  ["beam-bolt spacers (back gap)", minl([for (b = BEAM_BOLTS) if (b != p) norm(b - p) - SPACER_D])],
   ["port opening (front gap)", minl([for (q = port_rects(true)) rp(q, p) - r])],
   ["F beam (front gap)", p[1] + r <= F_END || p[0] - r >= COL_W || p[0] + r <= COL_W - 20 ? 999
                           : max(COL_W - 20 - (p[0] + r), p[0] - r - COL_W, F_END - (p[1] + r))],
   ["other spacers", minl([for (q = THRU) if (q != p) norm(q - p) - SPACER_D])]];
+// a beam-bolt spacer sits in the back gap only (in front of the funnel is F itself)
+function beam_spacer_clear(p) = let(r = SPACER_D / 2) [
+  ["channel", chan_d(p) - r],
+  ["ball holes", minl([for (h = HOLES) norm(h - p) - HOLE_D / 2 - r])],
+  ["other spacers", minl([for (q = concat(THRU, BEAM_BOLTS)) if (q != p) norm(q - p) - SPACER_D])],
+  ["back keeper edge (hole wood)", min(p[0] - BK_X0, W - p[0], p[1], H - p[1]) - M5 / 2]];
 // wood around a through-bolt hole in each plate
 function hole_wood(p) = let(r = M5 / 2) [
   ["front keeper edge", min(p[0] - fk_x0(p[1]), W - p[0], p[1], H - p[1]) - r],
@@ -127,15 +133,19 @@ function hole_wood(p) = let(r = M5 / 2) [
   ["funnel: channel", chan_d(p) - r],
   ["funnel: ball holes", minl([for (h = HOLES) norm(h - p) - HOLE_D / 2 - r])],
   ["funnel: beam bolts", minl([for (b = BEAM_BOLTS) norm(b - p) - M5])],
-  ["back keeper: access holes", ACCESS_D > 0 ? minl([for (b = BEAM_BOLTS) norm(b - p) - ACCESS_D / 2 - r]) : 999],
   ["keepers: port cuts", minl([for (q = port_rects(true)) rp(q, p) - r])]];
 
 module report() {
   echo(str("CHECK feeder: T ", T, ", GAP ", r2(GAP), " (inside ", r2(INSIDE), "), funnel ", W, " x ", H,
-           ", bridge over the pocket ", r2(H - PORT_C[1] - CH_W / 2), ", ", len(THRU), " through-bolts",
-           ", bolt head ", HEAD_H, " in the ", r2(GAP), " gap", HEAD_H < GAP ? "" : "  <-- WARN head taller than the gap"));
+           ", bridge over the pocket ", r2(H - PORT_C[1] - CH_W / 2), ", ", len(THRU), " through-bolts + ",
+           len(BEAM_BOLTS), " beam bolts (back keeper + funnel into F)"));
   echo(str("ok   channel to beam bolts ", r2(minl([for (b = BEAM_BOLTS) chan_d(b) - M5 / 2])),
            ", ball holes to beam bolts ", r2(minl([for (b = BEAM_BOLTS, h = HOLES) norm(b - h) - HOLE_D / 2 - M5 / 2]))));
+  for (p = BEAM_BOLTS) {
+    s = beam_spacer_clear(p);
+    bad = [for (c = s) if (c[1] < (c[0] == "back keeper edge (hole wood)" ? WEB : SPACER_CLR) - 1e-6) c];
+    echo(str(len(bad) ? "WARN " : "ok   ", "beam bolt at ", p, ": back-gap spacer clear by ", [for (c = s) if (c[1] < 900) str(c[0], " ", r2(c[1]))]));
+  }
   for (p = THRU) {
     s = spacer_clear(p);
     w = hole_wood(p);
@@ -173,8 +183,7 @@ module front_keeper2d() difference() {
 module back_keeper2d() difference() {
   translate([BK_X0, 0]) square([W - BK_X0, H]);
   port2d(false);
-  m5s(THRU);
-  if (ACCESS_D > 0) for (b = BEAM_BOLTS) translate(b) circle(d = ACCESS_D);
+  m5s(concat(THRU, BEAM_BOLTS));
 }
 module spacer2d() difference() { circle(d = SPACER_D); circle(d = SPACER_ID, $fn = 48); }
 
@@ -192,6 +201,7 @@ module assembly() {
   color("yellowgreen", 0.55) plate3d(Y_FK) front_keeper2d();
   color("yellowgreen", 0.55) plate3d(Y_BK) back_keeper2d();
   color("tan") for (p = THRU) { rodY(p, -GAP - explode / 2, -explode / 2, SPACER_D); rodY(p, T + explode / 2, T + GAP + explode / 2, SPACER_D); }
+  color("tan") for (b = BEAM_BOLTS) rodY(b, T + explode / 2, T + GAP + explode / 2, SPACER_D);
   if (show_sieve) color("burlywood") translate([0, 0, H]) plate3d(0) difference() {
     square([COL_W, 90]);
     for (i = [0 : 2]) translate([HOLE_X, 15 + PITCH * i]) circle(d = HOLE_D);
@@ -201,7 +211,7 @@ module assembly() {
     color("rosybrown") translate([COL_W - 60, -8.4, -10]) beam2020(H + 100);                // M (moving)
   }
   if (show_bolts) color("dimgray") {
-    for (b = BEAM_BOLTS) { rodY(b, T, T + HEAD_H, HEAD_D); rodY(b, -8, T, M5); }             // head in the back gap, into F
+    for (b = BEAM_BOLTS) { rodY(b, Y_BK + T, Y_BK + T + HEAD_H, HEAD_D); rodY(b, -8, Y_BK + T, M5); }   // head on the back keeper, into F
     for (p = THRU) { rodY(p, Y_FK - HEAD_H, Y_FK, HEAD_D); rodY(p, Y_FK, Y_BK + T + 5, M5); rodY(p, Y_BK + T, Y_BK + T + 4.7, 9); }
   }
   if (show_balls) color("steelblue") {
@@ -213,7 +223,7 @@ module assembly() {
 // ------------------------------------------------------------------ output
 module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
 echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer"]);
-echo(spacer_qty = len(THRU) * 2 * SPACER_LAYERS);
+echo(spacer_qty = (len(THRU) * 2 + len(BEAM_BOLTS)) * SPACER_LAYERS);
 report();
 if (part == "assembly") assembly();
 else if (part == "funnel") out2d() funnel2d();
