@@ -283,6 +283,14 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
     - Use the same port for the catch / side loader and for the top exit.
     - **Revised (your call):** the 3 bottom-band M5 holes for a short 2020 are gone. A bottom wall (BW), tabbed through both keepers, now closes the box under the outer part; the funnel's bottom edge tabs into it.
     - One G-code per part, longest side on X, named with the bbox rounded up: `feeder_<part>_<W>x<H>.gcode`.
+    - **Revised again (your call): spacer walls instead of through-walls.**
+      - Each gap (funnel ↔ front keeper, funnel ↔ back keeper) gets its own 8.45-deep walls: outer, top and bottom. They are tabbed into the funnel and into that keeper, so the keeper slots match the funnel's.
+      - Front and back walls share lines through the funnel, so load goes straight through to the funnel and its M5 bolts into F.
+      - Their tabs alternate on a shared 10 mm grid, so no funnel slot takes tabs from both sides.
+      - The funnel no longer tabs into anything.
+      - Open items:
+        - The outer walls stop below the port's M5 holes (gap from y 87.5 to 132.9 on the outer edge).
+        - The two beam M5 bolts need an 8.45 spacer (tube or locked nuts) between the back keeper and the funnel.
   - **Short plain keeper SK:** 150 × 40 (`short_keeper.gcode`).
     - M5 every 3/4" (19.05) on the row 10 mm from one edge.
     - The standard 60 mm spacing on the row 10 mm from the other edge.

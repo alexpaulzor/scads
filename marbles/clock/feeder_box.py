@@ -52,15 +52,8 @@ INSIDE = 20.0                                   # keeper to keeper, inside
 GAP = (INSIDE - T) / 2                          # funnel face to each keeper
 PORT = 20.0                                     # port opening (square, inside of a standard duct)
 PORT_C = (66.0, 110.0)                          # port / pocket centre on the plate
-PORT_M5 = 17.0                                  # corner M5 offset from the port centre
+PORT_M5 = 16.0                                  # corner M5 offset from the port centre
 CH_W = HOLE_D + 1.0
-OWX = (W, W + T)                                # outer wall
-TWY = (H, H + T)                                # top wall
-TW_X0 = 50.0
-BWY = (-T, 0.0)                                # bottom wall, under the funnel's outer part
-KW = W + T + WEB                                # keepers reach past the outer wall
-KH = H + T + WEB                                # ... and above the top wall (outer part only)
-KB = -T - WEB                                   # ... and below the bottom wall (outer part only)
 FK_X0_LOW, FK_X0_HIGH = COL_W - 12.0, COL_W - 6.0   # FK inner edge: under F's end / in F's far slot (a 12 / a 6)
 BK_X0 = 6.0                                     # BK clears M's body (a <= 40)
 y_holes = [BAND + 15.0 + PITCH * i for i in range(N_HOLES)]
@@ -75,22 +68,6 @@ def bezier(p0, p1, p2, p3, n=80):
 yb = y_holes[0]
 path = bezier(PORT_C, (PORT_C[0], yb + 18), (HOLE_X + 26, yb + 6), (HOLE_X, yb))
 channel = unary_union([LineString(path).buffer(CH_W / 2, 32), Point(PORT_C).buffer(CH_W / 2, 64)])
-
-
-def spans(L0, L1, k=None):
-    """k tabs of TAB centred on [L0, L1] with equal gaps"""
-    Lr = L1 - L0
-    k = k or max(1, int((Lr - TAB) // (2 * TAB)))
-    g = (Lr - k * TAB) / (k + 1)
-    return [(L0 + g * (i + 1) + TAB * i, L0 + g * (i + 1) + TAB * (i + 1)) for i in range(k)]
-
-
-OW_TABS = spans(0, H)                 # outer wall -> keepers, along y
-FF_TABS = spans(BAND, H, 3)           # funnel -> outer wall
-TW_TABS = spans(TW_X0, W)             # top wall -> keepers, along x
-BW_X0 = FK_X0_LOW + WEB                # bottom wall from here (FK covers x >= FK_X0_LOW) to the outer wall
-BW_TABS = spans(BW_X0, W)             # bottom wall -> keepers, along x
-FF_BTABS = spans(BW_X0, W, 2)         # funnel's bottom edge -> bottom wall
 c = lambda p, d: Point(p).buffer(d / 2, 48)
 
 
@@ -105,65 +82,75 @@ def port_cuts(open_hole):
     return cuts
 
 
-def wall_slots():
-    """slots in a keeper for the outer wall and top wall tabs"""
-    s = [box(OWX[0], y0, OWX[1] + FIT, y1) for y0, y1 in OW_TABS]
-    s += [box(x0, TWY[0], x1, TWY[1] + FIT) for x0, x1 in TW_TABS]
-    s += [box(x0, BWY[0] - FIT, x1, BWY[1]) for x0, x1 in BW_TABS]
-    return s
-
-
-band_m5 = []                                    # dropped: a bottom wall closes the box instead
 beam_m5 = [(M5_X, y) for y in ((y_holes[1] + y_holes[2]) / 2, (y_holes[2] + y_holes[3]) / 2)]
+
+# ---- spacer walls: separate walls in each gap (funnel <-> FK, funnel <-> BK), GAP deep, tabbed into BOTH the
+# funnel and that keeper. Front and back walls on the same line put their tabs on one shared 10 mm grid, front on
+# cells k = 1 (mod 4), back on k = 3 (mod 4), so every funnel slot takes one tab from one side only and the walls
+# line up through the funnel: load goes straight through to the funnel and its bolts into the beam.
+y_port_lo = PORT_C[1] - PORT_M5 - M5 / 2 - WEB          # outer walls stop below the port's lower M5
+y_top = H - WEB - T                                      # top walls
+y_bot = WEB                                              # bottom walls
+x_out = W - WEB - T                                      # outer walls
+SPACERS = [  # (key, side, orient, fixed coordinate, lo, hi): 'v' = runs along y at x..x+T; 'h' = runs along x at y..y+T
+    ("SF1", "F", "v", x_out, y_bot + T, y_port_lo),
+    ("SF2", "F", "h", y_top, FK_X0_HIGH + WEB, W - WEB),
+    ("SF3", "F", "h", y_bot, FK_X0_LOW + WEB, W - WEB),
+    ("SB1", "B", "v", x_out, y_bot + T, y_port_lo),
+    ("SB2", "B", "h", y_top, HOLE_X + HOLE_D / 2 + WEB, W - WEB),
+    ("SB3", "B", "h", y_bot, BK_X0 + WEB, W - WEB),
+]
+
+
+def tabs(side, lo, hi):
+    phase = 1 if side == "F" else 3
+    out, k = [], 0
+    while TAB * k < hi:
+        a0, a1 = TAB * k, TAB * (k + 1)
+        if k % 4 == phase and a0 >= lo and a1 <= hi:
+            out.append((a0, a1))
+        k += 1
+    return out
+
+
+def spacer_slots(sp):
+    """slots this spacer needs in the funnel and in its keeper (same positions), plate coords"""
+    key, side, orient, f, lo, hi = sp
+    if orient == "v":
+        return [box(f - FIT / 2, a0, f + T + FIT / 2, a1) for a0, a1 in tabs(side, lo, hi)]
+    return [box(a0, f - FIT / 2, a1, f + T + FIT / 2) for a0, a1 in tabs(side, lo, hi)]
+
+
+def spacer_2d(sp):
+    """(u, v): u along the wall, v across the gap (0 = funnel face .. GAP = keeper face), tabs into both"""
+    key, side, orient, f, lo, hi = sp
+    t = tabs(side, lo, hi)
+    g = unary_union([box(lo, 0, hi, GAP)] + [box(a0, -T, a1, 0.01) for a0, a1 in t]
+                    + [box(a0, GAP - 0.01, a1, GAP + T) for a0, a1 in t])
+    return g
 
 
 def keeper_outline(x0_low, x0_high, y_split):
-    g = unary_union([box(x0_low, 0, KW, y_split), box(x0_high, y_split, KW, H), box(COL_W, H, KW, KH),
-                     box(BW_X0 - WEB, KB, KW, 0.01)])
+    g = unary_union([box(x0_low, 0, W, y_split), box(x0_high, y_split, W, H)])
     return g.buffer(-2, join_style=2).buffer(2, join_style=2)
 
 
 def funnel():
-    g = unary_union([box(0, 0, W, H)] + [box(W - 0.01, y0, OWX[1], y1) for y0, y1 in FF_TABS]
-                    + [box(x0, BWY[0], x1, 0.01) for x0, x1 in FF_BTABS])
-    cuts = [channel] + [c((HOLE_X, y), HOLE_D) for y in y_holes] + [c(p, M5) for p in band_m5 + beam_m5]
-    return g.difference(unary_union(cuts))
+    cuts = [channel] + [c((HOLE_X, y), HOLE_D) for y in y_holes] + [c(p, M5) for p in beam_m5]
+    cuts += [sl for sp in SPACERS for sl in spacer_slots(sp)]
+    return box(0, 0, W, H).difference(unary_union(cuts))
 
 
 def front_keeper():
     g = keeper_outline(FK_X0_LOW, FK_X0_HIGH, args.f_end)
-    cuts = wall_slots() + port_cuts(True) + [c(p, M5) for p in band_m5 if p[0] > FK_X0_LOW + WEB]
+    cuts = port_cuts(True) + [sl for sp in SPACERS if sp[1] == "F" for sl in spacer_slots(sp)]
     return g.difference(unary_union(cuts))
 
 
 def back_keeper():
     g = keeper_outline(BK_X0, BK_X0, H)
-    cuts = wall_slots() + port_cuts(False) + [c(p, M5) for p in band_m5 + beam_m5]
+    cuts = port_cuts(False) + [c(p, M5) for p in beam_m5] + [sl for sp in SPACERS if sp[1] == "B" for sl in spacer_slots(sp)]
     return g.difference(unary_union(cuts))
-
-
-# walls, in their own (u, v) with v = position across the gap: v 0 = BK inner face .. INSIDE = FK inner face
-def outer_wall():
-    """(y, v): y along the funnel height; tabs into BK (v<0) and FK (v>INSIDE); mortises for the funnel's tabs"""
-    g = unary_union([box(0, 0, H, INSIDE)] + [box(y0, -T, y1, 0.01) for y0, y1 in OW_TABS]
-                    + [box(y0, INSIDE - 0.01, y1, INSIDE + T) for y0, y1 in OW_TABS])
-    mort = [box(y0 - FIT / 2, GAP - FIT / 2, y1 + FIT / 2, GAP + T + FIT / 2) for y0, y1 in FF_TABS]
-    return g.difference(unary_union(mort))
-
-
-def top_wall():
-    """(x, v): x along the plate; spans TW_X0 .. outer wall's outside face"""
-    g = unary_union([box(TW_X0, 0, OWX[1], INSIDE)] + [box(x0, -T, x1, 0.01) for x0, x1 in TW_TABS]
-                    + [box(x0, INSIDE - 0.01, x1, INSIDE + T) for x0, x1 in TW_TABS])
-    return g
-
-
-def bottom_wall():
-    """(x, v): spans BW_X0 .. outer wall's outside face; mortises for the funnel's bottom tabs"""
-    g = unary_union([box(BW_X0, 0, OWX[1], INSIDE)] + [box(x0, -T, x1, 0.01) for x0, x1 in BW_TABS]
-                    + [box(x0, INSIDE - 0.01, x1, INSIDE + T) for x0, x1 in BW_TABS])
-    mort = [box(x0 - FIT / 2, GAP - FIT / 2, x1 + FIT / 2, GAP + T + FIT / 2) for x0, x1 in FF_BTABS]
-    return g.difference(unary_union(mort))
 
 
 def min_web(g):
@@ -178,8 +165,16 @@ def min_web(g):
     return best
 
 
-PARTS = [("FF funnel", funnel()), ("FK front keeper", front_keeper()), ("BK back keeper", back_keeper()),
-         ("OW outer wall", outer_wall()), ("TW top wall", top_wall()), ("BW bottom wall", bottom_wall())]
+NAMES = {"SF1": "outer spacer, front", "SF2": "top spacer, front", "SF3": "bottom spacer, front",
+         "SB1": "outer spacer, back", "SB2": "top spacer, back", "SB3": "bottom spacer, back"}
+PARTS = [("FF funnel", funnel()), ("FK front keeper", front_keeper()), ("BK back keeper", back_keeper())]
+PARTS += [(f"{sp[0]} {NAMES[sp[0]]}", spacer_2d(sp)) for sp in SPACERS]
+# the channel must stay clear of every wall (ball footprint = channel outline)
+for sp in SPACERS:
+    key, side, orient, f, lo, hi = sp
+    fp = box(f, lo, f + T, hi) if orient == "v" else box(lo, f, hi, f + T)
+    assert fp.distance(channel) > 1.0, f"{key} hits the channel"
+    print(f"{key}: {orient} at {f:.2f}, {lo:.2f}..{hi:.2f}, tabs {tabs(side, lo, hi)}; clear of the channel by {fp.distance(channel):.2f}")
 ff = PARTS[0][1]
 bridge = H - (PORT_C[1] + CH_W / 2)
 print(f"T = {T}, KERF = {KERF}, FIT = {FIT}; inside {INSIDE:g} (funnel {GAP:.2f} off each keeper)")
@@ -208,9 +203,9 @@ for name, g in items[1:]:
         r = norm(affinity.rotate(g, rot, origin=(0, 0)))
         w, h = r.bounds[2], r.bounds[3]
         x = 0.0
-        while x <= X1 + GAPN:
+        while x <= X1 + GAPN + STEP:
             y = 0.0
-            while y <= Y1 + GAPN:
+            while y <= Y1 + GAPN + STEP:
                 key = ((max(X1, x + w) - min(X0, x)) * (max(Y1, y + h) - min(Y0, y)), max(Y1, y + h))
                 if best is None or key < best[0]:
                     cand = affinity.translate(r, x, y)
@@ -231,7 +226,7 @@ holes.sort(key=lambda pl: abs(Polygon(pl).area))
 outers.sort(key=lambda pl: abs(Polygon(pl).area))
 s2g, motion, mat, job = load_profile(args.material, 1000, None)
 cuts = [s2g.Polyline(pl, True) for pl in holes + outers]
-lines = [f"; feeder_box -- marbles/clock/feeder_box.py: side-entry feeder box (funnel, 2 keepers, 2 walls)",
+lines = [f"; feeder_box -- marbles/clock/feeder_box.py: side-entry feeder box (funnel, 2 keepers, 6 spacer walls)",
          f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
          f"kerf {KERF}, fit {FIT}; X0 Y0 = bottom-left; footprint {X1 - X0:.2f} x {Y1 - Y0:.2f} mm",
          f"; {len(holes)} holes/slots first, then {len(outers)} outlines", ";"]
@@ -245,8 +240,9 @@ out.write_text("\n".join(lines))
 print(f"wrote {out.name}: {X1 - X0:.2f} x {Y1 - Y0:.2f} mm, {len(cuts)} cuts")
 
 # ---------------------------------------------------------------- one file per part, longest side along X
-SLUG = {"FF": "feeder_funnel", "FK": "feeder_front_keeper", "BK": "feeder_back_keeper", "OW": "feeder_outer_wall", "TW": "feeder_top_wall",
-        "BW": "feeder_bottom_wall"}
+SLUG = {"FF": "feeder_funnel", "FK": "feeder_front_keeper", "BK": "feeder_back_keeper",
+        "SF1": "feeder_spacer_outer_front", "SF2": "feeder_spacer_top_front", "SF3": "feeder_spacer_bottom_front",
+        "SB1": "feeder_spacer_outer_back", "SB2": "feeder_spacer_top_back", "SB3": "feeder_spacer_bottom_back"}
 for n, g in PARTS:
     gk = norm(g.buffer(KERF / 2, join_style=2))
     if gk.bounds[3] > gk.bounds[2]:
@@ -276,14 +272,22 @@ def rings(g):
 to_az = lambda g: affinity.affine_transform(g, [-1, 0, 0, 1, COL_W, -H])
 s_bk_in = -T - GAP                    # BK inner face (s)
 s_fk_in = GAP                         # FK inner face (s)
-ow = outer_wall()                     # (y, v) -> sz: (s, z) = (v + s_bk_in, y - H), extruded along a
-tw = top_wall()                       # (x, v) -> as: (a, s) = (46 - x, v + s_bk_in), extruded along z
+def spacer_scene(sp):
+    key, side, orient, f, lo, hi = sp
+    g = spacer_2d(sp)                         # (u, v); v 0 = funnel face
+    if side == "F":                           # s = v (funnel front face at s 0)
+        sv = [1, 0]
+    else:                                     # s = -T - v
+        sv = [-1, -T]
+    if orient == "v":                         # u = y -> z = y - H; plane (s, z), along a: a = 46 - x
+        geom = affinity.affine_transform(g, [0, sv[0], 1, 0, sv[1], -H])
+        return {"kind": "sz", "polys": rings(geom), "lo": COL_W - f - T, "hi": COL_W - f}
+    geom = affinity.affine_transform(g, [-1, 0, 0, sv[0], COL_W, sv[1]])   # u = x -> a = 46 - x; plane (a, s), along z
+    return {"kind": "as", "polys": rings(geom), "lo": f - H, "hi": f + T - H}
 json.dump({"T": T, "H": H, "W": W, "GAP": GAP, "INSIDE": INSIDE, "s_bk_in": s_bk_in, "s_fk_in": s_fk_in,
            "PORT_C": PORT_C, "PORT": PORT, "f_end": args.f_end - H,
            "FF": rings(to_az(funnel())), "FK": rings(to_az(front_keeper())), "BK": rings(to_az(back_keeper())),
-           "OW": rings(affinity.affine_transform(ow, [0, 1, 1, 0, s_bk_in, -H])), "OW_a": [COL_W - OWX[1], COL_W - OWX[0]],
-           "TW": rings(affinity.affine_transform(tw, [-1, 0, 0, 1, COL_W, s_bk_in])), "TW_z": [TWY[0] - H, TWY[1] - H],
-           "BW": rings(affinity.affine_transform(bottom_wall(), [-1, 0, 0, 1, COL_W, s_bk_in])), "BW_z": [BWY[0] - H, BWY[1] - H],
+           "spacers": [dict(spacer_scene(sp), key=sp[0], side=sp[1]) for sp in SPACERS],
            "ball_path": [(COL_W - x, y - H) for x, y in path],
            "thumbs": [{"key": n.split()[0], "name": " ".join(n.split()[1:]), "per_fork": 1, "polys": rings(g), "bounds": g.bounds}
                       for n, g in PARTS]},

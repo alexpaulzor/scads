@@ -22,9 +22,9 @@ WOOD, KEEP, WALL, BEAM, BEAM_M, DUCT = "#e39b5b", "#9cc28a", "#7fae6a", "#b8c4cf
 parts = [P("FF", "funnel", WOOD, "az", d["FF"], -T, 0),
          P("FK", "front keeper", KEEP, "az", d["FK"], sfk, sfk + T, 0.6),
          P("BK", "back keeper", KEEP, "az", d["BK"], sbk - T, sbk, 0.6),
-         P("OW", "outer wall", WALL, "sz", d["OW"], d["OW_a"][0], d["OW_a"][1]),
-         P("TW", "top wall", WALL, "as", d["TW"], d["TW_z"][0], d["TW_z"][1]),
-         P("BW", "bottom wall", WALL, "as", d["BW"], d["BW_z"][0], d["BW_z"][1])]
+         ]
+for sp in d["spacers"]:
+    parts.append(P(sp["key"], "spacer wall", WALL, sp["kind"], sp["polys"], sp["lo"], sp["hi"], group="spacer"))
 sf = box(0, 0, 46, 130).difference(unary_union([Point(30, 15 + 30 * i).buffer(10, 64) for i in range(4)] + [Point(10, u).buffer(2.5, 32) for u in (30, 90)]))
 parts.append(P("S_F", "S_F", "#d4b07a", "az", rings(sf), -T, 0))
 parts.append(P("F", "F", BEAM, "as", rings(profile2020(0, 0)), F_END, 130))
@@ -67,11 +67,12 @@ SIDE = {"dir": [1, 0, 0], "up": [0, 1, 0]}
 ISO = {"dir": [0.8, -0.55, -1.2], "up": [0, 1, 0]}
 FC, MC, GK, K, O, DC = "#3d5a73", "#8a4a2f", "#3f6e2a", "#333", "#a8501a", "#6b3f85"
 sub = ["Side-entry feeder box under S_F. Balls come in sideways through the port in the front keeper, drop into the pocket,",
-       f"queue down the closed-top J channel into the bottom hole. Keepers are {d['INSIDE']:g} apart inside, the funnel centred between them."]
+       f"queue down the closed-top J channel. Spacer walls {GAP:.2f} deep sit in line front and back of the funnel, tabbed into it and each keeper."]
 lab = [["F (ends above the channel)", [10, 10, F_END + 5], "R", FC], ["M", [50, -1.6, 100], "R", MC], ["S_F", [5, -T / 2, 100], "L", FC],
        ["funnel FF (closed top, bridge over the pocket)", [-30, -T / 2, -8], "L", O],
        ["front keeper FK, edge in F's far slot (see-through)", [-5, sfk + T, -40], "L", GK],
-       ["back keeper BK (see-through)", [-40, sbk - T, -130], "L", GK], ["outer wall OW", [-47.5, 0, -70], "L", GK], ["top wall TW", [-30, 0, 1.5], "R", GK], ["bottom wall BW (box closed, no beam)", [-30, 0, -H - 1.5], "R", GK],
+       ["back keeper BK (see-through)", [-40, sbk - T, -130], "L", GK], ["outer spacer walls (front + back, in line)", [-40.5, 4, -90], "L", GK], ["top spacer walls", [-30, 4, -5.5], "R", GK],
+       ["bottom spacer walls", [-30, 4, -H + 5.5], "R", GK],
        ["port: 20 square, 10 mm tab slots, 4 x M5", [pc[0] + 10, sfk + T, pc[1] + 14], "R", DC], ["example 20-inside duct", [pc[0] + 11, sfk + T + 25, pc[1]], "R", DC],
        ["queued balls", [-10, -T / 2, -80], "L", "#24546b"], ["bottom hole: M picks up here", [30, -T / 2, -105], "R", "#24546b"]]
 v = {}
@@ -81,13 +82,13 @@ v["fb_section"] = {"scene": "feederbox_sec.json", "cam": TOP, "title": f"6b  Sec
                    "sub": ["FRONT on the LEFT. Ball enters from the duct (left), through the front keeper, into the funnel's pocket.",
                            f"Funnel {GAP:.2f} off each keeper; the walls hold the keepers {d['INSIDE']:g} apart."],
                    "labels": [["funnel FF", [-35, -T / 2, ZC], "R", O], ["front keeper FK", [-35, sfk + T / 2, ZC], "L", GK],
-                              ["back keeper BK", [-35, sbk - T / 2, ZC], "R", GK], ["outer wall OW", [-47.5, 0, ZC], "R", GK],
+                              ["back keeper BK", [-35, sbk - T / 2, ZC], "R", GK], ["spacer walls (front and back of the funnel)", [-40.5, 4, ZC - 20], "R", GK],
                               ["example duct", [pc[0] - 11.5, sfk + 20, ZC], "L", DC], ["ball coming in", [pc[0], sfk + T + 15, ZC], "L", "#24546b"],
                               ["M", [50, -1.6, ZC], "R", MC], ["F", [10, 10, ZC], "L", FC]],
                    "notes": [{"t": "FRONT", "at": [70, 35, ZC]}, {"t": "BACK", "at": [70, -30, ZC]}]}
 v["fb_side"] = {"scene": "feederbox.json", "cam": SIDE, "title": "6c  Side view, from the outer wall", "sub": ["FRONT on the RIGHT."] + sub[1:],
-                "labels": [["outer wall OW (tabs through both keepers)", [-49, 0, -60], "L", GK], ["example duct on the port", [pc[0], sfk + 25, pc[1]], "R", DC],
-                           ["top wall TW", [-49, 0, 1.5], "L", GK], ["M", [40, -1.6, 110], "L", MC], ["F", [0, 10, 100], "R", FC]],
+                "labels": [["outer spacer walls, front and back", [-42, 4, -90], "L", GK], ["example duct on the port", [pc[0], sfk + 25, pc[1]], "R", DC],
+                           ["top spacer walls", [-42, 4, -5.5], "L", GK], ["M", [40, -1.6, 110], "L", MC], ["F", [0, 10, 100], "R", FC]],
                 "w": 1500, "h": 1150, "ml": 430}
 v["fb_iso"] = {"scene": "feederbox.json", "cam": ISO, "title": "6d  Side-entry feeder box, angled", "sub": sub, "w": 1700, "ml": 470, "mr": 400,
                "labels": lab, "ghost": ["FK"], "ghost_op": 0.3}
