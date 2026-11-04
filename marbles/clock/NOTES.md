@@ -255,6 +255,16 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
   - Stroke ≈ d × (sin tilt1 + sin tilt2); target = pitch + 2 × drop.
   - The chain and turnbuckle only place the stroke (registration).
 - [ ] **L14** Bottom pickup: how balls enter the first hole (feed chute or ramp from the clock's return).
+  - **Your design (2026-11-04):**
+    - The bottom hopper feeds a short fixed chute ending in a wire catch. The catch holds exactly one ball in a known spot, with the rest queued behind it by gravity.
+    - The swinging rig carries a wire hook that snags that one ball as it passes and drops it into a short chute on the rig.
+    - That chute queues a few balls for the bottom sieve hole.
+  - **Details to settle (Claude's suggestions):**
+    - Put the pickup near one end of the swing, or make the hook a one-way hinged finger, so the hook doesn't hit the next ball on the return pass.
+    - Pushing the ball sideways off an open-sided cradle may be easier than lifting it.
+    - What happens when the rig's queue is full: overflow path, or a hook that misses when the queue backs up.
+    - Drop height and noise into the rig chute.
+    - Run both chutes parallel to the pivot axle.
   - Ideas:
     - Run feed and exit tracks **parallel to the pivot axle**, so rocking only banks them and never changes their slope.
     - Bottom moves most: either a short queue ramp riding on F into a window in the guard at the bottom hole, fed from a fixed spout over a catch mouth wider than the bottom's swing, or pivot the lift at the bottom instead.
