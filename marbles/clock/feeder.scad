@@ -252,12 +252,10 @@ module trough_side2d() union() {         // (v, z): z = plate y
   translate([TR_L / 2 - TAB / 2, TR_PB - T]) square([TAB, T + 0.01]);        // into the floor
 }
 CAP_HW = PORT_BOLT + M5 / 2 + WEB;        // cap reaches past every port bolt
-module trough_cap2d() difference() {     // (x, z): carries holes for all 8 port bolts
+module trough_cap2d() difference() {     // (x, z): 4-fold symmetric; carries holes for all 8 port bolts
   offset(r = 2) offset(delta = -2) translate(PORT_C - [CAP_HW, CAP_HW]) square([2 * CAP_HW, 2 * CAP_HW]);
   m5s(concat(PORT_BOLTS, MID_ALL));
-  translate([PORT_C[0] - TAB / 2 - FIT / 2, TR_PB - T - FIT / 2]) square([TAB + FIT, T + FIT]);   // floor tab
-  for (sx = [-1, 1]) translate([PORT_C[0] + sx * (PORT / 2 + T / 2) - T / 2 - FIT / 2, PORT_C[1] - TAB / 2])
-    square([T + FIT, TAB]);                                                   // side walls' end tabs
+  port2d(false);                         // the port's 4 tab slots, no opening: floor + side walls use 3, the top is spare
 }
 
 // ------------------------------------------------------------------ 3D assembly
