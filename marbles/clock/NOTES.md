@@ -226,8 +226,8 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - [x] **L1** Wheel-box concept: keeper is the near wall, plus far cheek + top/bottom + back, open toward the beam.
 - [x] **L2 (MDF)** Kerf 0.10 confirmed by the perfect tab fit. Plywood: re-confirm 0.10 when we switch.
 - [x] **L3 (MDF)** Tab fit is perfect at T = 3.1, kerf 0.10, FIT 0.
-- [ ] **L3b (plywood)** Tab-fit coupon in 2.6 plywood; add a `fit:` block to its profile.
-- [ ] **L4** Check that the far faces of F and M are V-slot (wheels don't seat in T-slot). Swap beams if needed.
+- [x] **L3b (plywood)** (marked done with L1–L4, 2026-11-04) Tab-fit coupon in 2.6 plywood; add a `fit:` block to its profile.
+- [x] **L4** Check that the far faces of F and M are V-slot (wheels don't seat in T-slot). Swap beams if needed.
 - [x] **L5** G-code for one WK + its box (`wheel_box_set.gcode`) and for the PK (`plain_keeper.gcode`). Validated; the box set is cut.
 - [ ] **L6** Cut and dry-fit one box on a V-slot offcut with a polymer wheel. Check:
   - groove engagement (the 9.85 assumption)
@@ -254,6 +254,8 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - [ ] **L10a** Chain length and swing: measure d, h, L, e and the two tilts; use the tuner page (https://claude.ai/artifact/4cPu2Bs5Xj2CbjY5Lb4qQ5).
   - Stroke ≈ d × (sin tilt1 + sin tilt2); target = pitch + 2 × drop.
   - The chain and turnbuckle only place the stroke (registration).
+- [ ] **L14a** Spider-tunnel to feeder-port adapter (near the top of the list). See `PICKUP_LOG.md` §2.
+- [ ] **L14b** Pendulum pickup: wire fishhook grabber + hopper wire track with sloped triangle ends. See `PICKUP_LOG.md` §1 (the user's concept, 2026-11-04).
 - [ ] **L14** Bottom pickup: how balls enter the first hole (feed chute or ramp from the clock's return).
   - **Your design (2026-11-04):**
     - The bottom hopper feeds a short fixed chute ending in a wire catch. The catch holds exactly one ball in a known spot, with the rest queued behind it by gravity.
