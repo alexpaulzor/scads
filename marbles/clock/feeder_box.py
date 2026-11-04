@@ -16,7 +16,8 @@ PORT (the standard interface for whatever loads balls next): a 20 x 20 square op
 Inside spacing between keepers = 20 (the same 20 as the port), funnel centred between them.
 Thickness, kerf, fit come from the material profile (mdf_3mm: 3.1 / 0.10 / 0).
 
-    python3 marbles/clock/feeder_box.py       # -> marbles/gcode/feeder_box.gcode
+    python3 marbles/clock/feeder_box.py       # -> marbles/gcode/feeder_box.gcode (nested) + one file per part,
+                                              #    feeder_<part>_<W>x<H>.gcode (bbox rounded up, longest side X)
 """
 import argparse
 import json
@@ -224,6 +225,30 @@ out = HERE.parent / "gcode" / "feeder_box.gcode"
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text("\n".join(lines))
 print(f"wrote {out.name}: {X1 - X0:.2f} x {Y1 - Y0:.2f} mm, {len(cuts)} cuts")
+
+# ---------------------------------------------------------------- one file per part, longest side along X
+SLUG = {"FF": "feeder_funnel", "FK": "feeder_front_keeper", "BK": "feeder_back_keeper", "OW": "feeder_outer_wall", "TW": "feeder_top_wall"}
+for n, g in PARTS:
+    gk = norm(g.buffer(KERF / 2, join_style=2))
+    if gk.bounds[3] > gk.bounds[2]:
+        gk = norm(affinity.rotate(gk, 90, origin=(0, 0)))
+    w, h = gk.bounds[2], gk.bounds[3]
+    name = f"{SLUG[n.split()[0]]}_{math.ceil(w - 1e-9)}x{math.ceil(h - 1e-9)}"
+    hs, os_ = [], []
+    for poly in ([gk] if gk.geom_type == "Polygon" else list(gk.geoms)):
+        hs += [list(r.coords) for r in poly.interiors]
+        os_.append(list(poly.exterior.coords))
+    hs.sort(key=lambda pl: abs(Polygon(pl).area))
+    pc = [s2g.Polyline(pl, True) for pl in hs + os_]
+    ln = [f"; {name} -- marbles/clock/feeder_box.py: {n}",
+          f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
+          f"kerf {KERF}, fit {FIT}; X0 Y0 = bottom-left; {w:.2f} x {h:.2f} mm (longest side along X)", ";"]
+    ln += preamble(s2g, job)
+    for i, cc in enumerate(pc, 1):
+        ln += emit_cut(s2g, motion, cc, i, len(pc), job)
+    ln += s2g._footer()
+    (out.parent / f"{name}.gcode").write_text("\n".join(ln))
+    print(f"wrote {name}.gcode: {w:.2f} x {h:.2f} mm, {len(pc)} cuts")
 
 # ---------------------------------------------------------------- scene data (a = 46 - x, z = y - H)
 def rings(g):
