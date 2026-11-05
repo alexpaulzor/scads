@@ -292,7 +292,7 @@ module beam2020(len) difference() {
   for (a = [0, 90, 180, 270]) translate([10, 10, -1]) rotate([0, 0, a]) translate([-3.1, 10 - 1.8, 0]) cube([6.2, 2, len + 2]);
 }
 module rodY(p, y0, y1, d) translate([p[0], min(y0, y1), p[1]]) rotate([-90, 0, 0]) cylinder(d = d, h = abs(y1 - y0));
-module assembly(fit = port_fit) {   // fit: "trough", "tunnel" or "none" on the port
+module assembly(fit = port_fit, balls = show_balls) {   // fit: "trough", "tunnel" or "none" on the port
   color("sandybrown") plate3d(0) funnel2d();
   color("yellowgreen", 0.55) plate3d(Y_FK) front_keeper2d();
   color("yellowgreen", 0.55) plate3d(Y_BK) back_keeper2d();
@@ -324,7 +324,7 @@ module assembly(fit = port_fit) {   // fit: "trough", "tunnel" or "none" on the 
       rotate([0, 0, 0]) multmatrix([[0, 0, 1, 0], [-1, 0, 0, 0], [0, 1, 0, 0]]) linear_extrude(T) trough_side2d();
     translate([0, Y_FK - TR_L - T, 0]) plate3d(0) trough_cap2d();
   }
-  if (show_balls) color("steelblue") {
+  if (balls) color("steelblue") {
     for (i = [0 : 4]) translate([PATH[60 - i * 12][0], T / 2, PATH[60 - i * 12][1]]) sphere(d = BALL_D);
     translate([PORT_C[0], T / 2, PORT_C[1]]) sphere(d = BALL_D);                               // one in the pocket
     if (fit == "trough") for (k = [1 : max(1, floor(TR_L / BALL_D))]) translate([PORT_C[0], Y_FK - TR_L + BALL_D / 2 + (k - 1) * BALL_D + 0.2, TR_PB + BALL_D / 2]) sphere(d = BALL_D);   // two waiting

@@ -9,6 +9,10 @@
 // funnel's bottom edge is z = 0.
 //
 //   openscad lift_full.scad                       # the assembly
+//   View > Animate (FPS 12, Steps 24) in the GUI, or:  openscad --animate 24 -o frame.png lift_full.scad
+//   One $t cycle = one lift stroke: S_M rises a stroke carrying every column ball up one hole, then
+//   drops back; balls flow in through the bottom trough and out through the exit trough and its hole.
+//   The rig's rocking (+6 / -18 deg tilt) is not shown: only the lift motion.
 //   openscad -D 'part="exit_floor"' -D laser=true lift_full.scad -o f.svg   # 2D exit-trough parts
 
 include <feeder.scad>
@@ -30,6 +34,11 @@ EXIT_HOLE = 20;           // drop hole at the far end
 EXIT_SIDE = "front";      // [front, back] which face of the top feeder the trough leaves from
 EXIT_WALL_H = PORT;       // side wall height above the floor
 TRACK_DROP = 45;          // track wires this far under the hole (drawing only)
+
+/* [Animation] */
+animate = true;           // false: the static picture (balls at fixed spots)
+STROKE = 34;              // S_M stroke = pitch + 2 x drop (NOTES: lift_demo.scad)
+DROP = (STROKE - PITCH) / 2;
 
 // ------------------------------------------------------------------ derived
 SIEVE_M5_Z = [for (i = [0 : SIEVE_HOLES - 2]) if (i % 2 == 0 || i == SIEVE_HOLES - 2) PITCH * (i + 1)];   // short_parts.rail_m5_x
@@ -65,12 +74,12 @@ module sieve3d() color("burlywood") translate([0, 0, Z_SIEVE]) plate3d(0) differ
 
 // the exit trough, in a local frame: origin at the port face's centre-bottom (floor top), v = -y out
 module exit_trough3d() {
-  rotate([-EXIT_SLOPE, 0, 0]) {            // floor falls away from the port
+  rotate([EXIT_SLOPE, 0, 0]) {             // floor falls away from the port (-y)
     color("peru") translate([0, 0, -T]) mirror([0, 1, 0]) linear_extrude(T) exit_floor2d();
     color("peru") for (sx = [-1, 1]) translate([sx * (PORT / 2 + T / 2) - T / 2, 0, -T])
       rotate([90, 0, 90]) mirror([1, 0, 0]) linear_extrude(T) exit_side2d();
     color("peru") translate([0, -EXIT_L, -T]) rotate([90, 0, 0]) linear_extrude(T) exit_cap2d();
-    if (show_balls) color("steelblue") {
+    if (show_balls && !animate) color("steelblue") {
       translate([0, -BALL_D / 2 - 6, BALL_D / 2]) sphere(d = BALL_D);                       // rolling out
       translate([0, -EXIT_HOLE_V, BALL_D / 2 - 6]) sphere(d = BALL_D);                      // dropping through
     }
@@ -81,21 +90,58 @@ module track3d() {                          // whatever catches the ball: two wi
   hz = EXIT_Z0 - EXIT_HOLE_V * sin(EXIT_SLOPE) - T - TRACK_DROP;
   color("silver") for (sx = [-1, 1]) translate([PORT_C[0] - 60, Y_EXIT - EXIT_HOLE_V * cos(EXIT_SLOPE) + sx * 6, hz])
     rotate([0, 90 + 2, 0]) cylinder(d = TUN_WIRE, h = 120, $fn = 12);
-  if (show_balls) color("steelblue") translate([PORT_C[0] + 25, Y_EXIT - EXIT_HOLE_V * cos(EXIT_SLOPE), hz + BALL_D / 2 + 1]) sphere(d = BALL_D);
+  if (show_balls && !animate) color("steelblue") translate([PORT_C[0] + 25, Y_EXIT - EXIT_HOLE_V * cos(EXIT_SLOPE), hz + BALL_D / 2 + 1]) sphere(d = BALL_D);
 }
 
 Y_EXIT = EXIT_SIDE == "front" ? Y_FK : Y_BK + T;  // the face the exit trough leaves from
 
+// ------------------------------------------------------------------ animation
+function ease(x) = (1 - cos(180 * max(0, min(1, x)))) / 2;
+G_M = $t < 0.5 ? ease(2 * $t) : 1 - ease(2 * $t - 1);   // S_M: 0 = down, 1 = up
+DZ_M = animate ? -DROP + STROKE * G_M : 0;              // S_M / M offset from its rest
+F_COL = ease(2 * $t);                                   // column balls step up during the up-stroke
+N_COL = (Z_TOP - 2 * HOLES[0][1]) / PITCH;              // hole steps from the bottom hole to the top hole (17)
+HOLE_Z = EXIT_Z0 - EXIT_HOLE_V * sin(EXIT_SLOPE) - T;   // floor underside at the hole, about
+TRACK_Z = EXIT_Z0 - EXIT_HOLE_V * sin(EXIT_SLOPE) - T - TRACK_DROP;
+function lerp(a, b, u) = a + (b - a) * u;
+function rot_slope(v, h) = [0, -v * cos(EXIT_SLOPE) - h * sin(EXIT_SLOPE), -v * sin(EXIT_SLOPE) + h * cos(EXIT_SLOPE)];
+D0 = T / 2 - Y_FK;                                      // funnel plane to the front keeper's face
+// ball centre along the whole path; s in ball slots: -1..0 bottom trough, 0..1 bottom channel,
+// 1..1+N_COL the column, then the top channel, the exit trough, the drop and the track
+function ball_at(s) =
+  s < 0 ? [PORT_C[0], lerp(Y_FK - TR_L + BALL_D / 2, T / 2, s + 1), TR_PB + BALL_D / 2]
+  : s < 1 ? let(p = PATH[round(60 * s)]) [p[0], T / 2, p[1]]
+  : s <= 1 + N_COL ? [HOLE_X, T / 2, HOLES[0][1] + (s - 1) * PITCH]
+  : s < 2 + N_COL ? let(p = PATH[round(60 * (2 + N_COL - s))]) [p[0], T / 2, Z_TOP - p[1]]
+  : s < 3 + N_COL ? let(v = -D0 + (s - 2 - N_COL) * (D0 + EXIT_HOLE_V))
+      v < 0 ? [PORT_C[0], Y_EXIT - v, EXIT_Z0 + BALL_D / 2]
+            : [PORT_C[0], Y_EXIT, EXIT_Z0] + rot_slope(v, BALL_D / 2)
+  : let(q = s - 3 - N_COL, h = [PORT_C[0], Y_EXIT, EXIT_Z0] + rot_slope(EXIT_HOLE_V, BALL_D / 2))
+      q < 0.45 ? [h[0], h[1], lerp(h[2], TRACK_Z + BALL_D / 2 + 1, pow(q / 0.45, 2))]
+               : [h[0] + (q - 0.45) / 0.55 * 60, h[1], TRACK_Z + BALL_D / 2 + 1 - (q - 0.45) / 0.55 * 60 * sin(2)];
+module balls_anim() color("steelblue") for (k = [0 : 4 + N_COL]) {
+  base = k - 1;
+  s = (base < 1 || base >= 1 + N_COL) ? base + $t : base + F_COL;
+  if (s <= 4 + N_COL) translate(ball_at(s)) sphere(d = BALL_D, $fn = 32);
+}
+// S_M: the moving sieve, bolted to M's front face; it carries the column balls up one hole per stroke
+module sieve_m3d() color("tan", 0.55) translate([HOLE_X - 30, -8.4, Z_SIEVE + DZ_M]) rotate([90, 0, 0]) linear_extrude(T) difference() {
+  square([COL_W, SIEVE_L]);
+  for (i = [0 : SIEVE_HOLES - 1]) translate([30, PITCH / 2 + PITCH * i]) circle(d = HOLE_D);
+}
+
 module full() {
-  assembly("trough");                                                       // bottom feeder, ball comes in at the port
+  assembly("trough", !animate && show_balls);                              // bottom feeder, ball comes in at the port
   sieve3d();
-  translate([0, 0, Z_TOP]) mirror([0, 0, 1]) assembly("none");              // top feeder, upside down
+  if (animate) sieve_m3d();
+  if (animate && show_balls) balls_anim();
+  translate([0, 0, Z_TOP]) mirror([0, 0, 1]) assembly("none", !animate && show_balls);   // top feeder, upside down
   translate([PORT_C[0], Y_EXIT, EXIT_Z0]) mirror([0, EXIT_SIDE == "front" ? 0 : 1, 0]) exit_trough3d();
   track3d();
   // beams: F (fixed) between the funnels' F_END lines, M (moving) full height
   color("lightsteelblue") translate([COL_W - 20, -20, F_END]) beam2020(Z_TOP - 2 * F_END);
-  color("rosybrown") translate([COL_W - 60, -8.4, -10]) beam2020(Z_TOP + 20);
-  if (show_balls) color("steelblue") for (i = [0 : 2 : SIEVE_HOLES - 1])
+  color("rosybrown") translate([COL_W - 60, -8.4, -10 + DZ_M]) beam2020(Z_TOP + 20);
+  if (show_balls && !animate) color("steelblue") for (i = [0 : 2 : SIEVE_HOLES - 1])
     translate([HOLE_X, T / 2, Z_SIEVE + PITCH / 2 + PITCH * i]) sphere(d = BALL_D);
 }
 
