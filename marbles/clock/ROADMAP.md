@@ -86,8 +86,8 @@ interface (tunnel flange + relief), compact D ring jig + mandrel, fit coupon, es
 | P308 | Ring support at the face centre: concentric arbors, or large rings riding on rim rollers (V-wheels like the lift's) | in design | Rim rollers suit big light rings; to confirm with P300. |
 | P309 | Ring advance / drive: ratchet + pawl per ball, escapement-driven, or geared (old M4) | needs input | Depends on P300/P301 answers. |
 | **P4xx** | **Timebase and structure** | | |
-| P400 | Pendulum: 1 s period, ±30° swing (old M2) | needs input | Build the string-weight escapement test rig first (T111)? |
-| P401 | Ball-driven escapement (old M3) | needs input | **`escapement.py` releases 1 ball per full swing (2 s), but the goal is 1 ball/s.** Release on both half-swings ("alternate sides" idea), or accept 1 per 2 s and count double? |
+| P400 | Pendulum: the 48" 2020 bar, ±30° swing (old M2) | in design | **2026-11-05 maths:** top pivot, bare bar: 1.809 s full period (2.215 s in the heavy-bob limit). A 1 s FULL period is impossible with a 48" bar (needs L_eq 0.2485 m; a centre pivot is at best 1.566 s). **Centre pivot works** for a *seconds* pendulum (1 s per swing, 2 s full period, L_eq 0.994 m) if the bob is at the bottom and the bar weighs ~1.89 × the bob, and it can share the discs' axis. A bare bar pivoted at its centre doesn't swing (balanced). Alex: centre pivot on the face axis? |
+| P401 | Ball-driven escapement (old M3) | needs input | `escapement.py` releases 1 ball per full swing (2 s). With a seconds pendulum (P400), release on **each half-swing** = 1 ball/s. On a shared axis, the escape wheel could be the seconds disc itself. Alex's pendulum lifts 2+ balls per swing, so the lift keeps up. |
 | P402 | Gear train (old M4), only if the rings are geared: 60:1 and 12:1 | needs input | Depends on P309. |
 | P403 | Frame (1 m square 2020, ≤150 deep, wall cleat) + layout of every subsystem (old M1) | unblocked for a first sketch | Fixes the routes for P200/P104. Needs the face diameter (P307). |
 | **T1xx** | **Tests and calibration** | | |
@@ -111,6 +111,7 @@ interface (tunnel flange + relief), compact D ring jig + mandrel, fit coupon, es
 | C103 | **Display simulator:** ring fill, rollover timing, ball budget, radius calculator (the table above), animated | unblocked | |
 | C104 | **Parametric ring generator** (P305) in SCAD with a CHECK report + G-code export | unblocked | |
 | C105 | Frame files: a laser-off trace of each job's outline | optional | |
+| C107 | Face sketch (`face_sketch.py`): 48\" frame, seconds 12×5 + 2-ball gaps (r 254.7), minutes 60 touching (r 182.0), hours r 109.3, pendulum in front | done | Quick visual only. |
 | C106 | Remove or fix the old 3-layer ring jig (`ring_jig.py`, F5000 etch fails validation) | unblocked | Superseded by the compact D jig. |
 
 ## Parked ideas (from the whole project; pick from these later)
