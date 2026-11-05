@@ -237,6 +237,9 @@ On the first feeder the back keeper rubbed and bound on the keeper on the other 
 
 ## 6. Tasks
 
+**The live roadmap is now `ROADMAP.md`** (P/T/C items with status and open questions, 2026-11-05). The L/M lists below are history.
+
+
 ### Pendulum lift (now)
 
 - [x] **L1** Wheel-box concept: keeper is the near wall, plus far cheek + top/bottom + back, open toward the beam.
