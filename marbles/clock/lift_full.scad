@@ -1,6 +1,7 @@
-// Full ball lift: bottom feeder, a 300 mm (10-hole) sieve in the middle, and an upside-down feeder
-// on top whose trough carries balls OUT, 100 mm, and drops them through a 20 mm hole onto a
-// track below.
+// Full ball lift: bottom feeder, a 300 mm (10-hole) sieve in the middle, and the DISPENSER on top: the
+// same feeder parts flipped over. By default its port carries the wire-track interface (tunnel flange
+// + relief, see feeder.scad) and the balls leave along the wire tunnel. EXIT_STYLE = "trough" gives the
+// 100 mm drop trough with a 20 mm hole instead.
 //
 // Built on feeder.scad (all feeder parameters and parts come from there; edit them there).
 // This file adds the sieve, the beams, the top feeder's placement and the exit trough.
@@ -27,7 +28,8 @@ SIEVE_L = SIEVE_HOLES * PITCH;
 Z_SIEVE = H;              // sieve sits on top of the bottom funnel
 Z_TOP = H + SIEVE_L + H;  // top of the upside-down top funnel (it occupies Z_TOP - H .. Z_TOP)
 
-/* [Exit trough (top feeder)] */
+/* [Dispenser exit (top feeder)] */
+EXIT_STYLE = "wire";      // [wire, trough] wire = tunnel flange + relief on the port, the wire track leaves from it; trough = the 100 mm drop trough
 EXIT_L = 100;             // length out from the front keeper's outer face
 EXIT_SLOPE = 3;           // [0:0.5:10] floor falls this many degrees away from the port
 EXIT_HOLE = 20;           // drop hole at the far end
@@ -113,6 +115,7 @@ function ball_at(s) =
   : s < 1 ? let(p = PATH[round(60 * s)]) [p[0], T / 2, p[1]]
   : s <= 1 + N_COL ? [HOLE_X, T / 2, HOLES[0][1] + (s - 1) * PITCH]
   : s < 2 + N_COL ? let(p = PATH[round(60 * (2 + N_COL - s))]) [p[0], T / 2, Z_TOP - p[1]]
+  : EXIT_STYLE == "wire" ? [PORT_C[0], T / 2 - (s - 2 - N_COL) * (D0 + 2 * T + 60), EXIT_PORT_Z]   // out along the wire tunnel
   : s < 3 + N_COL ? let(v = -D0 + (s - 2 - N_COL) * (D0 + EXIT_HOLE_V))
       v < 0 ? [PORT_C[0], Y_EXIT - v, EXIT_Z0 + BALL_D / 2]
             : [PORT_C[0], Y_EXIT, EXIT_Z0] + rot_slope(v, BALL_D / 2)
@@ -122,7 +125,7 @@ function ball_at(s) =
 module balls_anim() color("steelblue") for (k = [0 : 4 + N_COL]) {
   base = k - 1;
   s = (base < 1 || base >= 1 + N_COL) ? base + $t : base + F_COL;
-  if (s <= 4 + N_COL) translate(ball_at(s)) sphere(d = BALL_D, $fn = 32);
+  if (s <= (EXIT_STYLE == "wire" ? 3 : 4) + N_COL) translate(ball_at(s)) sphere(d = BALL_D, $fn = 32);
 }
 // S_M: the moving sieve, bolted to M's front face; it carries the column balls up one hole per stroke
 module sieve_m3d() color("tan", 0.55) translate([HOLE_X - 30, -8.4, Z_SIEVE + DZ_M]) rotate([90, 0, 0]) linear_extrude(T) difference() {
@@ -135,9 +138,11 @@ module full() {
   sieve3d();
   if (animate) sieve_m3d();
   if (animate && show_balls) balls_anim();
-  translate([0, 0, Z_TOP]) mirror([0, 0, 1]) assembly("none", !animate && show_balls);   // top feeder, upside down
-  translate([PORT_C[0], Y_EXIT, EXIT_Z0]) mirror([0, EXIT_SIDE == "front" ? 0 : 1, 0]) exit_trough3d();
-  track3d();
+  translate([0, 0, Z_TOP]) mirror([0, 0, 1]) assembly(EXIT_STYLE == "wire" ? "tunnel" : "none", !animate && show_balls);   // dispenser: the feeder, upside down
+  if (EXIT_STYLE == "trough") {
+    translate([PORT_C[0], Y_EXIT, EXIT_Z0]) mirror([0, EXIT_SIDE == "front" ? 0 : 1, 0]) exit_trough3d();
+    track3d();
+  }
   // beams: F (fixed) between the funnels' F_END lines, M (moving) full height
   color("lightsteelblue") translate([COL_W - 20, -20, F_END]) beam2020(Z_TOP - 2 * F_END);
   color("rosybrown") translate([COL_W - 60, -8.4, -10 + DZ_M]) beam2020(Z_TOP + 20);

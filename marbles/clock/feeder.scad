@@ -104,7 +104,9 @@ NUT_H = 4.7;              // M5 nut height, for the bolt-length report
 TUN_WIRE = 2.05;          // straight wire diameter (12 ga), as ring_jig_compact.py
 TUN_BORE = 20;            // clear bore inside the straight wires (ring jig --bore)
 TUN_ANGLES = [45, 135, 225, 315];   // straight-wire angles (ring jig --angles); 0 = +x, 90 = up
-TUN_CLR = 0.3;            // clearance on the wire notches and the ring pocket
+TUN_CLR = 0.3;            // clearance on the wire notches and the stitch holes
+TUN_STITCH = true;        // a stitch hole outboard of each notch: the wire passes through the notch, bends back and returns through it
+TUN_STITCH_R = 0;         // stitch hole centre radius from the port centre; 0 = halfway between the notch and the corner bolt hole
 port_fit = "trough";      // assembly shows "trough" or "tunnel" on the port
 NUT_R = 4.7;              // M5 nut corner radius, for the clearance check
 
@@ -271,6 +273,10 @@ module trough_cap2d() difference() {     // (x, z): 4-fold symmetric; carries ho
 // was tried: only 3.25 of wood to the bolt holes, and the notches already locate the wires.)
 TUN_RW = TUN_BORE / 2 + TUN_WIRE / 2;                // straight-wire centre radius
 TUN_RING_OD = TUN_BORE + 4 * TUN_WIRE;               // ring OD (ring ID = bore + 2 wires)
+TUN_HOLE = TUN_WIRE + TUN_CLR;                       // wire notch width and stitch hole diameter
+TUN_NOTCH_OUT = TUN_RW + TUN_HOLE / 2;               // notch's outer end, from the port centre
+TUN_SR = TUN_STITCH_R > 0 ? TUN_STITCH_R : (TUN_NOTCH_OUT + PORT_BOLT * sqrt(2) - M5 / 2) / 2;
+TUN_STITCHES = [for (a = TUN_ANGLES) PORT_C + TUN_SR * [cos(a), sin(a)]];
 module port_plate2d() difference() {
   offset(r = 2) offset(delta = -2) translate(PORT_C - [CAP_HW, CAP_HW]) square([2 * CAP_HW, 2 * CAP_HW]);
   m5s(concat(PORT_BOLTS, MID_ALL));
@@ -279,8 +285,18 @@ module tunnel_flange2d() difference() {
   port_plate2d();
   translate(PORT_C) {
     circle(d = TUN_BORE, $fn = 96);
-    for (a = TUN_ANGLES) rotate(a) translate([0, -(TUN_WIRE + TUN_CLR) / 2]) square([TUN_RW + (TUN_WIRE + TUN_CLR) / 2, TUN_WIRE + TUN_CLR]);
+    for (a = TUN_ANGLES) rotate(a) translate([0, -TUN_HOLE / 2]) square([TUN_NOTCH_OUT, TUN_HOLE]);
   }
+  if (TUN_STITCH) for (q = TUN_STITCHES) translate(q) circle(d = TUN_HOLE, $fn = 24);
+}
+// RELIEF: one sheet between the front keeper and the flange, so the stitched wires' U-bends (on the
+// keeper side of the flange) have somewhere to go: the bore plus a slot from each notch out past its
+// stitch hole. Order from the box: front keeper | relief | flange | tunnel rings.
+TUN_SLOT_W = TUN_WIRE + 1;
+module tunnel_relief2d() difference() {
+  port_plate2d();
+  translate(PORT_C) circle(d = TUN_BORE, $fn = 96);
+  for (a = TUN_ANGLES) hull() for (r = [TUN_RW, TUN_SR]) translate(PORT_C + r * [cos(a), sin(a)]) circle(d = TUN_SLOT_W, $fn = 24);
 }
 
 // ------------------------------------------------------------------ 3D assembly
@@ -311,11 +327,12 @@ module assembly(fit = port_fit, balls = show_balls) {   // fit: "trough", "tunne
     for (p = THRU) { rodY(p, Y_FK - HEAD_H, Y_FK, HEAD_D); rodY(p, Y_FK, Y_BK + T + 5, M5); rodY(p, Y_BK + T, Y_BK + T + 4.7, 9); }
   }
   if (fit == "tunnel") color("peru") {
-    translate([0, Y_FK - T, 0]) plate3d(0) tunnel_flange2d();
+    translate([0, Y_FK - T, 0]) plate3d(0) tunnel_relief2d();
+    translate([0, Y_FK - 2 * T, 0]) plate3d(0) tunnel_flange2d();
   }
   if (fit == "tunnel") color("silver") translate([PORT_C[0], 0, PORT_C[1]]) {
-    for (a = TUN_ANGLES) translate([TUN_RW * cos(a), Y_FK - T - 60, TUN_RW * sin(a)]) rotate([-90, 0, 0]) cylinder(d = TUN_WIRE, h = 60 + 2 * T, $fn = 16);
-    for (k = [0 : 2]) translate([0, Y_FK - T - TUN_WIRE / 2 - k * 25, 0]) rotate([90, 0, 0]) rotate_extrude($fn = 64) translate([(TUN_RING_OD - TUN_WIRE) / 2, 0]) circle(d = TUN_WIRE, $fn = 12);
+    for (a = TUN_ANGLES) translate([TUN_RW * cos(a), Y_FK - 2 * T - 60, TUN_RW * sin(a)]) rotate([-90, 0, 0]) cylinder(d = TUN_WIRE, h = 60 + T + TUN_WIRE, $fn = 16);
+    for (k = [0 : 2]) translate([0, Y_FK - 2 * T - TUN_WIRE / 2 - k * 25, 0]) rotate([90, 0, 0]) rotate_extrude($fn = 64) translate([(TUN_RING_OD - TUN_WIRE) / 2, 0]) circle(d = TUN_WIRE, $fn = 12);
   }
   // trough (v out from the front keeper's outer face, at Y = Y_FK)
   if (fit == "trough") color("peru") {
@@ -335,17 +352,26 @@ module assembly(fit = port_fit, balls = show_balls) {   // fit: "trough", "tunne
 module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
 echo(str("CHECK view slots: ", N_VS, " along the channel; front keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, true)) k]),
          ", back keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false)) k])));
-echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange"]);
+echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange", "tunnel_relief"]);
 // tunnel adapter checks: the straight wires must fit inside the port's square opening (corners at PORT / 2)
 TUN_WIRE_REACH = max([for (a = TUN_ANGLES) max(abs(TUN_RW * cos(a)), abs(TUN_RW * sin(a)))]) + TUN_WIRE / 2;
 echo(str(TUN_WIRE_REACH <= PORT / 2 ? "ok   " : "WARN ", "tunnel wires inside the ", PORT, " port opening: reach ", r2(TUN_WIRE_REACH), " of ", PORT / 2,
          "; bore ", TUN_BORE, " for a ", BALL_D, " ball"));
 echo(str(TUN_RW + (TUN_WIRE + TUN_CLR) / 2 + WEB <= PORT_BOLT - M5 / 2 ? "ok   " : "WARN ", "tunnel flange: wood from the wire notches to the port bolt holes ",
          r2(PORT_BOLT - M5 / 2 - TUN_RW - (TUN_WIRE + TUN_CLR) / 2), " (need ", WEB, "); last ring OD ", r2(TUN_RING_OD), " bears on the flange"));
+TUN_STITCH_WEB_NOTCH = TUN_SR - TUN_HOLE / 2 - TUN_NOTCH_OUT;
+TUN_STITCH_WEB_BOLT = min([for (q = TUN_STITCHES, b = concat(PORT_BOLTS, MID_ALL)) norm(q - b) - M5 / 2 - TUN_HOLE / 2]);
+TUN_STITCH_WEB_EDGE = CAP_HW - 2 - max([for (q = TUN_STITCHES) max(abs(q[0] - PORT_C[0]), abs(q[1] - PORT_C[1]))]) - TUN_HOLE / 2;
+if (TUN_STITCH) echo(str(min(TUN_STITCH_WEB_NOTCH, TUN_STITCH_WEB_BOLT, TUN_STITCH_WEB_EDGE) >= WEB ? "ok   " : "WARN ",
+         "tunnel stitch holes d", TUN_HOLE, " at r ", r2(TUN_SR), " (", r2(TUN_SR - TUN_RW), " out from the wire): wood to the notch ", r2(TUN_STITCH_WEB_NOTCH),
+         ", to the nearest bolt hole ", r2(TUN_STITCH_WEB_BOLT), ", to the edge ", r2(TUN_STITCH_WEB_EDGE), " (need ", WEB, ")"));
+TUN_RELIEF_WEB = min([for (a = TUN_ANGLES, b = concat(PORT_BOLTS, MID_ALL)) min([for (r = [TUN_RW : 0.5 : TUN_SR]) norm(PORT_C + r * [cos(a), sin(a)] - b)]) - M5 / 2 - TUN_SLOT_W / 2]);
+echo(str(TUN_RELIEF_WEB >= WEB && T >= TUN_WIRE ? "ok   " : "WARN ", "tunnel relief: slots ", TUN_SLOT_W, " wide, wood to the nearest bolt hole ", r2(TUN_RELIEF_WEB),
+         " (need ", WEB, "); sheet ", T, " for a ", TUN_WIRE, " wire bend"));
 echo(str(PORT_C[0] - TUN_RING_OD / 2 - COL_W >= 3 ? "ok   " : "WARN ", "tunnel rings clear beam F (x ", COL_W - 20, "..", COL_W, ") by ", r2(PORT_C[0] - TUN_RING_OD / 2 - COL_W)));
-echo(str("CHECK tunnel bolt lengths (plates + spacers + nut ", NUT_H, "): flange -> back keeper ", r2(4 * T + 2 * GAP + NUT_H),
-         ", flange -> front keeper (mid-side) ", r2(2 * T + NUT_H), "; straight wires past the last ring: at least ", r2(2 * T),
-         " to reach through the flange and front keeper"));
+echo(str("CHECK tunnel bolt lengths (plates + spacers + nut ", NUT_H, "): flange -> back keeper ", r2(5 * T + 2 * GAP + NUT_H),
+         ", flange -> front keeper (mid-side) ", r2(3 * T + NUT_H), "; each straight wire runs on past the last ring through its notch, bends back in the relief slot and returns through its stitch hole: ~",
+         round(2 * T + 2 * (TUN_SR - TUN_RW) + 10), " mm of wire past the ring"));
 echo(str("CHECK trough: back keeper inner face to cap inner face ", r2(2 * GAP + 2 * T + TR_L), "; outside the front keeper ",
          r2(TR_L + T), " (inside ", r2(TR_L), "), ", PORT, " wide inside, ", PORT, " tall walls, open top; cap ", 2 * CAP_HW, " square"));
 echo(str("CHECK bolt lengths (plates + spacers + nut ", NUT_H, "): front keeper -> back keeper ", r2(3 * T + 2 * GAP + NUT_H),
@@ -364,3 +390,4 @@ else if (part == "trough_floor") out2d() trough_floor2d();
 else if (part == "trough_side_x2") out2d() trough_side2d();
 else if (part == "trough_cap") out2d() trough_cap2d();
 else if (part == "tunnel_flange") out2d() tunnel_flange2d();
+else if (part == "tunnel_relief") out2d() tunnel_relief2d();
