@@ -10,6 +10,7 @@ whatever zero you'll run it from (e.g. the front button's G54 = the bed origin).
 already cut.
 """
 import argparse
+import textwrap
 import math
 import sys
 from pathlib import Path
@@ -35,10 +36,12 @@ p0 = (a.x0 - ux * a.overrun, a.y0 - uy * a.overrun)
 p1 = (a.x1 + ux * a.overrun, a.y1 + uy * a.overrun)
 s2g, motion, mat, job = load_profile(a.material, 1000, None)
 cut = s2g.Polyline([p0, p1], False)
-lines = [f"; {a.name} -- marbles/line_cut.py: one line X{p0[0]:.3f} Y{p0[1]:.3f} -> X{p1[0]:.3f} Y{p1[1]:.3f} "
-         f"({L:.2f} mm + {a.overrun:g} overrun each end)" + (f"; {a.note}" if a.note else ""),
-         f"; {mat['id']} recipe {job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes} (back and forth); "
-         f"WORK coordinates: run it from the zero named in the note", ";"]
+lines = [f"; {a.name} -- marbles/line_cut.py: one line X{p0[0]:.3f} Y{p0[1]:.3f} -> X{p1[0]:.3f} Y{p1[1]:.3f}",
+         f"; ({L:.2f} mm + {a.overrun:g} overrun each end)"]
+# notes wrapped: Grbl_ESP32's SD runner silently ends a job at a line of 255+ characters
+lines += ["; " + w for w in textwrap.wrap(a.note, 100)]
+lines += [f"; {mat['id']} recipe {job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes} (back and forth); "
+          f"WORK coordinates: run it from the zero named above", ";"]
 lines += preamble(s2g, job)
 lines += emit_cut(s2g, motion, cut, 1, 1, job)
 lines += s2g._footer(lines)
