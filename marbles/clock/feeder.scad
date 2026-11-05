@@ -105,6 +105,7 @@ TUN_WIRE = 2.05;          // straight wire diameter (12 ga), as ring_jig_compact
 TUN_BORE = 20;            // clear bore inside the straight wires (ring jig --bore)
 TUN_ANGLES = [45, 135, 225, 315];   // straight-wire angles (ring jig --angles); 0 = +x, 90 = up
 TUN_CLR = 0.3;            // clearance on the wire notches and the stitch holes
+TUN_SEAT = 0.5;           // how deep each wire sits in its notch; the flange bore is opened out to just this much inside the wires' outer edges
 TUN_STITCH = true;        // a stitch hole outboard of each notch: the wire passes through the notch, bends back and returns through it
 TUN_STITCH_R = 0;         // stitch hole centre radius from the port centre; 0 = halfway between the notch and the corner bolt hole
 port_fit = "trough";      // assembly shows "trough" or "tunnel" on the port
@@ -275,6 +276,7 @@ TUN_RW = TUN_BORE / 2 + TUN_WIRE / 2;                // straight-wire centre rad
 TUN_RING_OD = TUN_BORE + 4 * TUN_WIRE;               // ring OD (ring ID = bore + 2 wires)
 TUN_HOLE = TUN_WIRE + TUN_CLR;                       // wire notch width and stitch hole diameter
 TUN_NOTCH_OUT = TUN_RW + TUN_HOLE / 2;               // notch's outer end, from the port centre
+TUN_FBORE = 2 * (TUN_RW + TUN_WIRE / 2 - TUN_SEAT);  // flange + relief bore: the ball clears the plates by much more than it clears the wires
 TUN_SR = TUN_STITCH_R > 0 ? TUN_STITCH_R : (TUN_NOTCH_OUT + PORT_BOLT * sqrt(2) - M5 / 2) / 2;
 TUN_STITCHES = [for (a = TUN_ANGLES) PORT_C + TUN_SR * [cos(a), sin(a)]];
 module port_plate2d() difference() {
@@ -284,7 +286,7 @@ module port_plate2d() difference() {
 module tunnel_flange2d() difference() {
   port_plate2d();
   translate(PORT_C) {
-    circle(d = TUN_BORE, $fn = 96);
+    circle(d = TUN_FBORE, $fn = 128);
     for (a = TUN_ANGLES) rotate(a) translate([0, -TUN_HOLE / 2]) square([TUN_NOTCH_OUT, TUN_HOLE]);
   }
   if (TUN_STITCH) for (q = TUN_STITCHES) translate(q) circle(d = TUN_HOLE, $fn = 24);
@@ -295,7 +297,7 @@ module tunnel_flange2d() difference() {
 TUN_SLOT_W = TUN_WIRE + 1;
 module tunnel_relief2d() difference() {
   port_plate2d();
-  translate(PORT_C) circle(d = TUN_BORE, $fn = 96);
+  translate(PORT_C) circle(d = TUN_FBORE, $fn = 128);
   for (a = TUN_ANGLES) hull() for (r = [TUN_RW, TUN_SR]) translate(PORT_C + r * [cos(a), sin(a)]) circle(d = TUN_SLOT_W, $fn = 24);
 }
 
@@ -368,6 +370,15 @@ if (TUN_STITCH) echo(str(min(TUN_STITCH_WEB_NOTCH, TUN_STITCH_WEB_BOLT, TUN_STIT
 TUN_RELIEF_WEB = min([for (a = TUN_ANGLES, b = concat(PORT_BOLTS, MID_ALL)) min([for (r = [TUN_RW : 0.5 : TUN_SR]) norm(PORT_C + r * [cos(a), sin(a)] - b)]) - M5 / 2 - TUN_SLOT_W / 2]);
 echo(str(TUN_RELIEF_WEB >= WEB && T >= TUN_WIRE ? "ok   " : "WARN ", "tunnel relief: slots ", TUN_SLOT_W, " wide, wood to the nearest bolt hole ", r2(TUN_RELIEF_WEB),
          " (need ", WEB, "); sheet ", T, " for a ", TUN_WIRE, " wire bend"));
+// ball resting on the two lowest wires (at +-45 deg below centre): how far its centre sits below the tunnel axis
+TUN_BALL_DROP = TUN_RW * sin(45) - sqrt(pow(BALL_D / 2 + TUN_WIRE / 2, 2) - pow(TUN_RW * cos(45), 2));
+echo(str(TUN_FBORE / 2 - BALL_D / 2 - TUN_BALL_DROP >= 1 ? "ok   " : "WARN ", "tunnel flange bore d", r2(TUN_FBORE), " (wires seated ", TUN_SEAT,
+         " deep): resting ball clears the flange by ", r2(TUN_FBORE / 2 - BALL_D / 2 - TUN_BALL_DROP), " at the bottom; the wires leave ", r2(TUN_BORE - BALL_D), " of play"));
+// where the resting ball dips below the port's bottom edge, it must be inside the floor-tab notch (TAB wide) or it meets a lip
+TUN_DIP = BALL_D / 2 + TUN_BALL_DROP - PORT / 2;
+TUN_DIP_HW = TUN_DIP > 0 ? sqrt(pow(BALL_D / 2, 2) - pow(PORT / 2 - TUN_BALL_DROP, 2)) : 0;
+echo(str(TUN_DIP_HW <= TAB / 2 ? "ok   " : "WARN ", "tunnel -> port: the resting ball dips ", r2(max(0, TUN_DIP)), " below the port's bottom edge within +-",
+         r2(TUN_DIP_HW), " of centre, inside the ", TAB, "-wide floor-tab notch, so no lip"));
 echo(str(PORT_C[0] - TUN_RING_OD / 2 - COL_W >= 3 ? "ok   " : "WARN ", "tunnel rings clear beam F (x ", COL_W - 20, "..", COL_W, ") by ", r2(PORT_C[0] - TUN_RING_OD / 2 - COL_W)));
 echo(str("CHECK tunnel bolt lengths (plates + spacers + nut ", NUT_H, "): flange -> back keeper ", r2(5 * T + 2 * GAP + NUT_H),
          ", flange -> front keeper (mid-side) ", r2(3 * T + NUT_H), "; each straight wire runs on past the last ring through its notch, bends back in the relief slot and returns through its stitch hole: ~",
