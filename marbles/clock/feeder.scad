@@ -292,7 +292,7 @@ module beam2020(len) difference() {
   for (a = [0, 90, 180, 270]) translate([10, 10, -1]) rotate([0, 0, a]) translate([-3.1, 10 - 1.8, 0]) cube([6.2, 2, len + 2]);
 }
 module rodY(p, y0, y1, d) translate([p[0], min(y0, y1), p[1]]) rotate([-90, 0, 0]) cylinder(d = d, h = abs(y1 - y0));
-module assembly() {
+module assembly(fit = port_fit) {   // fit: "trough", "tunnel" or "none" on the port
   color("sandybrown") plate3d(0) funnel2d();
   color("yellowgreen", 0.55) plate3d(Y_FK) front_keeper2d();
   color("yellowgreen", 0.55) plate3d(Y_BK) back_keeper2d();
@@ -310,15 +310,15 @@ module assembly() {
     for (b = BEAM_BOLTS) { rodY(b, Y_BK + T, Y_BK + T + HEAD_H, HEAD_D); rodY(b, -8, Y_BK + T, M5); }   // head on the back keeper, into F
     for (p = THRU) { rodY(p, Y_FK - HEAD_H, Y_FK, HEAD_D); rodY(p, Y_FK, Y_BK + T + 5, M5); rodY(p, Y_BK + T, Y_BK + T + 4.7, 9); }
   }
-  if (port_fit == "tunnel") color("peru") {
+  if (fit == "tunnel") color("peru") {
     translate([0, Y_FK - T, 0]) plate3d(0) tunnel_flange2d();
   }
-  if (port_fit == "tunnel") color("silver") translate([PORT_C[0], 0, PORT_C[1]]) {
+  if (fit == "tunnel") color("silver") translate([PORT_C[0], 0, PORT_C[1]]) {
     for (a = TUN_ANGLES) translate([TUN_RW * cos(a), Y_FK - T - 60, TUN_RW * sin(a)]) rotate([-90, 0, 0]) cylinder(d = TUN_WIRE, h = 60 + 2 * T, $fn = 16);
     for (k = [0 : 2]) translate([0, Y_FK - T - TUN_WIRE / 2 - k * 25, 0]) rotate([90, 0, 0]) rotate_extrude($fn = 64) translate([(TUN_RING_OD - TUN_WIRE) / 2, 0]) circle(d = TUN_WIRE, $fn = 12);
   }
   // trough (v out from the front keeper's outer face, at Y = Y_FK)
-  if (port_fit == "trough") color("peru") {
+  if (fit == "trough") color("peru") {
     translate([0, Y_FK, TR_PB - T]) mirror([0, 1, 0]) linear_extrude(T) trough_floor2d();
     for (sx = [-1, 1]) translate([PORT_C[0] + sx * (PORT / 2 + T / 2) - T / 2, Y_FK, 0])
       rotate([0, 0, 0]) multmatrix([[0, 0, 1, 0], [-1, 0, 0, 0], [0, 1, 0, 0]]) linear_extrude(T) trough_side2d();
@@ -327,7 +327,7 @@ module assembly() {
   if (show_balls) color("steelblue") {
     for (i = [0 : 4]) translate([PATH[60 - i * 12][0], T / 2, PATH[60 - i * 12][1]]) sphere(d = BALL_D);
     translate([PORT_C[0], T / 2, PORT_C[1]]) sphere(d = BALL_D);                               // one in the pocket
-    for (k = [1 : max(1, floor(TR_L / BALL_D))]) translate([PORT_C[0], Y_FK - TR_L + BALL_D / 2 + (k - 1) * BALL_D + 0.2, TR_PB + BALL_D / 2]) sphere(d = BALL_D);   // two waiting
+    if (fit == "trough") for (k = [1 : max(1, floor(TR_L / BALL_D))]) translate([PORT_C[0], Y_FK - TR_L + BALL_D / 2 + (k - 1) * BALL_D + 0.2, TR_PB + BALL_D / 2]) sphere(d = BALL_D);   // two waiting
   }
 }
 
