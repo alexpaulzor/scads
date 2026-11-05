@@ -227,6 +227,14 @@ The new supplier's MDF measures **2.82** (better quality). The `mdf3` profile is
 - The feeder's GAP (3 spacer layers) is now 8.46 instead of 9.3. CHECK is clean. The front-keeper → back-keeper bolt is now 30.08 long.
 - Every mdf3 file was regenerated at 2.82. The 3.1-mm versions are in `marbles/gcode/_old_mdf31/` (local only). Parts already cut from the old stock won't mate with new-stock slots.
 
+## 5c. Feeder back keeper trimmed (2026-11-05)
+
+On the first feeder the back keeper rubbed and bound on the keeper on the other beam (M), so Alex cut about 20 mm off its long inner edge. Nothing needed that strip; it only looked necessary because the other beam and its keeper weren't being considered.
+- `feeder.scad`: `BK_X0` 6 → 26. The back keeper is now 75 wide (was 95): `feeder_back_keeper_141x76_mdf3.gcode`.
+- CHECK is clean: 7.5 of wood from the beam bolt holes to the new edge, and the back-gap spacers still sit fully on wood. One of the three view slots dropped off with the strip.
+- **Lesson:** model the other beam's keeper (K_M) in the feeder assembly, so that clearance is checked instead of discovered on the machine.
+- **Z axis (same day):** Z only moved down, and Z homing drove down toward the bed. `$3=5` and `$23=3` were correct. Swapping the X and Z motors ran smoothly both ways, so no part was dead on its own. Alex is replacing the controller board. Z isn't needed for laser cutting.
+
 ## 6. Tasks
 
 ### Pendulum lift (now)

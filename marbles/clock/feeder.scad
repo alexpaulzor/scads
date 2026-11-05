@@ -63,7 +63,7 @@ W = 101;                  // funnel / keeper width
 F_END = 65;               // plate y of F's bottom end (no spacers inside F above this)
 FK_X0_LOW = COL_W - 12;   // front keeper's inner edge below F's end (reaches under F)
 FK_X0_HIGH = COL_W - 6;   // ... above F's end: 6 mm into F's far slot
-BK_X0 = 6;                // back keeper's inner edge (clear of M's body at x < 6)
+BK_X0 = 26;               // back keeper's inner edge. Was 6: the first feeder rubbed and bound on the keeper on the other beam (M), so Alex cut ~20 off this edge (2026-11-05). Nothing needed it.
 
 /* [Gap and spacers] */
 SPACER_LAYERS = 3;        // laser-cut ring spacers per gap

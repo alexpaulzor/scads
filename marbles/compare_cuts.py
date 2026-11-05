@@ -8,6 +8,8 @@ their own X0 Y0 (bottom-left), so a part whose outline grew shows its outline as
 
     python3 marbles/compare_cuts.py out.png OLD.gcode:NEW.gcode [OLD2:NEW2 ...]   # one panel per pair
     python3 marbles/compare_cuts.py out.png -:NEW.gcode                           # NEW only (all green)
+    python3 marbles/compare_cuts.py out.png OLD.gcode@0,-20:NEW.gcode             # shift OLD by (dx, dy) first
+                                                                                  # (e.g. an edge was trimmed, moving X0 Y0)
 """
 import math
 import re
@@ -23,9 +25,13 @@ XY = re.compile(r"\b([XY])(-?[0-9.]+)")
 
 
 def cut_blocks(path):
-    """list of point lists, one per cut / etch block (G1 moves only, in order)"""
+    """list of point lists, one per cut / etch block (G1 moves only, in order); PATH@dx,dy shifts them"""
     if path in ("-", ""):
         return []
+    if "@" in path:
+        path, off = path.split("@")
+        dx, dy = (float(v) for v in off.split(","))
+        return [[(x + dx, y + dy) for x, y in b] for b in cut_blocks(path)]
     blocks, cur = [], None
     x = y = 0.0
     for ln in Path(path).read_text().splitlines():
@@ -90,7 +96,7 @@ def main():
         for b, s in zip(new, st):
             ax.plot(*zip(*b), color="#d62728" if s == "same" else "#2ca02c", lw=1.3 if s == "new" else 0.9)
         nn, ns = st.count("new"), st.count("same")
-        title = Path(n).stem if n not in ("-", "") else Path(o).stem
+        title = Path(n).stem if n not in ("-", "") else Path(o.split("@")[0]).stem
         sub = f"{nn} new (green), {len(removed)} removed (blue), {ns} unchanged (red)"
         if o in ("-", ""):
             sub = f"new part: {len(new)} cuts"
@@ -99,7 +105,7 @@ def main():
         ax.axis("on")
         ax.tick_params(labelsize=7)
         ax.grid(alpha=0.2)
-        print(f"{title}: {sub}  (old {Path(o).name if o not in ('-', '') else '-'})")
+        print(f"{title}: {sub}  (old {Path(o.split('@')[0]).name if o not in ('-', '') else '-'})")
     fig.tight_layout()
     fig.savefig(out, dpi=110)
     print(f"wrote {out}")
