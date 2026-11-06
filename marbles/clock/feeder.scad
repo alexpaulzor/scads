@@ -41,6 +41,10 @@ show_beams = true;
 show_balls = true;
 show_bolts = true;
 show_sieve = true;        // S_F stub above the funnel
+DISP_EXT = 2;             // dispenser funnel: extra hole positions of closed slot past the exit hole
+// M5 holes in the extension's solid strip beside the slot (on the sieve's M5 line), for guard plates on
+// spacers over both faces: in the slot, only the 2.82 sheet holds the ball in its plane
+DISP_GUARD_BOLTS = [for (k = [1 : DISP_EXT]) [BEAM_X, HOLES[0][1] - (k - 0.5) * PITCH]];
 back_port = false;        // assembly: the interface on the BACK keeper (back_keeper_port) and a plain front keeper
 
 /* [Material] */
@@ -223,11 +227,19 @@ module view_slots2d(front, ported) if (VIEW) for (k = [0 : N_VS - 1]) if (vs_ok(
 }
 module port2d(open) for (r = port_rects(open)) rect2d(r);
 
-module funnel2d() difference() {
-  square([W, H]);
+// ext > 0: the DISPENSER's funnel. The column runs on past the channel's hole for `ext` more hole
+// positions, as a closed slot in a column-wide extension. The dispenser hangs upside down, so in the
+// lift this is ABOVE the exit hole: balls lifted past the exit fall back down the slot into the channel
+// instead of over the top.
+module funnel2d(ext = 0) difference() {
+  union() {
+    square([W, H]);
+    if (ext > 0) translate([0, -ext * PITCH]) square([COL_W, ext * PITCH + 0.01]);
+  }
   channel2d();
   for (h = HOLES) translate(h) circle(d = HOLE_D, $fn = 96);
-  m5s(concat(BEAM_BOLTS, THRU));
+  if (ext > 0) hull() for (k = [0, ext]) translate(HOLES[0] - [0, k * PITCH]) circle(d = HOLE_D, $fn = 96);
+  m5s(concat(BEAM_BOLTS, THRU, ext > 0 ? DISP_GUARD_BOLTS : []));
 }
 module front_keeper2d() difference() {
   offset(r = 2) offset(delta = -2) union() {
@@ -335,8 +347,8 @@ module beam2020(len) difference() {
   for (a = [0, 90, 180, 270]) translate([10, 10, -1]) rotate([0, 0, a]) translate([-3.1, 10 - 1.8, 0]) cube([6.2, 2, len + 2]);
 }
 module rodY(p, y0, y1, d) translate([p[0], min(y0, y1), p[1]]) rotate([-90, 0, 0]) cylinder(d = d, h = abs(y1 - y0));
-module assembly(fit = port_fit, balls = show_balls) {   // fit: "trough", "tunnel" or "none" on the port
-  color("sandybrown") plate3d(0) funnel2d();
+module assembly(fit = port_fit, balls = show_balls, ext = 0) {   // fit: "trough", "tunnel" or "none" on the port; ext: dispenser slot
+  color("sandybrown") plate3d(0) funnel2d(ext);
   color("yellowgreen", 0.55) plate3d(Y_FK) if (back_port) front_keeper_plain2d(); else front_keeper2d();
   color("yellowgreen", 0.55) plate3d(Y_BK) if (back_port) back_keeper_port2d(); else back_keeper2d();
   color("tan") for (p = THRU) { rodY(p, -GAP - explode / 2, -explode / 2, SPACER_D); rodY(p, T + explode / 2, T + GAP + explode / 2, SPACER_D); }
@@ -379,7 +391,7 @@ module assembly(fit = port_fit, balls = show_balls) {   // fit: "trough", "tunne
 module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
 echo(str("CHECK view slots: ", N_VS, " along the channel; front keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, true)) k]),
          ", back keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false)) k])));
-echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange", "tunnel_relief", "back_keeper_port", "front_keeper_plain", "port_plug"]);
+echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange", "tunnel_relief", "back_keeper_port", "front_keeper_plain", "port_plug", "funnel_dispenser"]);
 // tunnel adapter checks: the straight wires must fit inside the port's square opening (corners at PORT / 2)
 TUN_WIRE_REACH = max([for (a = TUN_ANGLES) max(abs(TUN_RW * cos(a)), abs(TUN_RW * sin(a)))]) + TUN_WIRE / 2;
 echo(str(TUN_WIRE_REACH <= PORT / 2 ? "ok   " : "WARN ", "tunnel wires inside the ", PORT, " port opening: reach ", r2(TUN_WIRE_REACH), " of ", PORT / 2,
@@ -414,6 +426,11 @@ echo(str("CHECK bolt lengths (plates + spacers + nut ", NUT_H, "): front keeper 
          ", cap -> front keeper ", r2(T + TR_L + T + NUT_H), ", cap -> back keeper ", r2(T + TR_L + 3 * T + 2 * GAP + NUT_H)));
 echo(str(len(PORT_MIDS) == len(MID_ALL) ? "ok   " : "note ", "mid-side port bolts on the front keeper: ", PORT_MIDS,
          len(PORT_MIDS) == len(MID_ALL) ? "" : str("; left out (nut would sit over the channel): ", [for (p = MID_ALL) if (chan_d0(p) - NUT_R < 1) p], " (the cap keeps its hole)")));
+echo(str(min(HOLE_X - HOLE_D / 2, COL_W - HOLE_X - HOLE_D / 2, DISP_EXT * PITCH - (DISP_EXT * PITCH - HOLES[0][1]) - HOLE_D / 2) >= WEB ? "ok   " : "WARN ",
+         "funnel_dispenser: slot ", HOLE_D, " wide runs ", DISP_EXT, " holes (", DISP_EXT * PITCH, ") past the exit hole; plate grows ", DISP_EXT * PITCH,
+         " along the column (", COL_W, " wide); wood beside the slot ", HOLE_X - HOLE_D / 2, " / ", COL_W - HOLE_X - HOLE_D / 2,
+         ", past its end ", r2(DISP_EXT * PITCH - (DISP_EXT * PITCH - HOLES[0][1]) - HOLE_D / 2),
+         "; guard M5 at ", DISP_GUARD_BOLTS, ", wood to the slot ", BEAM_X - M5 / 2 - (HOLE_X + HOLE_D / 2), " and to the edge ", COL_W - BEAM_X - M5 / 2));
 echo(str("CHECK back_keeper_port: mid-side port bolts ", BACK_MIDS, len(BACK_MIDS) == len(MID_ALL) ? "" :
          str(", left out (nut over the channel or a beam-bolt spacer): ", [for (p = MID_ALL) if (len([for (q = BACK_MIDS) if (q == p) q]) == 0) p]),
          "; nut to the nearest beam-bolt spacer ", r2(min([for (p = BACK_MIDS, y = BEAM_BOLT_Y) norm(p - [BEAM_X, y]) - NUT_R - SPACER_ROOM / 2])),
@@ -434,3 +451,4 @@ else if (part == "tunnel_relief") out2d() tunnel_relief2d();
 else if (part == "back_keeper_port") out2d() back_keeper_port2d();
 else if (part == "front_keeper_plain") out2d() front_keeper_plain2d();
 else if (part == "port_plug") out2d() port_plug2d();
+else if (part == "funnel_dispenser") out2d() funnel2d(DISP_EXT);

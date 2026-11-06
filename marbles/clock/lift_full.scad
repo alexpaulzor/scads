@@ -138,7 +138,7 @@ module full() {
   sieve3d();
   if (animate) sieve_m3d();
   if (animate && show_balls) balls_anim();
-  translate([0, 0, Z_TOP]) mirror([0, 0, 1]) assembly(EXIT_STYLE == "wire" ? "tunnel" : "none", !animate && show_balls);   // dispenser: the feeder, upside down
+  translate([0, 0, Z_TOP]) mirror([0, 0, 1]) assembly(EXIT_STYLE == "wire" ? "tunnel" : "none", !animate && show_balls, DISP_EXT);   // dispenser: the feeder, upside down
   if (EXIT_STYLE == "trough") {
     translate([PORT_C[0], Y_EXIT, EXIT_Z0]) mirror([0, EXIT_SIDE == "front" ? 0 : 1, 0]) exit_trough3d();
     track3d();
