@@ -28,7 +28,7 @@ from PIL import Image, ImageDraw
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from laser_parts import emit_cut, load_profile, part_layers, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, part_layers, preamble, gcode  # noqa: E402
 
 SET = ["hook_rib", "backer", "crossmember"]
 ORIENTS = [(r, m) for m in (False, True) for r in (0, 90, 180, 270)]
@@ -192,9 +192,8 @@ def main():
         if c.closed and c.points[0] != c.points[-1]:
             c.points = c.points + [c.points[0]]
         g += emit_cut(s2g, motion, c, i, len(cuts), job)
-    g += s2g._footer(g)
     a.out.parent.mkdir(parents=True, exist_ok=True)
-    a.out.write_text("\n".join(g))
+    gcode.write(a.out, g)
     print(f"{a.out.name}: footprint {W:.2f} x {H:.2f} mm, min gap {min_gap:.2f} mm, "
           f"{len(cuts)} cuts; {orient}")
 

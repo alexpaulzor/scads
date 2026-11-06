@@ -24,7 +24,7 @@ from shapely.ops import substring
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble, gcode  # noqa: E402
 
 SCAD = HERE / "feeder.scad"
 ap = argparse.ArgumentParser()
@@ -120,6 +120,5 @@ with tempfile.TemporaryDirectory() as td:
         gl += preamble(s2g, job)
         for i, c in enumerate(cuts, 1):
             gl += emit_cut(s2g, motion, c, i, len(cuts), job)
-        gl += s2g._footer(gl)
-        (args.out / f"{name}.gcode").write_text("\n".join(gl))
+        gcode.write((args.out / f"{name}.gcode"), gl)
         print(f"wrote {name}.gcode: {w:.2f} x {h:.2f} mm, {len(holes)} holes/slots" + (f", knock-out in {len(ko)} pieces" if ko else ""))

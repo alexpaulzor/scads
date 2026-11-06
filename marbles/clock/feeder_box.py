@@ -34,7 +34,7 @@ from shapely.prepared import prep
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path, gcode  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--material", default="mdf3")
@@ -250,6 +250,7 @@ holes.sort(key=lambda pl: abs(Polygon(pl).area))
 outers.sort(key=lambda pl: abs(Polygon(pl).area))
 s2g, motion, mat, job = load_profile(args.material, 1000, None)
 cuts = [s2g.Polyline(pl, True) for pl in holes + outers]
+cuts = gcode.order(cuts)        # middle-out, shortest travel (quickcut/order.py)
 lines = [f"; feeder_box -- marbles/clock/feeder_box.py: side-entry feeder box (funnel, 2 keepers, 6 spacer walls)",
          f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
          f"kerf {KERF}, fit {FIT}; X0 Y0 = bottom-left; footprint {X1 - X0:.2f} x {Y1 - Y0:.2f} mm",
@@ -257,10 +258,9 @@ lines = [f"; feeder_box -- marbles/clock/feeder_box.py: side-entry feeder box (f
 lines += preamble(s2g, job)
 for i, cc in enumerate(cuts, 1):
     lines += emit_cut(s2g, motion, cc, i, len(cuts), job)
-lines += s2g._footer(lines)
 out = std_path(HERE.parent / "gcode", "feeder_box", lines, mat['id'])
 out.parent.mkdir(parents=True, exist_ok=True)
-out.write_text("\n".join(lines))
+gcode.write(out, lines)
 print(f"wrote {out.name}: {X1 - X0:.2f} x {Y1 - Y0:.2f} mm, {len(cuts)} cuts")
 
 # ---------------------------------------------------------------- one file per part, longest side along X
@@ -286,8 +286,7 @@ for n, g in PARTS:
     ln += preamble(s2g, job)
     for i, cc in enumerate(pc, 1):
         ln += emit_cut(s2g, motion, cc, i, len(pc), job)
-    ln += s2g._footer(ln)
-    (out.parent / f"{name}.gcode").write_text("\n".join(ln))
+    gcode.write((out.parent / f"{name}.gcode"), ln)
     print(f"wrote {name}.gcode: {w:.2f} x {h:.2f} mm, {len(pc)} cuts")
 
 # ---------------------------------------------------------------- scene data (a = 46 - x, z = y - H)

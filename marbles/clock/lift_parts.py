@@ -35,7 +35,7 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path, gcode  # noqa: E402
 
 MATERIAL = "mdf3"     # 3 mm MDF (profile thickness: 2.82 new batch)
 STOCK_T, KERF, _ = material_fit(MATERIAL)   # from the profile (mdf3: 2.82, kerf 0.10)
@@ -145,9 +145,8 @@ def main():
         lines += preamble(s2g, job)
         for i, c in enumerate(cuts, 1):
             lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-        lines += s2g._footer(lines)
         out = std_path(out_dir, f"lift_{name}", lines, mat['id'])
-        out.write_text("\n".join(lines))
+        gcode.write(out, lines)
         print(f"{out.name}: {x1 - x0:.2f} x {y1 - y0:.2f} mm, cut {n} ({note})")
 
 

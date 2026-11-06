@@ -285,7 +285,7 @@ def polylines(geom):
 
 def write_gcode(name, geom, note, copies, outdir):
     sys.path.insert(0, str(HERE.parent))
-    from laser_parts import emit_cut, load_profile, preamble, std_path
+    from laser_parts import emit_cut, load_profile, preamble, std_path, gcode
     s2g, motion, mat, job = load_profile("ply3", 1000, None)
     g = geom.buffer(KERF / 2, join_style=1)          # kept part grows, its holes shrink
     x0, y0, x1, y1 = g.bounds
@@ -297,10 +297,9 @@ def write_gcode(name, geom, note, copies, outdir):
     lines += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
         lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-    lines += s2g._footer(lines)
     outdir.mkdir(parents=True, exist_ok=True)
     out = std_path(outdir, f"clock_{name}", lines, mat['id'])
-    out.write_text("\n".join(lines))
+    gcode.write(out, lines)
     return x1 - x0, y1 - y0, out.name
 
 

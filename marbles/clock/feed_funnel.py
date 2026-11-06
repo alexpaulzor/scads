@@ -28,7 +28,7 @@ from shapely.ops import unary_union
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path, gcode  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--material", default="mdf3")
@@ -143,9 +143,8 @@ for name, g, note in (("feed_funnel", ff, "bottom feed funnel plate (sieve colum
     lines += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
         lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-    lines += s2g._footer(lines)
     out = std_path(out_dir, name, lines, mat['id'])
-    out.write_text("\n".join(lines))
+    gcode.write(out, lines)
     print(f"wrote {out.name}: {x1 - x0:.2f} x {y1 - y0:.2f} mm, {len(cuts)} cuts")
 
 # ---------------------------------------------------------------- scene for the views

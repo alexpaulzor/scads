@@ -21,7 +21,7 @@ from shapely.prepared import prep
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, preamble, std_path  # noqa: E402
+from laser_parts import emit_cut, load_profile, preamble, std_path, gcode  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--material", default="mdf3", help="profile id: thickness, kerf and slot fit come from it")
@@ -103,6 +103,7 @@ outers.sort(key=lambda pl: abs(Polygon(pl).area))
 
 s2g, motion, mat, job = load_profile(args.material, 1000, None)
 cuts = [s2g.Polyline(pl, True) for pl in holes + outers]
+cuts = gcode.order(cuts)        # middle-out, shortest travel (quickcut/order.py)
 lines = [f"; {args.out.stem} -- marbles/clock/wheel_box_gcode.py: " + ("plain keeper 300 x 40" if args.plain else "one wheel keeper + its box"),
          f"; parts: {', '.join(n for n, _ in placed)}",
          f"; T = {wb.T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
@@ -111,9 +112,8 @@ lines = [f"; {args.out.stem} -- marbles/clock/wheel_box_gcode.py: " + ("plain ke
 lines += preamble(s2g, job)
 for i, c in enumerate(cuts, 1):
     lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-lines += s2g._footer(lines)
 if args.out.parent == HERE.parent / "gcode":      # default location: standard name
     args.out = std_path(args.out.parent, args.out.stem, lines, mat['id'])
 args.out.parent.mkdir(parents=True, exist_ok=True)
-args.out.write_text("\n".join(lines))
+gcode.write(args.out, lines)
 print(f"wrote {args.out} ({len(cuts)} cuts)")

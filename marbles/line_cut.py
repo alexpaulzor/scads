@@ -17,7 +17,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from laser_parts import emit_cut, load_profile, preamble, std_path  # noqa: E402
+from laser_parts import emit_cut, load_profile, preamble, std_path, gcode  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("x0", type=float)
@@ -44,8 +44,7 @@ lines += [f"; {mat['id']} recipe {job.power_percent:g}% F{job.feed_mm_per_min} x
           f"WORK coordinates: run it from the zero named above", ";"]
 lines += preamble(s2g, job)
 lines += emit_cut(s2g, motion, cut, 1, 1, job)
-lines += s2g._footer(lines)
 out = std_path(HERE / "gcode", a.name, lines, mat["id"])
 out.parent.mkdir(parents=True, exist_ok=True)
-out.write_text("\n".join(lines))
+gcode.write(out, lines)
 print(f"wrote {out.name}: X{p0[0]:.3f} Y{p0[1]:.3f} -> X{p1[0]:.3f} Y{p1[1]:.3f}, {job.passes} passes at F{job.feed_mm_per_min}")

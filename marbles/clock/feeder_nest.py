@@ -25,7 +25,7 @@ from shapely.prepared import prep
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path  # noqa: E402
+from laser_parts import emit_cut, load_profile, material_fit, preamble, std_path, gcode  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--w", type=float, default=300)
@@ -279,6 +279,7 @@ for part, rot, flip, dx, dy, g in placed:
 holes.sort(key=lambda pl: abs(Polygon(pl).area))
 outs.sort(key=lambda pl: abs(Polygon(pl).area))
 cuts = [s2g.Polyline(pl, True) for pl in holes] + [s2g.Polyline(pl, False) for pl in kos] + [s2g.Polyline(pl, True) for pl in outs]
+cuts = gcode.order(cuts)        # middle-out, shortest travel (quickcut/order.py)
 W = max(g.bounds[2] for *_, g in placed)
 H = max(g.bounds[3] for *_, g in placed)
 lines = [f"; feeder_sheet -- marbles/clock/feeder_nest.py: feeder + dispenser plates on one {a.w:g} x {a.h:g} sheet",
@@ -289,9 +290,8 @@ lines += [f"; {mat['id']} T {T}, kerf {KERF}; {len(holes)} holes, {len(kos)} kno
 lines += preamble(s2g, job)
 for i, c in enumerate(cuts, 1):
     lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-lines += s2g._footer(lines)
 out = std_path(HERE.parent / "gcode", "feeder_sheet", lines, mat["id"])
-out.write_text("\n".join(lines))
+gcode.write(out, lines)
 print(f"wrote {out.name}: footprint {W:.1f} x {H:.1f} mm (sheet {a.w:g} x {a.h:g}), {len(cuts)} cuts")
 for p, r, f, dx, dy, g in placed:
     b = g.bounds

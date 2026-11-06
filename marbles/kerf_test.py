@@ -24,7 +24,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from laser_parts import emit_cut, find_quickcut, preamble, std_path  # noqa: E402
+from laser_parts import emit_cut, find_quickcut, preamble, std_path, gcode  # noqa: E402
 
 
 def main():
@@ -79,11 +79,10 @@ def main():
     g += preamble(s2g, job)
     for i, c in enumerate(cuts, 1):
         g += emit_cut(s2g, motion, c, i, len(cuts), job)
-    g += s2g._footer(g)
     a.out.parent.mkdir(parents=True, exist_ok=True)
     if a.out.parent == HERE / "gcode" and a.out.stem in ("kerf_test", "ring_jig"):   # default: standard name
         a.out = std_path(a.out.parent, a.out.stem, g, a.material)
-    a.out.write_text("\n".join(g))
+    gcode.write(a.out, g)
     print(f"{a.out.name}: {W:.2f} x {L + 2 * o:.2f} mm, {strips} strips of "
           f"{P:g} x {L:g} mm nominal; stack {stack_n}: kerf = "
           f"({stack_n * P:g} - stack) / {stack_n}")

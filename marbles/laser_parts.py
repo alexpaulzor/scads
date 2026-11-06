@@ -49,61 +49,26 @@ def find_quickcut(arg):
 _XY_RE = re.compile(r"\b([XY])(-?[0-9.]+)")
 
 
-def cut_extent(lines):
-    """(w, h) of the G1 moves in a job (comments ignored): the cut footprint from X0 Y0"""
-    xs, ys = [0.0], [0.0]
-    for ln in lines:
-        c = ln.split(";")[0].strip()
-        if c.startswith("G1"):
-            for ax, v in _XY_RE.findall(c):
-                (xs if ax == "X" else ys).append(float(v))
-    return max(xs), max(ys)
+# THE G-code core (cnc_vibes/quickcut/gcode.py): every script here emits and writes through it.
+sys.path.insert(0, str(find_quickcut(None)))
+import gcode  # noqa: E402,F401
 
+
+def cut_extent(lines):
+    """(w, h) of the G1 moves in a job: gcode.cut_extent"""
+    return gcode.cut_extent(lines)
 
 def std_path(out_dir, base, lines, material):
-    """the standard output path <out_dir>/<base>_<W>x<H>_<material>.gcode, W x H from the cut moves"""
-    import math
-    w, h = cut_extent(lines)
-    return Path(out_dir) / f"{base}_{math.ceil(w - 1e-9)}x{math.ceil(h - 1e-9)}_{material}.gcode"
-
+    """<out_dir>/<base>_<W>x<H>_<material>.gcode: gcode.std_path"""
+    return gcode.std_path(out_dir, base, lines, material)
 
 def emit_cut(s2g, motion, pl, i, n, job):
-    """Wiggle first on every path; closed loops also overlap their seam."""
-    pts = motion.decimate(pl.points, job.min_segment_mm)
-    if len(pts) < 2:
-        return []
-    length = motion.path_length(pts)
-    if length < job.warmup_mm / 2:   # stub: one out-and-back, not a shuttle
-        warm = pts[1:] + pts[-2::-1]
-    else:
-        warm = motion.warmup_wiggle(pts, job.warmup_mm)
-    g = [f"; --- cut {i}/{n} ({'loop' if pl.closed else 'open path'}, {len(pts)} pts) ---",
-         f"G0 X{pts[0][0]:.3f} Y{pts[0][1]:.3f}", f"M3 S{job.power_s}", f"F{job.feed_mm_per_min}",
-         f"; warmup wiggle: {job.warmup_mm / 2:.1f}mm out and back"]
-    g += [f"G1 X{x:.3f} Y{y:.3f}" for x, y in warm]
-    for k in range(job.passes):
-        if job.passes > 1:
-            g.append(f"; pass {k + 1}/{job.passes}")
-        seq = pts[1:] if (pl.closed or k % 2 == 0) else pts[-2::-1]
-        g += [f"G1 X{x:.3f} Y{y:.3f}" for x, y in seq]
-    if pl.closed:
-        g.append(f"; overlap: {job.warmup_mm:.1f}mm past the start")
-        g += [f"G1 X{x:.3f} Y{y:.3f}" for x, y in motion.follow_through(pts, job.warmup_mm)]
-    return g + ["M5", ""]
-
+    """one cut: gcode.cut (warmup wiggle on every path, passes, loop overlap)"""
+    return gcode.cut(pl, job, i, n)
 
 def preamble(s2g, job):
-    """quickcut's preamble, with its warmup lines describing emit_cut instead."""
-    out = []
-    for line in s2g._preamble(job):
-        if line.startswith("; closed loops:"):
-            out.append("; every cut: warmup wiggle (half the warmup out and back), then the path")
-        elif line.startswith("; open paths:"):
-            out.append("; closed loops then overlap the warmup distance past their start")
-        else:
-            out.append(line)
-    return out
-
+    """gcode.preamble"""
+    return gcode.preamble(job)
 
 def part_names(openscad):
     out = subprocess.run([openscad, "-o", "/dev/null", "--export-format", "csg",
@@ -141,39 +106,15 @@ def part_layers(s2g, openscad, name, sheet_th, tmp):
 
 
 def material_fit(material, quickcut=None):
-    """(thickness_mm, kerf_mm, slot_extra_mm) from the shared material profile.
-    kerf / slot extra come from the profile's verified `fit:` block (mdf3: 2.82 / 0.10 / 0.0,
-    tabs tight and snug without deforming). Materials without one fall back to kerf 0.10, extra 0."""
-    sys.path.insert(0, str(find_quickcut(quickcut)))
-    from materials import SHARED_MATERIALS  # noqa: E402
-    import yaml  # noqa: E402
-    mats = {m["id"]: m for m in yaml.safe_load(Path(SHARED_MATERIALS).read_text())}
-    if material not in mats:
-        sys.exit(f"unknown material {material}")
-    m = mats[material]
-    fit = m.get("fit") or {}
-    if not fit:
-        print(f"note: {material} has no verified fit block; using kerf 0.10, slot extra 0", file=sys.stderr)
-    return float(m["thickness_mm"]), float(fit.get("kerf_mm", 0.10)), float(fit.get("slot_extra_mm", 0.0))
-
+    """(thickness_mm, kerf_mm, slot_extra_mm): gcode.fit"""
+    return gcode.fit(material)
 
 def load_profile(material, s_full_power, quickcut):
-    """(s2g module, motion module, material dict, cut CutJob) for a material id."""
+    """(s2g module, motion module, material dict, CutJob) for a material id: built on gcode.job"""
     sys.path.insert(0, str(find_quickcut(quickcut)))
     import svg2gcode as s2g  # noqa: E402
     import motion  # noqa: E402
-    from materials import SHARED_MATERIALS  # noqa: E402
-    import yaml  # noqa: E402
-    mats = {m["id"]: m for m in yaml.safe_load(Path(SHARED_MATERIALS).read_text())}
-    if material not in mats:
-        sys.exit(f"unknown material {material}")
-    mat = mats[material]
-    r = mat["laser"]
-    job = s2g.CutJob(feed_mm_per_min=r["feed_mm_per_min"], power_percent=r["power_percent"],
-                     passes=r.get("passes", 1), material_id=material,
-                     s_full_power=s_full_power)
-    return s2g, motion, mat, job
-
+    return s2g, motion, gcode.material(material), gcode.job(material, s_full_power=s_full_power)
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -251,9 +192,8 @@ def main():
         cuts = s2g.order_cuts(layers["cut"])
         for i, pl in enumerate(cuts, 1):
             g += emit_cut(s2g, motion, pl, i, len(cuts), cut_job)
-        g += s2g._footer(g)
         out = std_path(a.out, name, g, a.material)
-        out.write_text("\n".join(g))
+        gcode.write(out, g)
         print(f"{out.name}: {x1 - x0:.2f} x {y1 - y0:.2f} mm, "
               f"{len(layers['etch'])} etch loops, {len(cuts)} cuts")
 

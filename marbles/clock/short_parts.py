@@ -83,7 +83,7 @@ def min_web(g):
 
 
 def main():
-    from laser_parts import emit_cut, load_profile, material_fit, preamble
+    from laser_parts import emit_cut, load_profile, material_fit, preamble, gcode
     ap = argparse.ArgumentParser()
     ap.add_argument("--material", default="mdf3")
     ap.add_argument("--sizes", type=int, nargs="+", default=list(range(3, 11)), help="ball holes per piece")
@@ -112,8 +112,7 @@ def main():
             lines += preamble(s2g, job)
             for i, c in enumerate(cuts, 1):
                 lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-            lines += s2g._footer(lines)
-            (out_dir / f"{name}.gcode").write_text("\n".join(lines))
+            gcode.write((out_dir / f"{name}.gcode"), lines)
             print(f"{name}.gcode: {note}; narrowest web {min_web(g):.2f}")
             thumbs.append({"key": name, "polys": [{"outer": list(g.exterior.coords), "holes": [list(h.coords) for h in g.interiors]}]})
     scenes = HERE.parent / "views" / "scenes"
