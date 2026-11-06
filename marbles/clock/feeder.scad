@@ -41,7 +41,7 @@ show_beams = true;
 show_balls = true;
 show_bolts = true;
 show_sieve = true;        // S_F stub above the funnel
-back_port = false;        // assembly: draw the back keeper flavour that has its own port
+back_port = false;        // assembly: the interface on the BACK keeper (back_keeper_port) and a plain front keeper
 
 /* [Material] */
 T = 2.82;                 // sheet thickness (mdf3 profile: new batch 2.82; mdf3old 3.1; ply3 2.63)
@@ -243,6 +243,19 @@ module back_keeper2d() difference() {     // no port pattern: nothing attaches f
   m5s(concat(THRU, BEAM_BOLTS));
   view_slots2d(false);
 }
+// flavour: front keeper WITHOUT a port (when the box's interface is on the back keeper instead)
+module front_keeper_plain2d() difference() {
+  offset(r = 2) offset(delta = -2) union() {
+    translate([FK_X0_LOW, 0]) square([W - FK_X0_LOW, F_END]);
+    translate([FK_X0_HIGH, F_END - 0.01]) square([W - FK_X0_HIGH, H - F_END + 0.01]);
+  }
+  m5s(THRU);
+  view_slots2d(true, false);
+}
+// PLUG: the port's exact outline (opening + its 4 tab notches), cut from the same sheet, so it presses
+// into an unused port flush with both faces: the same fit as the tabs (slot = thickness)
+module port_plug2d() union() for (r = port_rects(true)) rect2d(r);
+
 // flavour: back keeper with its own port (opening + 4 tab slots + port bolts), so a trough, cap,
 // tunnel flange or relief bolts on from behind. Close whichever port isn't used (trough cap), or a
 // ball coming in one side rolls straight out the other.
@@ -324,7 +337,7 @@ module beam2020(len) difference() {
 module rodY(p, y0, y1, d) translate([p[0], min(y0, y1), p[1]]) rotate([-90, 0, 0]) cylinder(d = d, h = abs(y1 - y0));
 module assembly(fit = port_fit, balls = show_balls) {   // fit: "trough", "tunnel" or "none" on the port
   color("sandybrown") plate3d(0) funnel2d();
-  color("yellowgreen", 0.55) plate3d(Y_FK) front_keeper2d();
+  color("yellowgreen", 0.55) plate3d(Y_FK) if (back_port) front_keeper_plain2d(); else front_keeper2d();
   color("yellowgreen", 0.55) plate3d(Y_BK) if (back_port) back_keeper_port2d(); else back_keeper2d();
   color("tan") for (p = THRU) { rodY(p, -GAP - explode / 2, -explode / 2, SPACER_D); rodY(p, T + explode / 2, T + GAP + explode / 2, SPACER_D); }
   color("tan") for (b = BEAM_BOLTS) rodY(b, T + explode / 2, T + GAP + explode / 2, SPACER_D);
@@ -366,7 +379,7 @@ module assembly(fit = port_fit, balls = show_balls) {   // fit: "trough", "tunne
 module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
 echo(str("CHECK view slots: ", N_VS, " along the channel; front keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, true)) k]),
          ", back keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false)) k])));
-echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange", "tunnel_relief", "back_keeper_port"]);
+echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange", "tunnel_relief", "back_keeper_port", "front_keeper_plain", "port_plug"]);
 // tunnel adapter checks: the straight wires must fit inside the port's square opening (corners at PORT / 2)
 TUN_WIRE_REACH = max([for (a = TUN_ANGLES) max(abs(TUN_RW * cos(a)), abs(TUN_RW * sin(a)))]) + TUN_WIRE / 2;
 echo(str(TUN_WIRE_REACH <= PORT / 2 ? "ok   " : "WARN ", "tunnel wires inside the ", PORT, " port opening: reach ", r2(TUN_WIRE_REACH), " of ", PORT / 2,
@@ -419,3 +432,5 @@ else if (part == "trough_cap") out2d() trough_cap2d();
 else if (part == "tunnel_flange") out2d() tunnel_flange2d();
 else if (part == "tunnel_relief") out2d() tunnel_relief2d();
 else if (part == "back_keeper_port") out2d() back_keeper_port2d();
+else if (part == "front_keeper_plain") out2d() front_keeper_plain2d();
+else if (part == "port_plug") out2d() port_plug2d();
