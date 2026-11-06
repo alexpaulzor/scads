@@ -112,6 +112,7 @@ interface (tunnel flange + relief), compact D ring jig + mandrel, fit coupon, es
 | C104 | **Parametric ring generator** (P305) in SCAD with a CHECK report + G-code export | unblocked | |
 | C105 | Frame files: a laser-off trace of each job's outline | optional | |
 | C107 | Face sketch (`face_sketch.py`): 48\" frame, seconds 12×5 + 2-ball gaps (r 254.7), minutes 60 touching (r 182.0), hours r 109.3, pendulum in front | done | Quick visual only. |
+| C108 | **Cut-order optimizer for quickcut** (TSP, e.g. OR-tools routing / CP-SAT, or a greedy + 2-opt heuristic): least laser-off travel between cuts, while keeping **middle-out** (every hole or inner cut before the outline that contains it, so loose pieces don't shift); also pick each loop's start point. Today's rule is a global smallest-area-first sort, safe but travel-heavy on multi-part sheets | unblocked | Estimate 2026-11-06: ~1 day for a pure-Python heuristic with tests; +0.5 day for an optional OR-tools backend. Payoff on `feeder_sheet_300x291`: travel is 13.0 m ≈ 4.3 min of a ~34 min job (F3000 rapids), so at most a few minutes saved there; more on many-small-part sheets. |
 | C106 | Remove or fix the old 3-layer ring jig (`ring_jig.py`, F5000 etch fails validation) | unblocked | Superseded by the compact D jig. |
 
 ## Parked ideas (from the whole project; pick from these later)
