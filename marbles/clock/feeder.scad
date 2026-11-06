@@ -42,9 +42,6 @@ show_balls = true;
 show_bolts = true;
 show_sieve = true;        // S_F stub above the funnel
 DISP_EXT = 2;             // dispenser funnel: extra hole positions of closed slot past the exit hole
-// M5 holes in the extension's solid strip beside the slot (on the sieve's M5 line), for guard plates on
-// spacers over both faces: in the slot, only the 2.82 sheet holds the ball in its plane
-DISP_GUARD_BOLTS = [for (k = [1 : DISP_EXT]) [BEAM_X, HOLES[0][1] - (k - 0.5) * PITCH]];
 back_port = false;        // assembly: the interface on the BACK keeper (back_keeper_port) and a plain front keeper
 
 /* [Material] */
@@ -129,6 +126,9 @@ $fn = 64;
 // ------------------------------------------------------------------ derived geometry
 HOLES = [for (i = [0 : N_HOLES - 1]) [HOLE_X, BAND + 15 + PITCH * i]];
 BEAM_BOLTS = [for (y = BEAM_BOLT_Y) [BEAM_X, y]];
+// M5 holes in the extension's solid strip beside the slot (on the sieve's M5 line), for guard plates on
+// spacers over both faces: in the slot, only the 2.82 sheet holds the ball in its plane
+DISP_GUARD_BOLTS = [for (k = [1 : DISP_EXT]) [BEAM_X, HOLES[0][1] - (k - 0.5) * PITCH]];
 PORT_BOLTS = [for (sx = [-1, 1], sy = [-1, 1]) PORT_C + [sx * PORT_BOLT, sy * PORT_BOLT]];
 // mid-side bolts: trough cap -> front keeper only (nut in the front gap). One whose nut would sit
 // over the ball channel is left out (the CHECK report says which).
