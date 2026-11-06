@@ -41,6 +41,7 @@ show_beams = true;
 show_balls = true;
 show_bolts = true;
 show_sieve = true;        // S_F stub above the funnel
+back_port = false;        // assembly: draw the back keeper flavour that has its own port
 
 /* [Material] */
 T = 2.82;                 // sheet thickness (mdf3 profile: new batch 2.82; mdf3old 3.1; ply3 2.63)
@@ -130,6 +131,8 @@ PORT_BOLTS = [for (sx = [-1, 1], sy = [-1, 1]) PORT_C + [sx * PORT_BOLT, sy * PO
 MID_ALL = [PORT_C + [-PORT_BOLT, 0], PORT_C + [PORT_BOLT, 0], PORT_C + [0, PORT_BOLT], PORT_C + [0, -PORT_BOLT]];
 function chan_d0(p) = min([for (i = [0 : 60]) norm(bez(PORT_C, CH_P1, CH_P2, [HOLE_X, BAND + 15], i / 60) - p)]) - (HOLE_D + 1) / 2;
 PORT_MIDS = [for (p = MID_ALL) if (chan_d0(p) - NUT_R >= 1) p];
+// the same for a port on the BACK keeper: nut in the back gap, so it must also clear the beam-bolt spacers there
+BACK_MIDS = [for (p = MID_ALL) if (chan_d0(p) - NUT_R >= 1 && min([for (b = [for (y = BEAM_BOLT_Y) [BEAM_X, y]]) norm(p - b)]) - NUT_R - SPACER_ROOM / 2 >= 1) p];
 THRU = concat(PORT_BOLTS, EXTRA_BOLTS);
 INSIDE = 2 * GAP + T;     // keeper to keeper, inside
 function bez(p0, p1, p2, p3, t) = pow(1 - t, 3) * p0 + 3 * pow(1 - t, 2) * t * p1 + 3 * (1 - t) * t * t * p2 + pow(t, 3) * p3;
@@ -208,13 +211,13 @@ function seg_i(sv) = max([for (i = [0 : len(PATH) - 2]) if (CUM[i] <= sv) i]);
 function path_at(sv) = let(i = seg_i(sv), f = (sv - CUM[i]) / (CUM[i + 1] - CUM[i])) PATH[i] + f * (PATH[i + 1] - PATH[i]);
 N_VS = floor((CUM[len(CUM) - 1] - VS_START + VS_SOLID) / (VS_P + VS_W + VS_SOLID));
 function vs_pts(k) = [for (j = [0 : 6]) path_at(VS_START + k * (VS_P + VS_W + VS_SOLID) + VS_W / 2 + j * VS_P / 6)];
-function vs_ok(k, front) = let(pts = vs_pts(k), r = VS_W / 2,
+function vs_ok(k, front, ported) = let(pts = vs_pts(k), r = VS_W / 2, ported = is_undef(ported) ? front : ported,
     bolts = front ? THRU : concat(THRU, BEAM_BOLTS)) min([for (p = pts) min(
   minl([for (b = bolts) norm(b - p) - SPACER_ROOM / 2 - r]),
-  front ? minl([for (q = port_rects(true)) rp(q, p) - WEB - r]) : 999,
+  ported ? minl([for (q = port_rects(true)) rp(q, p) - WEB - r]) : 999,
   (front ? p[0] - fk_x0(p[1]) : p[0] - BK_X0) - WEB - r,
   W - p[0] - WEB - r, p[1] - WEB - r, H - p[1] - WEB - r)]) >= 0;
-module view_slots2d(front) if (VIEW) for (k = [0 : N_VS - 1]) if (vs_ok(k, front)) {
+module view_slots2d(front, ported) if (VIEW) for (k = [0 : N_VS - 1]) if (vs_ok(k, front, is_undef(ported) ? front : ported)) {
   pts = vs_pts(k);
   for (j = [0 : len(pts) - 2]) hull() { translate(pts[j]) circle(d = VS_W, $fn = 24); translate(pts[j + 1]) circle(d = VS_W, $fn = 24); }
 }
@@ -239,6 +242,15 @@ module back_keeper2d() difference() {     // no port pattern: nothing attaches f
   translate([BK_X0, 0]) square([W - BK_X0, H]);
   m5s(concat(THRU, BEAM_BOLTS));
   view_slots2d(false);
+}
+// flavour: back keeper with its own port (opening + 4 tab slots + port bolts), so a trough, cap,
+// tunnel flange or relief bolts on from behind. Close whichever port isn't used (trough cap), or a
+// ball coming in one side rolls straight out the other.
+module back_keeper_port2d() difference() {
+  translate([BK_X0, 0]) square([W - BK_X0, H]);
+  port2d(true);
+  m5s(concat(THRU, BEAM_BOLTS, BACK_MIDS));
+  view_slots2d(false, true);
 }
 module spacer2d() difference() { circle(d = SPACER_D); circle(d = SPACER_ID, $fn = 48); }
 
@@ -313,7 +325,7 @@ module rodY(p, y0, y1, d) translate([p[0], min(y0, y1), p[1]]) rotate([-90, 0, 0
 module assembly(fit = port_fit, balls = show_balls) {   // fit: "trough", "tunnel" or "none" on the port
   color("sandybrown") plate3d(0) funnel2d();
   color("yellowgreen", 0.55) plate3d(Y_FK) front_keeper2d();
-  color("yellowgreen", 0.55) plate3d(Y_BK) back_keeper2d();
+  color("yellowgreen", 0.55) plate3d(Y_BK) if (back_port) back_keeper_port2d(); else back_keeper2d();
   color("tan") for (p = THRU) { rodY(p, -GAP - explode / 2, -explode / 2, SPACER_D); rodY(p, T + explode / 2, T + GAP + explode / 2, SPACER_D); }
   color("tan") for (b = BEAM_BOLTS) rodY(b, T + explode / 2, T + GAP + explode / 2, SPACER_D);
   if (show_sieve) color("burlywood") translate([0, 0, H]) plate3d(0) difference() {
@@ -354,7 +366,7 @@ module assembly(fit = port_fit, balls = show_balls) {   // fit: "trough", "tunne
 module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
 echo(str("CHECK view slots: ", N_VS, " along the channel; front keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, true)) k]),
          ", back keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false)) k])));
-echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange", "tunnel_relief"]);
+echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange", "tunnel_relief", "back_keeper_port"]);
 // tunnel adapter checks: the straight wires must fit inside the port's square opening (corners at PORT / 2)
 TUN_WIRE_REACH = max([for (a = TUN_ANGLES) max(abs(TUN_RW * cos(a)), abs(TUN_RW * sin(a)))]) + TUN_WIRE / 2;
 echo(str(TUN_WIRE_REACH <= PORT / 2 ? "ok   " : "WARN ", "tunnel wires inside the ", PORT, " port opening: reach ", r2(TUN_WIRE_REACH), " of ", PORT / 2,
@@ -389,6 +401,10 @@ echo(str("CHECK bolt lengths (plates + spacers + nut ", NUT_H, "): front keeper 
          ", cap -> front keeper ", r2(T + TR_L + T + NUT_H), ", cap -> back keeper ", r2(T + TR_L + 3 * T + 2 * GAP + NUT_H)));
 echo(str(len(PORT_MIDS) == len(MID_ALL) ? "ok   " : "note ", "mid-side port bolts on the front keeper: ", PORT_MIDS,
          len(PORT_MIDS) == len(MID_ALL) ? "" : str("; left out (nut would sit over the channel): ", [for (p = MID_ALL) if (chan_d0(p) - NUT_R < 1) p], " (the cap keeps its hole)")));
+echo(str("CHECK back_keeper_port: mid-side port bolts ", BACK_MIDS, len(BACK_MIDS) == len(MID_ALL) ? "" :
+         str(", left out (nut over the channel or a beam-bolt spacer): ", [for (p = MID_ALL) if (len([for (q = BACK_MIDS) if (q == p) q]) == 0) p]),
+         "; nut to the nearest beam-bolt spacer ", r2(min([for (p = BACK_MIDS, y = BEAM_BOLT_Y) norm(p - [BEAM_X, y]) - NUT_R - SPACER_ROOM / 2])),
+         "; port to the back keeper edge ", r2(PORT_C[0] - PORT / 2 - TAB - BK_X0), "; view slots kept ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false, true)) k])));
 echo(str("CHECK mid-side holes, wood to the port notches: ", [for (p = PORT_MIDS) r2(minl([for (q = port_rects(true)) rp(q, p)]) - M5 / 2)]));
 echo(spacer_qty = (len(THRU) * 2 + len(BEAM_BOLTS)) * SPACER_LAYERS);
 report();
@@ -402,3 +418,4 @@ else if (part == "trough_side_x2") out2d() trough_side2d();
 else if (part == "trough_cap") out2d() trough_cap2d();
 else if (part == "tunnel_flange") out2d() tunnel_flange2d();
 else if (part == "tunnel_relief") out2d() tunnel_relief2d();
+else if (part == "back_keeper_port") out2d() back_keeper_port2d();
