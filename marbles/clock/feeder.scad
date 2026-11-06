@@ -41,11 +41,10 @@ show_beams = true;
 show_balls = true;
 show_bolts = true;
 show_sieve = true;        // S_F stub above the funnel
-DISP_EXT = 2;             // dispenser plates: extra hole positions of closed slot past the exit hole
+DISP_EXT = 2;             // all box plates: extension along the column, in hole positions (the dispenser's slot runs this far)
 DISP_KEEP_X0 = 8;         // dispenser keepers' extension starts here: clear of M's body (x < 6) by 2
 DISP_R_OUT = 5;           // dispenser plates: outside corners rounded
 DISP_R_IN = 8;            // ... inside corner (where the extension steps down) filleted
-back_port = false;        // assembly: the interface on the BACK keeper (back_keeper_port) and a plain front keeper
 
 /* [Material] */
 T = 2.82;                 // sheet thickness (mdf3 profile: new batch 2.82; mdf3old 3.1; ply3 2.63)
@@ -248,54 +247,50 @@ module disp_shape(x0) union() {
     translate([-1, DISP_Y_END - 1]) square([W + 2, -DISP_Y_END + DISP_R_IN + 6]);
   }
 }
-module funnel2d(ext = 0) difference() {
-  if (ext > 0) disp_shape(0) square([W, H]);
-  else square([W, H]);
+// 5 mm view slots along the column in the extension, one per hole position (like the keepers' slots)
+// keeper = true: only slots wholly inside the extension (the keepers have no plate beside the column)
+module ext_view_slots2d(keeper = false) for (k = [1 : DISP_EXT])
+  if (!keeper || HOLES[0][1] - k * PITCH + VS_P / 2 + VS_W / 2 <= -WEB) hull() for (d = [-1, 1])
+    translate([HOLE_X, HOLES[0][1] - k * PITCH + d * VS_P / 2]) circle(d = VS_W, $fn = 24);
+
+// FUNNEL: one footprint for both boxes (the extension along the column and its two end-corner bolts).
+// disp = false: the bottom FEEDER (extension below the bottom hole, view slots only).
+// disp = true:  the top DISPENSER (hangs upside down): the column runs on as a closed slot for
+//               DISP_EXT holes past the exit, so balls lifted too far fall back into the channel.
+module funnel2d(disp = false) difference() {
+  disp_shape(0) square([W, H]);
   channel2d();
   for (h = HOLES) translate(h) circle(d = HOLE_D, $fn = 96);
-  if (ext > 0) hull() for (k = [0, ext]) translate(HOLES[0] - [0, k * PITCH]) circle(d = HOLE_D, $fn = 96);
-  m5s(concat(BEAM_BOLTS, THRU, ext > 0 ? DISP_END_BOLTS : []));
+  if (disp) hull() for (k = [0, DISP_EXT]) translate(HOLES[0] - [0, k * PITCH]) circle(d = HOLE_D, $fn = 96);
+  else ext_view_slots2d();
+  m5s(concat(BEAM_BOLTS, THRU, DISP_END_BOLTS));
 }
 module front_keeper_outline2d() offset(r = 2) offset(delta = -2) union() {
   translate([FK_X0_LOW, 0]) square([W - FK_X0_LOW, F_END]);
   translate([FK_X0_HIGH, F_END - 0.01]) square([W - FK_X0_HIGH, H - F_END + 0.01]);
 }
-// ext > 0: the dispenser's front keeper, extended over the funnel's slot (guards its front face)
-module front_keeper2d(ext = 0) difference() {
-  if (ext > 0) disp_shape(DISP_KEEP_X0) front_keeper_outline2d();
-  else front_keeper_outline2d();
-  port2d(true);
-  m5s(concat(THRU, PORT_MIDS, ext > 0 ? DISP_END_BOLTS : []));
-  view_slots2d(true);
-}
-// ext > 0: the dispenser's back keeper, extended over the funnel's slot (guards its back face)
-module back_keeper2d(ext = 0) difference() {     // no port pattern: nothing attaches from behind
-  if (ext > 0) disp_shape(DISP_KEEP_X0) translate([BK_X0, 0]) square([W - BK_X0, H]);
-  else translate([BK_X0, 0]) square([W - BK_X0, H]);
-  m5s(concat(THRU, BEAM_BOLTS, ext > 0 ? DISP_END_BOLTS : []));
-  view_slots2d(false);
-}
-// flavour: front keeper WITHOUT a port (when the box's interface is on the back keeper instead)
-module front_keeper_plain2d() difference() {
-  offset(r = 2) offset(delta = -2) union() {
-    translate([FK_X0_LOW, 0]) square([W - FK_X0_LOW, F_END]);
-    translate([FK_X0_HIGH, F_END - 0.01]) square([W - FK_X0_HIGH, H - F_END + 0.01]);
-  }
-  m5s(THRU);
-  view_slots2d(true, false);
-}
-// PLUG: the port's exact outline (opening + its 4 tab notches), cut from the same sheet, so it presses
-// into an unused port flush with both faces: the same fit as the tabs (slot = thickness)
+// KNOCK-OUT PORT on both keepers (so one front and one back keeper serve every box). The port's
+// outline (opening + 4 tab notches) is cut except for KO_BRIDGE-wide bridges, one in the middle of each
+// notch's outer edge. Snap the piece out on the side that's the box's entry/exit. The piece keeps an M5
+// at its centre, so it can be screwed back onto a scrap backing if you change your mind.
+// The SCAD parts show the piece in place (open = false); feeder_scad_gcode.py cuts its outline with
+// the bridges left uncut (from `knockouts` and `ko_bridges`, echoed below).
+KO_BRIDGE = 2;
+KO_BRIDGES = [for (v = [[1, 0], [-1, 0], [0, 1], [0, -1]]) PORT_C + (PORT / 2 + T + FIT) * v];
 module port_plug2d() union() for (r = port_rects(true)) rect2d(r);
-
-// flavour: back keeper with its own port (opening + 4 tab slots + port bolts), so a trough, cap,
-// tunnel flange or relief bolts on from behind. Close whichever port isn't used (trough cap), or a
-// ball coming in one side rolls straight out the other.
-module back_keeper_port2d() difference() {
-  translate([BK_X0, 0]) square([W - BK_X0, H]);
-  port2d(true);
-  m5s(concat(THRU, BEAM_BOLTS, BACK_MIDS));
+module front_keeper2d(open = false) difference() {
+  disp_shape(DISP_KEEP_X0) front_keeper_outline2d();
+  if (open) port2d(true);
+  m5s(concat(THRU, PORT_MIDS, DISP_END_BOLTS, [PORT_C]));
+  view_slots2d(true);
+  ext_view_slots2d(true);
+}
+module back_keeper2d(open = false) difference() {
+  disp_shape(DISP_KEEP_X0) translate([BK_X0, 0]) square([W - BK_X0, H]);
+  if (open) port2d(true);
+  m5s(concat(THRU, BEAM_BOLTS, BACK_MIDS, DISP_END_BOLTS, [PORT_C]));
   view_slots2d(false, true);
+  ext_view_slots2d(true);
 }
 module spacer2d() difference() { circle(d = SPACER_D); circle(d = SPACER_ID, $fn = 48); }
 
@@ -367,11 +362,13 @@ module beam2020(len) difference() {
   for (a = [0, 90, 180, 270]) translate([10, 10, -1]) rotate([0, 0, a]) translate([-3.1, 10 - 1.8, 0]) cube([6.2, 2, len + 2]);
 }
 module rodY(p, y0, y1, d) translate([p[0], min(y0, y1), p[1]]) rotate([-90, 0, 0]) cylinder(d = d, h = abs(y1 - y0));
-module assembly(fit = port_fit, balls = show_balls, ext = 0) {   // fit: "trough", "tunnel" or "none" on the port; ext: dispenser slot
-  color("sandybrown") plate3d(0) funnel2d(ext);
-  color("yellowgreen", 0.55) plate3d(Y_FK) if (back_port) front_keeper_plain2d(); else front_keeper2d(ext);
-  color("yellowgreen", 0.55) plate3d(Y_BK) if (back_port) back_keeper_port2d(); else back_keeper2d(ext);
-  if (ext > 0) color("tan") for (p = DISP_END_BOLTS) { rodY(p, -GAP - explode / 2, -explode / 2, SPACER_D); rodY(p, T + explode / 2, T + GAP + explode / 2, SPACER_D); }
+// fit: what's on the front port: "trough", "tunnel" (flange + relief + straight wires), "flange" (plates
+// only) or "none". disp: the dispenser's funnel. The front knock-out is out, the back one in place.
+module assembly(fit = port_fit, balls = show_balls, disp = false) {
+  color("sandybrown") plate3d(0) funnel2d(disp);
+  color("yellowgreen", 0.55) plate3d(Y_FK) front_keeper2d(open = true);
+  color("yellowgreen", 0.55) plate3d(Y_BK) back_keeper2d(open = false);
+  color("tan") for (p = DISP_END_BOLTS) { rodY(p, -GAP - explode / 2, -explode / 2, SPACER_D); rodY(p, T + explode / 2, T + GAP + explode / 2, SPACER_D); }
   color("tan") for (p = THRU) { rodY(p, -GAP - explode / 2, -explode / 2, SPACER_D); rodY(p, T + explode / 2, T + GAP + explode / 2, SPACER_D); }
   color("tan") for (b = BEAM_BOLTS) rodY(b, T + explode / 2, T + GAP + explode / 2, SPACER_D);
   if (show_sieve) color("burlywood") translate([0, 0, H]) plate3d(0) difference() {
@@ -386,7 +383,7 @@ module assembly(fit = port_fit, balls = show_balls, ext = 0) {   // fit: "trough
     for (b = BEAM_BOLTS) { rodY(b, Y_BK + T, Y_BK + T + HEAD_H, HEAD_D); rodY(b, -8, Y_BK + T, M5); }   // head on the back keeper, into F
     for (p = THRU) { rodY(p, Y_FK - HEAD_H, Y_FK, HEAD_D); rodY(p, Y_FK, Y_BK + T + 5, M5); rodY(p, Y_BK + T, Y_BK + T + 4.7, 9); }
   }
-  if (fit == "tunnel") color("peru") {
+  if (fit == "tunnel" || fit == "flange") color("peru") {
     translate([0, Y_FK - T, 0]) plate3d(0) tunnel_relief2d();
     translate([0, Y_FK - 2 * T, 0]) plate3d(0) tunnel_flange2d();
   }
@@ -412,7 +409,9 @@ module assembly(fit = port_fit, balls = show_balls, ext = 0) {   // fit: "trough
 module out2d() if (laser) offset(delta = KERF / 2) children(); else children();
 echo(str("CHECK view slots: ", N_VS, " along the channel; front keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, true)) k]),
          ", back keeper uses ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false)) k])));
-echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange", "tunnel_relief", "back_keeper_port", "front_keeper_plain", "port_plug", "funnel_dispenser", "front_keeper_dispenser", "back_keeper_dispenser"]);
+echo(parts = ["funnel", "front_keeper", "back_keeper", "spacer", "trough_floor", "trough_side_x2", "trough_cap", "tunnel_flange", "tunnel_relief", "funnel_dispenser"]);
+echo(knockouts = ["front_keeper", "back_keeper"]);
+echo(ko_bridges = KO_BRIDGES, ko_bridge = KO_BRIDGE);
 // tunnel adapter checks: the straight wires must fit inside the port's square opening (corners at PORT / 2)
 TUN_WIRE_REACH = max([for (a = TUN_ANGLES) max(abs(TUN_RW * cos(a)), abs(TUN_RW * sin(a)))]) + TUN_WIRE / 2;
 echo(str(TUN_WIRE_REACH <= PORT / 2 ? "ok   " : "WARN ", "tunnel wires inside the ", PORT, " port opening: reach ", r2(TUN_WIRE_REACH), " of ", PORT / 2,
@@ -455,12 +454,12 @@ echo(str(min(HOLE_X - HOLE_D / 2, COL_W - HOLE_X - HOLE_D / 2, DISP_EXT * PITCH 
          ", to the end ", r2(DISP_END_BOLTS[0][1] - DISP_Y_END - M5 / 2), ", to the sides ", r2(DISP_END_BOLTS[0][0] - M5 / 2), " / ", r2(COL_W - DISP_END_BOLTS[1][0] - M5 / 2),
          "; spacers (", SPACER_D, ") sit on the keepers from x ", DISP_END_BOLTS[0][0] - SPACER_D / 2, " (keeper extension from ", DISP_KEEP_X0,
          "), clear of the slot by ", r2(HOLES[0][1] + DISP_Y_END - HOLE_D / 2 - DISP_END_BOLTS[0][1] - SPACER_ROOM / 2)));
-echo(str("CHECK back_keeper_port: mid-side port bolts ", BACK_MIDS, len(BACK_MIDS) == len(MID_ALL) ? "" :
+echo(str("CHECK back keeper knock-out port: mid-side port bolts ", BACK_MIDS, len(BACK_MIDS) == len(MID_ALL) ? "" :
          str(", left out (nut over the channel or a beam-bolt spacer): ", [for (p = MID_ALL) if (len([for (q = BACK_MIDS) if (q == p) q]) == 0) p]),
          "; nut to the nearest beam-bolt spacer ", r2(min([for (p = BACK_MIDS, y = BEAM_BOLT_Y) norm(p - [BEAM_X, y]) - NUT_R - SPACER_ROOM / 2])),
          "; port to the back keeper edge ", r2(PORT_C[0] - PORT / 2 - TAB - BK_X0), "; view slots kept ", len([for (k = [0 : N_VS - 1]) if (vs_ok(k, false, true)) k])));
 echo(str("CHECK mid-side holes, wood to the port notches: ", [for (p = PORT_MIDS) r2(minl([for (q = port_rects(true)) rp(q, p)]) - M5 / 2)]));
-echo(spacer_qty = (len(THRU) * 2 + len(BEAM_BOLTS)) * SPACER_LAYERS);
+echo(spacer_qty = (len(THRU) * 2 + len(BEAM_BOLTS) + len(DISP_END_BOLTS) * 2) * SPACER_LAYERS);
 report();
 if (part == "assembly") assembly();
 else if (part == "funnel") out2d() funnel2d();
@@ -472,9 +471,5 @@ else if (part == "trough_side_x2") out2d() trough_side2d();
 else if (part == "trough_cap") out2d() trough_cap2d();
 else if (part == "tunnel_flange") out2d() tunnel_flange2d();
 else if (part == "tunnel_relief") out2d() tunnel_relief2d();
-else if (part == "back_keeper_port") out2d() back_keeper_port2d();
-else if (part == "front_keeper_plain") out2d() front_keeper_plain2d();
-else if (part == "port_plug") out2d() port_plug2d();
-else if (part == "funnel_dispenser") out2d() funnel2d(DISP_EXT);
-else if (part == "front_keeper_dispenser") out2d() front_keeper2d(DISP_EXT);
-else if (part == "back_keeper_dispenser") out2d() back_keeper2d(DISP_EXT);
+else if (part == "funnel_dispenser") out2d() funnel2d(true);
+else if (part == "knockout") port_plug2d();     // the knock-out's cut line (nominal: one cut sizes the piece and the hole)

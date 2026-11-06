@@ -19,7 +19,8 @@ import tempfile
 from pathlib import Path
 
 from shapely import affinity
-from shapely.geometry import Polygon
+from shapely.geometry import LineString, Point, Polygon
+from shapely.ops import substring
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
@@ -54,6 +55,35 @@ with tempfile.TemporaryDirectory() as td:
     if any(line.startswith("WARN") for line in report) and not args.force:
         sys.exit("feeder.scad CHECK has WARN lines: fix them (or --force)")
 
+    # knock-outs: parts whose port outline is cut with uncut bridges (feeder.scad KNOCK-OUT PORT)
+    knockouts = re.findall(r'"([^"]+)"', next((e for e in echoes if e.startswith("knockouts")), ""))
+    kb = next((e for e in echoes if e.startswith("ko_bridges")), "")
+    nums = [float(v) for v in re.findall(r"-?[\d.]+", kb)]
+    ko_width = nums[-1] if nums else 0.0                       # "ko_bridges = [[x, y], ...], ko_bridge = w"
+    ko_pts = [(nums[i], nums[i + 1]) for i in range(0, len(nums) - 1, 2)]
+    ko_loop = None
+    if knockouts:
+        scad(["-D", 'part="knockout"'], td / "knockout.svg")
+        s2g_, _, _, _ = load_profile(args.material, 1000, None)
+        kl, ku = s2g_.parse_svg((td / "knockout.svg").read_text())
+        ko_loop = [(x * ku, -y * ku) for x, y in kl[0].points]
+
+    def knockout_paths(rot, dx, dy):
+        """the knock-out's outline as open paths, a bridge (ko_width + kerf of path gap) left at each ko point"""
+        line = LineString(ko_loop + [ko_loop[0]])
+        pts = [Point(q) for q in ko_pts]
+        if rot:
+            line = affinity.rotate(line, 90, origin=(0, 0))
+            pts = [affinity.rotate(q, 90, origin=(0, 0)) for q in pts]
+        line = affinity.translate(line, dx, dy)
+        pts = [affinity.translate(q, dx, dy) for q in pts]
+        L, gap = line.length, ko_width + KERF
+        ds = sorted(line.project(q) for q in pts)
+        spans = [(ds[i] + gap / 2, ds[i + 1] - gap / 2) for i in range(len(ds) - 1)]
+        wrap = list(substring(line, ds[-1] + gap / 2, L).coords) + list(substring(line, 0, ds[0] - gap / 2).coords)[1:]
+        out = [list(substring(line, a, b).coords) for a, b in spans] + [wrap]
+        return [s2g.Polyline(c, False) for c in out]
+
     s2g, motion, mat, job = load_profile(args.material, 1000, None)
     args.out.mkdir(parents=True, exist_ok=True)
     for p in parts:
@@ -71,20 +101,25 @@ with tempfile.TemporaryDirectory() as td:
         polys = [Polygon(pl) for pl in loops]
         outer = max(range(len(polys)), key=lambda i: abs(polys[i].area))
         g = Polygon(loops[outer], [loops[i] for i in range(len(loops)) if i != outer])
-        if g.bounds[3] - g.bounds[1] > g.bounds[2] - g.bounds[0]:
+        rot = g.bounds[3] - g.bounds[1] > g.bounds[2] - g.bounds[0]
+        if rot:
             g = affinity.rotate(g, 90, origin=(0, 0))
-        g = affinity.translate(g, -g.bounds[0], -g.bounds[1])
+        dx, dy = -g.bounds[0], -g.bounds[1]
+        g = affinity.translate(g, dx, dy)
         w, h = g.bounds[2], g.bounds[3]
         name = f"{slug}_{math.ceil(w - 1e-9)}x{math.ceil(h - 1e-9)}_{args.material}"
         holes = sorted([list(r.coords) for r in g.interiors], key=lambda pl: abs(Polygon(pl).area))
-        cuts = [s2g.Polyline(pl, True) for pl in holes + [list(g.exterior.coords)]]
+        ko = knockout_paths(rot, dx, dy) if p in knockouts else []
+        cuts = [s2g.Polyline(pl, True) for pl in holes] + ko + [s2g.Polyline(list(g.exterior.coords), True)]
         gl = [f"; {name} -- marbles/clock/feeder.scad via feeder_scad_gcode.py",
               f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
               f"kerf {KERF}, fit {FIT}; X0 Y0 = bottom-left; {w:.2f} x {h:.2f} mm (longest side along X)",
-              f"; {len(holes)} holes/slots first, then the outline", ";"]
+              f"; {len(holes)} holes/slots first" + (f", then the knock-out port's outline in {len(ko)} pieces "
+              f"({len(ko)} bridges of {ko_width:g} left uncut: snap it out on the side you use)" if ko else "")
+              + ", then the outline", ";"]
         gl += preamble(s2g, job)
         for i, c in enumerate(cuts, 1):
             gl += emit_cut(s2g, motion, c, i, len(cuts), job)
         gl += s2g._footer(gl)
         (args.out / f"{name}.gcode").write_text("\n".join(gl))
-        print(f"wrote {name}.gcode: {w:.2f} x {h:.2f} mm, {len(holes)} holes/slots")
+        print(f"wrote {name}.gcode: {w:.2f} x {h:.2f} mm, {len(holes)} holes/slots" + (f", knock-out in {len(ko)} pieces" if ko else ""))
