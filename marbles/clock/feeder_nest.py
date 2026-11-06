@@ -182,7 +182,7 @@ def manual():
         # both fronts flat over the feeder funnel's body, a flange in the corner left of the dispenser funnel
         rb, fb_, gbv = pick("back_keeper", lambda g: not wide(g))
         wv = gbv.bounds[2] - gbv.bounds[0]
-        for x in (a.w - wv, a.w - 2 * wv - G):
+        for x in (a.w - wv, a.w - 2 * wv - G - 0.01):
             put("back_keeper", rb, fb_, gbv, x, lowest(gbv, x, 0, out))
         k = put("front_keeper", r2, f2_, gf, 0, lowest(gf, 0, fb[3], out))
         k = put("front_keeper", r2, f2_, gf, 0, lowest(gf, 0, k.bounds[3], out))
