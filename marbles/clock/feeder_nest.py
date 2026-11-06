@@ -35,6 +35,7 @@ ap.add_argument("--step", type=float, default=1.0)
 ap.add_argument("--material", default="mdf3")
 ap.add_argument("--png", help="also write a preview PNG here")
 ap.add_argument("--search", action="store_true", help="slow bottom-left search instead of the hand layout")
+ap.add_argument("--v2", action="store_true", help="hand layout 2: backs upright, + 1 flange")
 a = ap.parse_args()
 
 T, KERF, FIT = material_fit(a.material)
@@ -176,16 +177,19 @@ def manual():
             if all(c.distance(o[5]) >= G for o in others):
                 return y
             y += 0.1
-    # right stack: back keeper then front keeper
-    # pushed to the sheet's right edge: clear of the fillet where the funnel's extension meets its body
-    xb = a.w - (gb.bounds[2] - gb.bounds[0])
-    xf = a.w - (gf.bounds[2] - gf.bounds[0])
-    k = put("back_keeper", r, f, gb, xb, lowest(gb, xb, 0, out))
-    k2 = put("front_keeper", r2, f2_, gf, xf, lowest(gf, xf, k.bounds[3], out))
-    # left stack: back keeper then front keeper over the funnel's body
-    k = put("back_keeper", r, f, gb, 0, lowest(gb, 0, fb[3], out))
-    put("front_keeper", r2, f2_, gf, 0, lowest(gf, 0, k.bounds[3], out))
-    # check
+    if "--v2" in sys.argv:
+        # backs stood upright side by side between the feeder funnel's extension and the dispenser funnel,
+        # both fronts flat over the feeder funnel's body, a flange in the corner left of the dispenser funnel
+        rb, fb_, gbv = pick("back_keeper", lambda g: not wide(g))
+        wv = gbv.bounds[2] - gbv.bounds[0]
+        for x in (a.w - wv, a.w - 2 * wv - G):
+            put("back_keeper", rb, fb_, gbv, x, lowest(gbv, x, 0, out))
+        k = put("front_keeper", r2, f2_, gf, 0, lowest(gf, 0, fb[3], out))
+        k = put("front_keeper", r2, f2_, gf, 0, lowest(gf, 0, k.bounds[3], out))
+        rf, ff, gfl = pick("tunnel_flange", lambda g: True)
+        put("tunnel_flange", rf, ff, gfl, 0, lowest(gfl, 0, k.bounds[3], out))
+    else:
+        manual_v1(r, f, gb, r2, f2_, gf, lowest, put, fb, out, G)
     sheet = box(-1e-6, -1e-6, a.w + 1e-6, a.h + 1e-6)
     for i, p_ in enumerate(out):
         if not sheet.contains(p_[5]):
@@ -195,6 +199,18 @@ def manual():
             if d < G - 1e-6:
                 sys.exit(f"{p_[0]} and {q[0]} only {d:.2f} apart")
     return out
+
+
+def manual_v1(r, f, gb, r2, f2_, gf, lowest, put, fb, out, G):
+    # right stack: back keeper then front keeper
+    # pushed to the sheet's right edge: clear of the fillet where the funnel's extension meets its body
+    xb = a.w - (gb.bounds[2] - gb.bounds[0])
+    xf = a.w - (gf.bounds[2] - gf.bounds[0])
+    k = put("back_keeper", r, f, gb, xb, lowest(gb, xb, 0, out))
+    k2 = put("front_keeper", r2, f2_, gf, xf, lowest(gf, xf, k.bounds[3], out))
+    # left stack: back keeper then front keeper over the funnel's body
+    k = put("back_keeper", r, f, gb, 0, lowest(gb, 0, fb[3], out))
+    put("front_keeper", r2, f2_, gf, 0, lowest(gf, 0, k.bounds[3], out))
 
 
 if "--search" not in sys.argv:
@@ -211,7 +227,13 @@ big = ["funnel", "funnel_dispenser"]
 keepers = ["back_keeper", "front_keeper", "back_keeper", "front_keeper"]
 small = ["tunnel_flange", "tunnel_flange", "tunnel_relief", "tunnel_relief"]
 seen = set()
-for kp in (set(itertools.permutations(keepers)) if "--search" in sys.argv else []):
+if "--search" in sys.argv:          # flange right after the funnels, so it takes a funnel's notch
+    for ks in (["back_keeper", "back_keeper", "front_keeper", "front_keeper"],
+               ["back_keeper", "front_keeper", "back_keeper", "front_keeper"],
+               ["front_keeper", "front_keeper", "back_keeper", "back_keeper"]):
+        cands.append(big + ["tunnel_flange"] + ks + ["tunnel_flange"] + small[2:])
+        cands.append(big + ["tunnel_flange", "tunnel_flange"] + ks + small[2:])
+for kp in []:
     for interleave in range(0, 5):
         ks = list(kp)
         order = big + ks[:interleave] + ks[interleave:] + small
