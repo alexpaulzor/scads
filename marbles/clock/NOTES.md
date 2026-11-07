@@ -126,6 +126,12 @@ The steel balls bent K_F / K_M across the ball gap and jammed the lift. Mockup: 
   - the back-wheel eccentric gap is only 1.9;
   - R_F hides the column from straight in front.
 
+### Sizes (2026-11-07, from Alex)
+- Pendulum beam: 1 m T-slot. Lift slider (M) and keeper/fixed rails: 48" (1219.2 mm) V-slot.
+- A 1 m pendulum is close to a seconds pendulum (0.994 m effective length = 2.0 s period, 1 s per swing),
+  but the effective length depends on the bob; a bare uniform 1 m rod would be 1.64 s.
+- Open question: does the 1.2 m lift still rock with the pendulum, or is it fixed and driven by it?
+
 ### Rocking drive
 
 - The whole rig hangs from a pivot at the top and rocks.
