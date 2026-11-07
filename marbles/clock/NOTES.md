@@ -132,6 +132,16 @@ The steel balls bent K_F / K_M across the ball gap and jammed the lift. Mockup: 
   but the effective length depends on the bob; a bare uniform 1 m rod would be 1.64 s.
 - Open question: does the 1.2 m lift still rock with the pendulum, or is it fixed and driven by it?
 
+### Two-lane layout on one spine (2026-11-07): `lift2_layout.scad` (shapes only, bottom end)
+- Spine = one 2020 T-slot (the pendulum, = F); M = one 2020 V-slot beside it, the 20 mm ball gap between.
+  Lane A's S_F on the spine's front face, S_M_A standing off M's front face by 11.22 (sieves 8.4 apart);
+  lane B the same on the back faces. Both lanes' balls share the one gap; a 2 mm clear centre guard
+  (edge in the spine's slot) separates them. Keepers: a 2040 V-slot rail in front and one behind, tied to
+  the spine by flat strips on its outer face.
+- ONE feed track along x at 3 deg; a flip-flop vane at the fork alternates balls; each branch runs into
+  its lane's S_F slot to the bottom hole (in S_F's plane, clear of S_M by 0.28). S_M is notched at the
+  bottom corner so the branch wall passes.
+
 ### Two-lane feeder (2026-11-07, proposed): `feeder2.scad`
 - Cause of the jam: the J slot stacked the queue above the bottom hole; the picked-up ball slid out
   against the whole queue (20 steel balls ~ 568 g; at a 3 deg level feed ~ 30 g).
