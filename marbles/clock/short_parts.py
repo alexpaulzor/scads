@@ -160,21 +160,21 @@ def double_flange(x_c=45.0):
     return plate.difference(unary_union(cuts)), notes, m5
 
 
-KS_W, KS_OFF, KS_WOOD = 6.0, 6.0, 6.0     # double keeper view slots: 6 wide, centred 6 off the lane line, 6 of wood between
+KS_W, KS_OFF, KS_WOOD, KS_OVERLAP = 6.0, 6.0, 6.0, 6.0   # double keeper view slots: 6 wide, centred 6 off the lane line (6 of wood between rows); the two rows overlap 6 at each end
 
 
 def keeper_slots(L, y_lane, outer_sign):
     """two staggered rows of view slots for one lane, off its centre line (where a ball's widest point rides):
     one row KS_OFF to the outer side at the even hole positions, the other KS_OFF to the inner side at the odd
-    ones. Each slot spans its hole position less KS_WOOD (so PITCH - KS_WOOD long), trimmed to END_MIN wood at
-    the ends of the piece."""
+    ones. Each slot spans its hole position plus KS_OVERLAP (PITCH + KS_OVERLAP long), so it overlaps the
+    other row's slots by KS_OVERLAP at each end; trimmed to END_MIN wood at the ends of the piece."""
     out = []
     n = int(round(L / PITCH))
     for i in range(n):
         c = PITCH / 2 + PITCH * i
         y = y_lane + (outer_sign if i % 2 == 0 else -outer_sign) * KS_OFF
-        a = max(c - (PITCH - KS_WOOD) / 2, END_MIN) + KS_W / 2
-        b = min(c + (PITCH - KS_WOOD) / 2, L - END_MIN) - KS_W / 2
+        a = max(c - (PITCH + KS_OVERLAP) / 2, END_MIN) + KS_W / 2
+        b = min(c + (PITCH + KS_OVERLAP) / 2, L - END_MIN) - KS_W / 2
         out.append(LineString([(a, y), (b, y)]).buffer(KS_W / 2, 24))
     return out
 
