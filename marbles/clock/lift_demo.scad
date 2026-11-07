@@ -38,8 +38,8 @@ ball_d = 19.05;               // 3/4" steel; set to your toy marbles' size to co
 drop = 2;                     // hand-off drop: lift = pitch + 2 * drop
 
 /* [Rocking drive] */
-tilt_fwd = 6;                 // deg, top toward the viewer, at M's low point
-tilt_back = 18;               // deg, top toward the wall, at M's high point
+tilt_fwd = 12;                // deg, top toward the viewer, at M's low point (symmetric swing: = tilt_back)
+tilt_back = 12;               // deg, top toward the wall, at M's high point
 cam_r = 10;                   // off-centre cam (eccentric) radius
 link = 100;                   // fixed link from the frame down to M's top pin
 pivot_up = 45;                // pivot this far above M's top pin
@@ -51,7 +51,7 @@ m_gap = 0.45;                 // M's back face clears a resting ball's front by 
 // ---------- geometry (rig frame, before rocking)
 lift = pitch + 2 * drop;
 s_span = sin(tilt_fwd) + sin(tilt_back);
-arm_trim = 1.0085;                    // fine trim so the solved stroke comes out = lift
+arm_trim = 0.98805;                   // fine trim so the solved stroke comes out = lift (34.0002 at +-12 deg)
 arm = arm_trim * lift / s_span;        // pivot ahead of M's top pin (sets the lift)
 cam_arm = 2 * cam_r / s_span;         // cam slot ahead of the pivot (sets the rock)
 yF0 = 0; yF1 = T;

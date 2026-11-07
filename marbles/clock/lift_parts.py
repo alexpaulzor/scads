@@ -46,8 +46,8 @@ STRIP_L, STRIP_W, PITCH = 300.0, 46.0, 30.0
 # lift_demo.scad defaults (rig frame): y forward, z up
 F_BEAM_Y = (-20.0, 0.0)          # F's 2020 front-to-back extent
 F_BEAM_TOP = 355.0
-P = (111.61, 360.0)              # pivot (y, z)
-SLOT_C = (159.98, 360.0)         # cam slot centre on the arm
+P = (109.49, 360.0)              # pivot (y, z)  (symmetric +-12 deg swing)
+SLOT_C = (157.59, 360.0)         # cam slot centre on the arm (cam axle level with the pivot)
 CAM_R = 10.0
 LINK = 100.0
 

@@ -96,7 +96,7 @@ interface (tunnel flange + relief), compact D ring jig + mandrel, fit coupon, es
 | T102 | ply3 fit coupon (never measured; L3b was ticked without it) | needs Alex | `fit_coupon.py --material ply3` |
 | T103 | Laser mode: send `$32` after a job | needs Alex | Our files send `$32=1`, but the dump showed 0. |
 | T104 | Controller board replacement, then Z re-check (`$3`/`$23`, `Pn:` with the switch pressed, ±10 mm jogs, `$HZ`) | needs Alex | |
-| T105 | Measure the real lift rig: pivot, link anchor, cam spot, clearances, chain d/h/L/e, the two tilts (old L10/L10a) | needs Alex | Unblocks P101, P102, P105. |
+| T105 | Measure the real lift rig: pivot, link anchor, cam spot, clearances, chain d/h/L/e, the swing amplitude, symmetric (old L10/L10a) | needs Alex | Unblocks P101, P102, P105. |
 | T106 | Hand-crank lift test and tuning (old L12/L13) | after P105 | |
 | T107 | Ring loading test: does a ball drop reliably into a moving hole at 12 o'clock? | unblocked after C104 | Small test ring. |
 | T108 | 12 ga bend test: smallest clean tunnel-curve radius; spring-back of the fishhook fingers | needs Alex | A bending jig for it can be made now. |

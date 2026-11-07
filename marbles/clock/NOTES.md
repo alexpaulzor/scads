@@ -133,8 +133,9 @@ The steel balls bent K_F / K_M across the ball gap and jammed the lift. Mockup: 
 - M hangs from a fixed link (100 mm), so rocking produces the lift.
 - **Design numbers** (from `lift_demo.scad`):
   - stroke 34 = 30 pitch + 2 × 2 drop
-  - tilt +6° (forward) / −18° (back)
-  - `arm_trim` 1.0085
+  - tilt ±12° (forward / back), **symmetric** so the rig swings smoothly (2026-11-07; was +6° / −18°).
+    The stroke depends only on sin(fwd) + sin(back): ±11.93° gives the old 0.4135, ±12° is used.
+  - `arm_trim` 0.98805 (stroke 34.0002); cam axle level with the pivot
 - cam_arm / cam_disc / m_link / link_anchor in `lift_parts.py` are still sized from the animation, **not your real rig**.
 
 ### Wheel boxes (replace guide rails G_F/G_M and sliders L_F/L_M)
@@ -285,12 +286,12 @@ On the first feeder the back keeper rubbed and bound on the keeper on the other 
   - top/bottom clearances
   
   Write them into this file.
-- [ ] **L11** Re-size cam_arm, cam_disc, m_link and link_anchor (`lift_parts.py`) to the real geometry. Re-check stroke 34, tilt +6/−18 and the link solve.
+- [ ] **L11** Re-size cam_arm, cam_disc, m_link and link_anchor (`lift_parts.py`) to the real geometry. Re-check stroke 34, tilt ±12 and the link solve.
 - [ ] **L12** Cut and fit the cam/link parts. Hand-crank test: every ball steps up one hole per turn, with no jams or double-feeds.
-- [ ] **L13** Tune the hand-off drop (2 mm each way), the tilt angles, and the forward/back roll timing.
+- [ ] **L13** Tune the hand-off drop (2 mm each way), the swing amplitude (keep it symmetric), and the forward/back roll timing.
 - [x] **2026-11-04:** The lift works by hand with one wheel box per side, the top pivot on pillow blocks, and M hung by a chain + turnbuckle.
-- [ ] **L10a** Chain length and swing: measure d, h, L, e and the two tilts; use the tuner page (https://claude.ai/artifact/4cPu2Bs5Xj2CbjY5Lb4qQ5).
-  - Stroke ≈ d × (sin tilt1 + sin tilt2); target = pitch + 2 × drop.
+- [ ] **L10a** Chain length and swing: measure d, h, L, e and the swing (one symmetric amplitude); use the tuner page (https://claude.ai/artifact/4cPu2Bs5Xj2CbjY5Lb4qQ5).
+  - Stroke ≈ d × 2 sin(tilt) for a symmetric swing; target = pitch + 2 × drop.
   - The chain and turnbuckle only place the stroke (registration).
 - [x] **L14a** Spider-tunnel to feeder-port adapter: `tunnel_flange` in `feeder.scad` → `feeder_tunnel_flange_54x54_mdf3.gcode` (2026-11-04).
   - Same outline and 8 bolt holes as the trough cap. Bolts on the port in place of the trough.

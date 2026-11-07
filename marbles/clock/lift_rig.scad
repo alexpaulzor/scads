@@ -28,8 +28,8 @@ ball_d = 19.05;
 drop = 2;
 
 /* [Drive] */
-tilt_fwd = 6; tilt_back = 18;
-cam_r = 10; link = 100; pivot_up = 45; arm_trim = 1.0085;
+tilt_fwd = 12; tilt_back = 12;
+cam_r = 10; link = 100; pivot_up = 45; arm_trim = 0.98805;
 guard_gap = 4; m_gap = 0.45;
 
 // ---------- geometry (same as lift_demo.scad / lift_parts.py)
