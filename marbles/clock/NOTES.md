@@ -116,6 +116,11 @@ The steel balls bent K_F / K_M across the ball gap and jammed the lift. Mockup: 
   - 2 back wheels on a 3 mm plate on R_B's inner side, riding M's back groove. They hold M across and push it forward.
   - 2 far wheels on axles between a front cage plate (on R_F) and a back cage plate (on R_B), riding M's far groove. They hold M front to back and push it toward F.
   - Both pairs use eccentric spacers for preload. The sieve edges in the near slots only need clearance now.
+- **Mixed option (`FRONT_GUARD = "keeper"`, the default now):**
+  - The front guard is a clear 3 mm acrylic K_F (48 × 150) on F's front face. It's held in a 6 mm wood frame with a window over the column; the frame is also the far-wheel cage's front plate.
+  - The back keeps the 2040 rail and the back wheels. The axle span drops to 67.6.
+  - The back is the side that has to stay a rail: the back wheels ride M's back groove and the cage needs R_B. A back keeper on M would cover that groove.
+  - The 10 W blue diode won't cut clear acrylic, so score and snap the rectangle and drill the M5 holes. A clear keeper needs no view slots.
 - **Open:**
   - the axle span is 84.6 (M5x90, or 8 mm rod);
   - the back-wheel eccentric gap is only 1.9;

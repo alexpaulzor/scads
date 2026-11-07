@@ -172,6 +172,8 @@ module exit_tunnel3d() color("silver") translate([PORT_C[0], EXIT_TUN_Y0, EXIT_P
 //        toward F. The two cage plates also brace R_F to R_B around M. Eccentric spacer = preload.
 //   M is captive on the wheels alone: the sieve edges in the near slots only need clearance now.
 show_rails = true;
+FRONT_GUARD = "keeper";             // [rail, keeper] keeper = clear acrylic K_F on F's front face, held in a wood frame (the far-wheel cage's front plate)
+KEEP_T = 3;                         // acrylic keeper thickness
 RAIL_CLR = 1;                       // R_B to M's back face
 WHEEL_OD = 23.9; WHEEL_W = 10.2;    // solid V-wheel (OpenBuilds), ridge diameter / width
 WHEEL_AX = 9.85;                    // axle centre from the groove face (39.7 c-c across a 20 mm beam)
@@ -213,31 +215,47 @@ module bw3d(z) {
   color("silver") translate([MX0 + 10, BW_Y, z]) rotate([0, 90, 0]) cylinder(d = 5, h = 2 * (RB[0] - MX0 - 10) + 2, center = true, $fn = 16);
   color("gold") translate([MX0 + 10 + WHEEL_W / 2, BW_Y, z]) rotate([0, 90, 0]) cylinder(d = 7, h = RB[0] - PLATE_T - MX0 - 10 - WHEEL_W / 2, $fn = 6);   // eccentric spacer
 }
+// front plate of the far-wheel cage: on R_F's front face (rail), or over the keeper on F's front face (keeper)
+CAGE_FY = FRONT_GUARD == "rail" ? RF[1] : FY0 - KEEP_T;        // its back face
+CAGE_FX1 = FRONT_GUARD == "rail" ? RF[0] + 20 : COL_W;          // its inner edge
+CAGE_FZ = FRONT_GUARD == "rail" ? CAGE_Z : [RZ0, RZ1];          // keeper: full height, a frame round the acrylic
+CAGE_BZ = CAGE_FZ;
+WIN = [MX0 + 16, FX0 + 4];                                      // keeper frame window, x (column x 6..26, F's bolt row at 36)
+STANDOFF_Z = FRONT_GUARD == "rail" ? [CAGE_Z[0] + 8, CAGE_Z[1] - 8] : [RZ0 + 8, (RZ0 + RZ1) / 2, RZ1 - 8];
+KEEP_X = [MX0 + 12, COL_W];                                     // acrylic K_F: covers the column, bolts on F's front slot
 module cage3d() {
-  zl = CAGE_Z[1] - CAGE_Z[0];
-  color("peru", 0.8) translate([CAGE_X0, RF[1] - CAGE_T, CAGE_Z[0]]) cube([RF[0] + 20 - CAGE_X0, CAGE_T, zl]);   // front cage plate on R_F's front face
-  color("peru", 0.8) translate([CAGE_X0, RB[1] + 20, CAGE_Z[0]]) cube([RB[0] + 40 - CAGE_X0, CAGE_T, zl]);      // back cage plate on R_B's back face
+  color("peru", 0.8) difference() {
+    translate([CAGE_X0, CAGE_FY - CAGE_T, CAGE_FZ[0]]) cube([CAGE_FX1 - CAGE_X0, CAGE_T, CAGE_FZ[1] - CAGE_FZ[0]]);
+    if (FRONT_GUARD == "keeper") translate([WIN[0], CAGE_FY - CAGE_T - 1, RZ0 + 12]) cube([WIN[1] - WIN[0], CAGE_T + 2, SIEVE_L - 24]);
+  }
+  color("peru", 0.8) difference() {                               // back plate on R_B's back face; notched round the back wheels
+    translate([CAGE_X0, RB[1] + 20, CAGE_BZ[0]]) cube([RB[0] + 40 - CAGE_X0, CAGE_T, CAGE_BZ[1] - CAGE_BZ[0]]);
+    for (z = BW_Z) translate([MX0 + 10 - WHEEL_W / 2 - 3, RB[1] + 19, z - WHEEL_OD / 2 - 3]) cube([WHEEL_W + 6, CAGE_T + 2, WHEEL_OD + 6]);
+  }
+  if (FRONT_GUARD == "keeper") color("lightcyan", 0.35) translate([KEEP_X[0], FY0 - KEEP_T, RZ0]) cube([KEEP_X[1] - KEEP_X[0], KEEP_T, SIEVE_L]);
   for (z = FW_Z) {
     translate([FW_X, MY0 + 10, z]) rotate([90, 0, 0]) vwheel();
-    color("silver") translate([FW_X, RF[1] - CAGE_T, z]) rotate([-90, 0, 0]) cylinder(d = 5, h = RB[1] + 20 + 2 * CAGE_T - RF[1], $fn = 16);
-    color("gold") for (y = [[RF[1], MY0 + 10 - WHEEL_W / 2], [MY0 + 10 + WHEEL_W / 2, RB[1] + 20]])   // spacer tubes
+    color("silver") translate([FW_X, CAGE_FY - CAGE_T, z]) rotate([-90, 0, 0]) cylinder(d = 5, h = RB[1] + 20 + 2 * CAGE_T - CAGE_FY, $fn = 16);
+    color("gold") for (y = [[CAGE_FY, MY0 + 10 - WHEEL_W / 2], [MY0 + 10 + WHEEL_W / 2, RB[1] + 20]])   // spacer tubes
       translate([FW_X, y[0], z]) rotate([-90, 0, 0]) cylinder(d = 8, h = y[1] - y[0], $fn = 16);
   }
-  color("silver") for (z = [CAGE_Z[0] + 8, CAGE_Z[1] - 8]) translate([CAGE_X0 + 6, RF[1], z]) rotate([-90, 0, 0]) cylinder(d = 8, h = RB[1] + 20 - RF[1], $fn = 16);   // standoffs
+  color("silver") for (z = STANDOFF_Z) translate([CAGE_X0 + 6, CAGE_FY, z]) rotate([-90, 0, 0]) cylinder(d = 8, h = RB[1] + 20 - CAGE_FY, $fn = 16);   // standoffs
 }
 module rails3d() {
-  color("lightsteelblue") translate([RF[0], RF[1], RZ0]) beam2020(SIEVE_L);
+  if (FRONT_GUARD == "rail") color("lightsteelblue") translate([RF[0], RF[1], RZ0]) beam2020(SIEVE_L);
   color("lightsteelblue") translate([RB[0], RB[1], RZ0]) beam2040(SIEVE_L);
-  for (z = BRK_Z) { translate([FX0, FY0, z]) corner_bracket(); translate([0, 0, z]) tie3d(); }
+  for (z = BRK_Z) { if (FRONT_GUARD == "rail") translate([FX0, FY0, z]) corner_bracket(); translate([0, 0, z]) tie3d(); }
+  if (FRONT_GUARD == "keeper") color("dimgray") for (z = BRK_Z) translate([FX0 + 10, CAGE_FY - CAGE_T - HEAD_H, z]) rotate([-90, 0, 0]) cylinder(d = HEAD_D, h = HEAD_H, $fn = 24);   // frame + keeper bolts into F's front slot
   for (z = BW_Z) bw3d(z);
   cage3d();
 }
-FW_GAP_FRONT = MY0 + 10 - WHEEL_W / 2 - RF[1];
+FW_GAP_FRONT = MY0 + 10 - WHEEL_W / 2 - CAGE_FY;
 echo(str("RAILS: R_F back face y ", FY0, " (K_F's plane), R_B front face y ", RB[1], " (K_M's plane ", MY0 + 20, " + ", RAIL_CLR,
          "); rails z ", RZ0, "..", RZ1, "; ball column gap between rails ", RB[1] - FY0, " for a ", BALL_D, " ball"));
 echo(str("WHEELS: back x2 at z ", BW_Z, " axle y ", BW_Y, " (x ", MX0 + 10, "); wheel x ", MX0 + 10 - WHEEL_W / 2, "..", MX0 + 10 + WHEEL_W / 2,
          ", BW plate x ", RB[0] - PLATE_T, "..", RB[0], " (", RB[0] - PLATE_T - (MX0 + 10 + WHEEL_W / 2), " for the eccentric)"));
-echo(str("WHEELS: far x2 at z ", FW_Z, " axle x ", FW_X, " (y ", MY0 + 10, "); axle plate to plate ", RB[1] + 20 + CAGE_T - (RF[1] - CAGE_T),
+echo(str("FRONT GUARD: ", FRONT_GUARD, FRONT_GUARD == "keeper" ? str(" -- acrylic ", KEEP_X[1] - KEEP_X[0], " x ", SIEVE_L, " x ", KEEP_T, " on F's front face, window x ", WIN, " in a ", CAGE_FX1 - CAGE_X0, " x ", SIEVE_L, " frame; ball front gap to the acrylic ", -4.2 - BALL_D / 2 - FY0) : ""));
+echo(str("WHEELS: far x2 at z ", FW_Z, " axle x ", FW_X, " (y ", MY0 + 10, "); axle plate to plate ", RB[1] + 20 + CAGE_T - (CAGE_FY - CAGE_T),
          " (spacer tubes ", FW_GAP_FRONT, " front, ", RB[1] + 20 - (MY0 + 10 + WHEEL_W / 2), " back)"));
 
 module full() {
