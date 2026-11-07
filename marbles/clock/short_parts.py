@@ -160,10 +160,30 @@ def double_flange(x_c=45.0):
     return plate.difference(unary_union(cuts)), notes, m5
 
 
+KS_W, KS_OFF, KS_WOOD = 6.0, 6.0, 6.0     # double keeper view slots: 6 wide, centred 6 off the lane line, 6 of wood between
+
+
+def keeper_slots(L, y_lane, outer_sign):
+    """two staggered rows of view slots for one lane, off its centre line (where a ball's widest point rides):
+    one row KS_OFF to the outer side at the even hole positions, the other KS_OFF to the inner side at the odd
+    ones. Each slot spans its hole position less KS_WOOD (so PITCH - KS_WOOD long), trimmed to END_MIN wood at
+    the ends of the piece."""
+    out = []
+    n = int(round(L / PITCH))
+    for i in range(n):
+        c = PITCH / 2 + PITCH * i
+        y = y_lane + (outer_sign if i % 2 == 0 else -outer_sign) * KS_OFF
+        a = max(c - (PITCH - KS_WOOD) / 2, END_MIN) + KS_W / 2
+        b = min(c + (PITCH - KS_WOOD) / 2, L - END_MIN) - KS_W / 2
+        out.append(LineString([(a, y), (b, y)]).buffer(KS_W / 2, 24))
+    return out
+
+
 def double_keeper(n):
-    """the double sieve's keeper: 71.8 wide, a view-slot row over each lane, rail M5 on the centre line"""
+    """the double sieve's keeper: 71.8 wide, staggered view slots beside each lane line (mirrored about the
+    centre), rail M5 on the centre line"""
     L = n * PITCH
-    cuts = view_slots(L, DBL_HOLE_Y[0]) + view_slots(L, DBL_HOLE_Y[1])
+    cuts = keeper_slots(L, DBL_HOLE_Y[0], -1) + keeper_slots(L, DBL_HOLE_Y[1], +1)
     cuts += [Point(x, DBL_M5_Y).buffer(M5 / 2, 48) for x in rail_m5_x(n)]
     return box(0, 0, L, DBL_W).difference(unary_union(cuts))
 
@@ -177,7 +197,7 @@ def double_parts():
         "double_interface_3h": (double_sieve(3, ["solid", "flange", "hole"])[0], "3 positions: solid / flange (T bolts) / hole"),
         "double_flange": (fl, "wire-track flange for both lanes"),
         "double_sieve_10h": (double_sieve(10)[0], "10 positions, rail M5 on the centre line"),
-        "double_keeper_10h": (double_keeper(10), "view slots over both lanes, rail M5 on the centre line"),
+        "double_keeper_10h": (double_keeper(10), "staggered 6 mm view slots 6 off each lane line, rail M5 on the centre line"),
     }
 
 
