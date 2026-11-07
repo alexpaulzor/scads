@@ -244,7 +244,7 @@ def main():
     ap.add_argument("--double-flange", action="store_true", help="only the two-lane wire-track flange")
     ap.add_argument("--double-sheet", nargs="*", metavar="PART",
                     help="nest two-lane parts on one sheet, in this priority order (default: interface flange sieve keeper, twice)")
-    ap.add_argument("--sheet", type=float, nargs=2, default=[300.0, 291.0], metavar=("W", "H"))
+    ap.add_argument("--sheet", type=float, nargs=2, default=[301.0, 292.0], metavar=("W", "H"))   # Alex's board is a hair over 300; Y < 292 from the reset zero
     ap.add_argument("--gap", type=float, default=0.7)
     ap.add_argument("--tag", default="", help="file name tag: double_sheet<tag>_<W>x<H>_<material>")
     args = ap.parse_args()
@@ -265,7 +265,7 @@ def main():
         grown = {k: parts[k][0].buffer(KERF / 2, join_style=2) for k in set(order)}
         dims = {k: (g.bounds[2] - g.bounds[0], g.bounds[3] - g.bounds[1]) for k, g in grown.items()}
         W, H = args.sheet
-        placed, skipped = pack_bands([(k, *dims[k]) for k in order], W + KERF, H, args.gap)
+        placed, skipped = pack_bands([(k, *dims[k]) for k in order], W, H, args.gap)
         cuts, notes = [], []
         for k, x, y in placed:
             g = affinity.translate(grown[k], x - grown[k].bounds[0], y - grown[k].bounds[1])
