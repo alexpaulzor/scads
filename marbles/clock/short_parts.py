@@ -78,45 +78,48 @@ DBL_BEAM, DBL_WOOD = 20.0, 5.9
 DBL_W = round(DBL_BEAM + 2 * (HOLE_D + DBL_WOOD), 6)                       # 71.8
 DBL_HOLE_Y = (round(DBL_WOOD + HOLE_D / 2, 6), round(DBL_W - DBL_WOOD - HOLE_D / 2, 6))  # 15.9, 55.9: the two lanes
 DBL_M5_Y = round(DBL_W / 2, 6)                                               # 35.9: the beam bolts
-PORT, TAB, PORT_BOLT = 20.0, 10.0, 20.0                            # the standard port interface (feeder.scad)
+FLANGE_BOLT = 20.0      # wire-track flange (feeder.scad tunnel_flange2d): M5 at the corners and mid-sides, 20 off its centre
+FLANGE_WEB = 4.0        # keep a flange bolt only with at least this much wood to the edge and to any hole
 
 
-def port_cut(cx, cy, T, fit=0.0):
-    """the port interface as one cut: PORT x PORT opening + a TAB slot T + fit deep on each side"""
-    h, d = PORT / 2, T + fit
-    return unary_union([box(cx - h, cy - h, cx + h, cy + h),
-                        box(cx + h - 0.01, cy - TAB / 2, cx + h + d, cy + TAB / 2),
-                        box(cx - h - d, cy - TAB / 2, cx - h + 0.01, cy + TAB / 2),
-                        box(cx - TAB / 2, cy + h - 0.01, cx + TAB / 2, cy + h + d),
-                        box(cx - TAB / 2, cy - h - d, cx + TAB / 2, cy - h + 0.01)])
+def flange_bolts(cx, cy):
+    """the flange's 8 M5 positions around (cx, cy): 4 corners + 4 mid-sides"""
+    d = FLANGE_BOLT
+    return [(cx + sx * d, cy + sy * d) for sx in (-1, 0, 1) for sy in (-1, 0, 1) if (sx, sy) != (0, 0)]
 
 
-def double_sieve(n, kinds=None, T=2.82, fit=0.0):
-    """(shape, notes). kinds: one of "hole" | "solid" | "port" per position (default all holes), both lanes.
-    Beam M5 on the centre line at the rail pattern; a port's corner bolts land on the centre line too
-    (shared by both lanes' ports) and replace any rail M5 within 2 hole diameters of them; corner bolts
-    that fall off the plate are left out (and reported)."""
+def double_sieve(n, kinds=None):
+    """(shape, notes, m5 list). kinds: "hole" | "solid" | "flange" per position (default all holes), both lanes.
+    "flange": the 20 mm ball hole plus the wire-track flange's M5 pattern where it fits (on the plate, and at
+    least FLANGE_WEB of wood to the edge and every hole); the two lanes' flanges share the centre-line bolts.
+    The rail M5 (centre line) are kept unless a flange bolt sits within 2 hole diameters of them."""
     kinds = kinds or ["hole"] * n
     L = n * PITCH
-    cuts, m5, notes = [], [], []
+    balls, m5, notes = [], [], []
     for i, k in enumerate(kinds):
         x = PITCH / 2 + PITCH * i
+        if k in ("hole", "flange"):
+            balls += [(x, y) for y in DBL_HOLE_Y]
+    ball_cuts = [Point(p).buffer(HOLE_D / 2, 128) for p in balls]
+    for i, k in enumerate(kinds):
+        if k != "flange":
+            continue
+        x = PITCH / 2 + PITCH * i
         for y in DBL_HOLE_Y:
-            if k == "hole":
-                cuts.append(Point(x, y).buffer(HOLE_D / 2, 128))
-            elif k == "port":
-                cuts.append(port_cut(x, y, T, fit))
-                for bx in (x - PORT_BOLT, x + PORT_BOLT):
-                    for by in (y - PORT_BOLT, y + PORT_BOLT):
-                        if 0 < by < DBL_W:
-                            m5.append((round(bx, 6), round(by, 6)))
-                        else:
-                            notes.append(f"port at x {x:g}: corner bolt ({bx:g}, {by:g}) is off the plate, left out")
+            for b in flange_bolts(x, y):
+                b = (round(b[0], 6), round(b[1], 6))
+                edge = min(b[0], L - b[0], b[1], DBL_W - b[1]) - M5 / 2
+                hole = min(Point(b).distance(c) for c in ball_cuts) - M5 / 2
+                if edge >= FLANGE_WEB and hole >= FLANGE_WEB:
+                    m5.append(b)
+                else:
+                    notes.append(f"flange at ({x:g}, {y:g}): bolt ({b[0]:g}, {b[1]:g}) left out "
+                                 + ("(off the plate)" if edge < 0 else f"({min(edge, hole):.2f} of wood)"))
     m5 = sorted(set(m5))
     for rx in rail_m5_x(n):
-        if all(abs(rx - bx) > 2 * M5 for bx, _ in m5):
+        if all(abs(rx - bx) > 2 * M5 for bx, by in m5 if by == DBL_M5_Y):
             m5.append((rx, DBL_M5_Y))
-    cuts += [Point(p).buffer(M5 / 2, 48) for p in m5]
+    cuts = ball_cuts + [Point(p).buffer(M5 / 2, 48) for p in m5]
     return box(0, 0, L, DBL_W).difference(unary_union(cuts)), sorted(set(notes)), sorted(m5)
 
 
