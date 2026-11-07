@@ -206,20 +206,23 @@ def double_parts(keys=()):
     return out
 
 
-def pack_bands(items, sheet_w, sheet_h, gap):
-    """greedy shelf packing in priority order: each item goes into the first band (row) with room, else a new
-    band if the sheet height allows, else it is skipped. items: [(key, w, h)] -> ([(key, x, y)], [skipped keys])"""
-    bands, placed, skipped = [], [], []          # band = [y, height, used_x]
+def pack_bands(items, sheet_w, sheet_h, xgap, ygap, kerf):
+    """greedy shelf packing in priority order, left-justified from x 0: each item goes into the first band (row)
+    with room, else a new band if the sheet height allows, else it is skipped. items: [(key, w, h)] with w, h the
+    kerf-grown sizes. A row fits when its NOMINAL widths (w - kerf) plus the x gaps fit sheet_w: the stock is only
+    reliably sheet_w, with just enough over it for the kerf, so two 150 parts butt together on a 300 board.
+    -> ([(key, x, y)], [skipped keys])"""
+    bands, placed, skipped = [], [], []          # band = [y, height, used_x (kerfed), used_nominal]
     for key, w, h in items:
         for b in bands:
-            x = b[2] + (gap if b[2] > 0 else 0)
-            if h <= b[1] + 1e-9 and x + w <= sheet_w + 1e-9:
-                placed.append((key, x, b[0])); b[2] = x + w
+            if h <= b[1] + 1e-9 and b[3] + xgap + (w - kerf) <= sheet_w + 1e-9:
+                x = b[2] + xgap
+                placed.append((key, x, b[0])); b[2] = x + w; b[3] += xgap + (w - kerf)
                 break
         else:
-            y = bands[-1][0] + bands[-1][1] + gap if bands else 0.0
-            if y + h <= sheet_h + 1e-9 and w <= sheet_w + 1e-9:
-                bands.append([y, h, w]); placed.append((key, 0.0, y))
+            y = bands[-1][0] + bands[-1][1] + ygap if bands else 0.0
+            if y + h <= sheet_h + 1e-9 and w - kerf <= sheet_w + 1e-9:
+                bands.append([y, h, w, w - kerf]); placed.append((key, 0.0, y))
             else:
                 skipped.append(key)
     return placed, skipped
@@ -244,8 +247,10 @@ def main():
     ap.add_argument("--double-flange", action="store_true", help="only the two-lane wire-track flange")
     ap.add_argument("--double-sheet", nargs="*", metavar="PART",
                     help="nest two-lane parts on one sheet, in this priority order (default: interface flange sieve keeper, twice)")
-    ap.add_argument("--sheet", type=float, nargs=2, default=[301.0, 292.0], metavar=("W", "H"))   # Alex's board is a hair over 300; Y < 292 from the reset zero
-    ap.add_argument("--gap", type=float, default=0.7)
+    ap.add_argument("--sheet", type=float, nargs=2, default=[300.0, 292.0], metavar=("W", "H"),
+                    help="stock: only reliably W wide (a hair over, enough for the kerf); H < 292 from the reset zero")
+    ap.add_argument("--gap", type=float, default=0.7, help="gap between rows (y)")
+    ap.add_argument("--xgap", type=float, default=0.0, help="gap between parts in a row (x): 0 = kerf lines butt")
     ap.add_argument("--tag", default="", help="file name tag: double_sheet<tag>_<W>x<H>_<material>")
     args = ap.parse_args()
     T, KERF, _ = material_fit(args.material)
@@ -265,7 +270,7 @@ def main():
         grown = {k: parts[k][0].buffer(KERF / 2, join_style=2) for k in set(order)}
         dims = {k: (g.bounds[2] - g.bounds[0], g.bounds[3] - g.bounds[1]) for k, g in grown.items()}
         W, H = args.sheet
-        placed, skipped = pack_bands([(k, *dims[k]) for k in order], W, H, args.gap)
+        placed, skipped = pack_bands([(k, *dims[k]) for k in order], W, H, args.xgap, args.gap, KERF)
         cuts, notes = [], []
         for k, x, y in placed:
             g = affinity.translate(grown[k], x - grown[k].bounds[0], y - grown[k].bounds[1])
