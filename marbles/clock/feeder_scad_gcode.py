@@ -20,7 +20,6 @@ from pathlib import Path
 
 from shapely import affinity
 from shapely.geometry import LineString, Point, Polygon
-from shapely.ops import substring
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
@@ -77,12 +76,7 @@ with tempfile.TemporaryDirectory() as td:
             pts = [affinity.rotate(q, 90, origin=(0, 0)) for q in pts]
         line = affinity.translate(line, dx, dy)
         pts = [affinity.translate(q, dx, dy) for q in pts]
-        L, gap = line.length, ko_width + KERF
-        ds = sorted(line.project(q) for q in pts)
-        spans = [(ds[i] + gap / 2, ds[i + 1] - gap / 2) for i in range(len(ds) - 1)]
-        wrap = list(substring(line, ds[-1] + gap / 2, L).coords) + list(substring(line, 0, ds[0] - gap / 2).coords)[1:]
-        out = [list(substring(line, a, b).coords) for a, b in spans] + [wrap]
-        return [s2g.Polyline(c, False) for c in out]
+        return gcode.bridged(list(line.coords), [q.coords[0] for q in pts], ko_width, KERF)
 
     s2g, motion, mat, job = load_profile(args.material, 1000, None)
     args.out.mkdir(parents=True, exist_ok=True)

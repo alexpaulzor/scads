@@ -20,7 +20,7 @@ from pathlib import Path
 
 from shapely import affinity
 from shapely.geometry import LineString, Point, Polygon, box
-from shapely.ops import substring, unary_union
+from shapely.ops import unary_union
 from shapely.prepared import prep
 
 HERE = Path(__file__).resolve().parent
@@ -262,11 +262,7 @@ def ko_paths(rot, flip, dx, dy):
     pts = [Point(q) for q in KO_PTS]
     line = affinity.translate(orient(line, rot, flip), dx, dy)
     pts = [affinity.translate(orient(q, rot, flip), dx, dy) for q in pts]
-    L, gap = line.length, KO_W + KERF
-    ds = sorted(line.project(q) for q in pts)
-    spans = [(ds[i] + gap / 2, ds[i + 1] - gap / 2) for i in range(len(ds) - 1)]
-    wrap = list(substring(line, ds[-1] + gap / 2, L).coords) + list(substring(line, 0, ds[0] - gap / 2).coords)[1:]
-    return [list(substring(line, p, q).coords) for p, q in spans] + [wrap]
+    return [pl.points for pl in gcode.bridged(list(line.coords), [q.coords[0] for q in pts], KO_W, KERF)]
 
 
 s2g, motion, mat, job = load_profile(a.material, 1000, None)
