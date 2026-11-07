@@ -132,6 +132,20 @@ The steel balls bent K_F / K_M across the ball gap and jammed the lift. Mockup: 
   but the effective length depends on the bob; a bare uniform 1 m rod would be 1.64 s.
 - Open question: does the 1.2 m lift still rock with the pendulum, or is it fixed and driven by it?
 
+### Two-lane feeder (2026-11-07, proposed): `feeder2.scad`
+- Cause of the jam: the J slot stacked the queue above the bottom hole; the picked-up ball slid out
+  against the whole queue (20 steel balls ~ 568 g; at a 3 deg level feed ~ 30 g).
+- Two lanes, mirrored about the shared middle 2040 (42.4 mm apart), one ball each per period
+  = 2 per stroke (1 per second with a 2 s pendulum). Exit funnel above the pivot (Alex).
+- Nothing queues on the rig. The queue sits on fixed tracks at 3 deg, each held by a one-ball
+  escapement rocker; the rig's striker wedge tips that lane's rocker in the last ENG mm of the swing,
+  and the ball DROPS into an open catch pocket on the rig (a rolling hand-off would get ~0.13 s of
+  alignment at +-1 mm; a 3 deg roll-in needs ~0.3 s).
+- The rig trough and the funnel's straight channel run across (along the pivot axis), so they keep
+  their slope at every swing angle; the channel leads straight into the bottom hole (no J).
+- Numbers to measure / tune: R (pivot to bottom hole; 900 assumed), swing +-3 deg assumed (bottom
+  travel +-47.1), so the drop points sit +-82.9 apart; the link arm for a 34 stroke at +-3 deg is ~325 mm.
+
 ### Rocking drive
 
 - The whole rig hangs from a pivot at the top and rocks.
