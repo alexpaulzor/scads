@@ -107,6 +107,20 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - K_F on F's front face; K_M on M's back face.
 - They double as the front and back ball guards.
 
+### Guard rails (2026-11-07, proposed): replace the keepers and wheel boxes
+
+The steel balls bent K_F / K_M across the ball gap and jammed the lift. Mockup: `lift_full.scad` (`show_rails`), with numbers from its RAILS / WHEELS echo lines.
+- **R_F** front guard: a 2020 beside F (x 6..26 in lift_full coordinates), its back face in F's front-face plane (where K_F was). Corner brackets sit between F's front face and R_F's side.
+- **R_B** back guard: a 2040 (or two 2020s) behind M, 1 mm off M's back face (K_M's plane + RAIL_CLR). Its outer half lines up with F's far face, so a flat tie strip (6 mm) bolts F to it.
+- **V-wheels, all on the fixed side.** M carries only S_M and its link pin.
+  - 2 back wheels on a 3 mm plate on R_B's inner side, riding M's back groove. They hold M across and push it forward.
+  - 2 far wheels on axles between a front cage plate (on R_F) and a back cage plate (on R_B), riding M's far groove. They hold M front to back and push it toward F.
+  - Both pairs use eccentric spacers for preload. The sieve edges in the near slots only need clearance now.
+- **Open:**
+  - the axle span is 84.6 (M5x90, or 8 mm rod);
+  - the back-wheel eccentric gap is only 1.9;
+  - R_F hides the column from straight in front.
+
 ### Rocking drive
 
 - The whole rig hangs from a pivot at the top and rocks.

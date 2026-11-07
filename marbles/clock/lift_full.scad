@@ -18,7 +18,8 @@
 
 include <feeder.scad>
 
-part = "full";            // [full, exit_floor, exit_side_x2, exit_cap]
+part = "full";            // [full, cut, exit_floor, exit_side_x2, exit_cap]  cut = 2D section of the assembly at CUT_Z (top view)
+CUT_Z = 190;
 show_beams = false;       // feeder.scad's single-feeder beams; this file draws full-length ones
 show_sieve = false;       // feeder.scad's stub; this file draws the 10-hole sieve
 
@@ -154,6 +155,91 @@ module exit_tunnel3d() color("silver") translate([PORT_C[0], EXIT_TUN_Y0, EXIT_P
   translate([0, -EXIT_TUN_L1, 0]) rotate([EXIT_TUN_DEG, 0, 0]) tunnel_seg(EXIT_TUN_L2);
 }
 
+
+// ------------------------------------------------------------------ guard rails + V-wheels (2026-11-07)
+// The steel balls bent the lift keepers K_F / K_M (300 x 80 plates across the ball gap). They are replaced by
+// 2020 rails that stand in the same two planes, held by brackets, and every V-wheel now sits on the
+// fixed side, so the moving beam M carries nothing but S_M.
+//   R_F  front guard: a 2020 beside F, its back face in F's front-face plane (where K_F was). Corner
+//        brackets in the outside corner between F's front face and R_F's side.
+//   R_B  back guard: a 2040 (or two 2020s side by side) behind M, RAIL_CLR off M's back face (where K_M
+//        was). Its outer half lines up with F's far face, so a flat TIE strip bolts F to it: no keeper
+//        spans the gap any more, the load path is 2020 / 2040 all the way.
+//   BW   back wheels x2: on a plate on R_B's inner side face, riding M's back V-groove. They hold M across
+//        (the V) and push it forward. Eccentric spacer = preload.
+//   FW   far wheels x2: on an axle between a FRONT CAGE plate (on R_F's front face) and a BACK CAGE plate
+//        (on R_B's back face), riding M's far V-groove. They hold M front-to-back (the V) and push it
+//        toward F. The two cage plates also brace R_F to R_B around M. Eccentric spacer = preload.
+//   M is captive on the wheels alone: the sieve edges in the near slots only need clearance now.
+show_rails = true;
+RAIL_CLR = 1;                       // R_B to M's back face
+WHEEL_OD = 23.9; WHEEL_W = 10.2;    // solid V-wheel (OpenBuilds), ridge diameter / width
+WHEEL_AX = 9.85;                    // axle centre from the groove face (39.7 c-c across a 20 mm beam)
+PLATE_T = 3;                        // BW plates (3 mm: the wheel sits close to R_B's side)
+CAGE_T = 6;                         // tie strips and cage plates (birch6 / mdf6)
+
+FX0 = COL_W - 20;  FY0 = -20;       // F: x 26..46, y -20..0
+MX0 = COL_W - 60;  MY0 = -8.4;      // M: x -14..6, y -8.4..11.6 (rest position)
+RZ0 = Z_SIEVE; RZ1 = Z_SIEVE + SIEVE_L;   // rails cover the sieve span between the two boxes
+RF = [MX0 + 20, FY0 - 20];                // R_F min corner (x, y)
+RB = [MX0 + 20, MY0 + 20 + RAIL_CLR];     // R_B min corner; 40 in x, 20 in y
+BW_Y = MY0 + 20 + WHEEL_AX;               // back-wheel axle (along x), centred on M's back groove x
+FW_X = MX0 - WHEEL_AX;                    // far-wheel axle (along y), centred on M's far groove y
+BW_Z = [RZ0 + 20, RZ1 - 20];
+FW_Z = [RZ0 + 50, RZ1 - 50];
+BRK_Z = [RZ0 + 12, (RZ0 + RZ1) / 2, RZ1 - 12];
+CAGE_X0 = FW_X - 22;                      // cage plates' outer edge
+CAGE_Z = [FW_Z[0] - 14, FW_Z[1] + 14];
+WHEEL_DEG = animate ? -DZ_M / (WHEEL_OD / 2 - 2.1) * 180 / PI : 0;   // rolls on the groove flanks
+
+show_wheels = true;
+module vwheel() if (show_wheels) {        // axis along z, centred
+  color("dimgray") rotate([0, 0, WHEEL_DEG]) {
+    rotate_extrude($fn = 48) polygon([[2.5, -WHEEL_W / 2], [9.6, -WHEEL_W / 2], [WHEEL_OD / 2, 0], [9.6, WHEEL_W / 2], [2.5, WHEEL_W / 2]]);
+    color("orange") translate([6, -1, -WHEEL_W / 2 - 0.2]) cube([3.5, 2, WHEEL_W + 0.4]);   // mark, to see it turn
+  }
+}
+module beam2040(len) { beam2020(len); translate([20, 0, 0]) beam2020(len); }
+module corner_bracket() color("silver") difference() {   // 2020 corner bracket, inside corner at the origin, legs +x and -y
+  union() { translate([0, -3, -10]) cube([20, 3, 20]); translate([0, -20, -10]) cube([3, 20, 20]);
+            hull() { translate([3, -4, -1.5]) cube([0.1, 1, 3]); translate([16, -4, -1.5]) cube([0.1, 1, 3]); translate([3, -17, -1.5]) cube([1, 0.1, 3]); } }
+  translate([10, 0, 0]) rotate([90, 0, 0]) cylinder(d = 5.5, h = 10, center = true, $fn = 16);
+  translate([0, -10, 0]) rotate([0, 90, 0]) cylinder(d = 5.5, h = 10, center = true, $fn = 16);
+}
+module tie3d() color("peru") translate([COL_W, FY0, -10]) cube([CAGE_T, RB[1] + 20 - FY0, 20]);   // F's far face -> R_B's far face
+module bw3d(z) {
+  color("peru") translate([RB[0] - PLATE_T, RB[1], z - 20]) cube([PLATE_T, 20, 40]);
+  translate([MX0 + 10, BW_Y, z]) rotate([0, 90, 0]) vwheel();
+  color("silver") translate([MX0 + 10, BW_Y, z]) rotate([0, 90, 0]) cylinder(d = 5, h = 2 * (RB[0] - MX0 - 10) + 2, center = true, $fn = 16);
+  color("gold") translate([MX0 + 10 + WHEEL_W / 2, BW_Y, z]) rotate([0, 90, 0]) cylinder(d = 7, h = RB[0] - PLATE_T - MX0 - 10 - WHEEL_W / 2, $fn = 6);   // eccentric spacer
+}
+module cage3d() {
+  zl = CAGE_Z[1] - CAGE_Z[0];
+  color("peru", 0.8) translate([CAGE_X0, RF[1] - CAGE_T, CAGE_Z[0]]) cube([RF[0] + 20 - CAGE_X0, CAGE_T, zl]);   // front cage plate on R_F's front face
+  color("peru", 0.8) translate([CAGE_X0, RB[1] + 20, CAGE_Z[0]]) cube([RB[0] + 40 - CAGE_X0, CAGE_T, zl]);      // back cage plate on R_B's back face
+  for (z = FW_Z) {
+    translate([FW_X, MY0 + 10, z]) rotate([90, 0, 0]) vwheel();
+    color("silver") translate([FW_X, RF[1] - CAGE_T, z]) rotate([-90, 0, 0]) cylinder(d = 5, h = RB[1] + 20 + 2 * CAGE_T - RF[1], $fn = 16);
+    color("gold") for (y = [[RF[1], MY0 + 10 - WHEEL_W / 2], [MY0 + 10 + WHEEL_W / 2, RB[1] + 20]])   // spacer tubes
+      translate([FW_X, y[0], z]) rotate([-90, 0, 0]) cylinder(d = 8, h = y[1] - y[0], $fn = 16);
+  }
+  color("silver") for (z = [CAGE_Z[0] + 8, CAGE_Z[1] - 8]) translate([CAGE_X0 + 6, RF[1], z]) rotate([-90, 0, 0]) cylinder(d = 8, h = RB[1] + 20 - RF[1], $fn = 16);   // standoffs
+}
+module rails3d() {
+  color("lightsteelblue") translate([RF[0], RF[1], RZ0]) beam2020(SIEVE_L);
+  color("lightsteelblue") translate([RB[0], RB[1], RZ0]) beam2040(SIEVE_L);
+  for (z = BRK_Z) { translate([FX0, FY0, z]) corner_bracket(); translate([0, 0, z]) tie3d(); }
+  for (z = BW_Z) bw3d(z);
+  cage3d();
+}
+FW_GAP_FRONT = MY0 + 10 - WHEEL_W / 2 - RF[1];
+echo(str("RAILS: R_F back face y ", FY0, " (K_F's plane), R_B front face y ", RB[1], " (K_M's plane ", MY0 + 20, " + ", RAIL_CLR,
+         "); rails z ", RZ0, "..", RZ1, "; ball column gap between rails ", RB[1] - FY0, " for a ", BALL_D, " ball"));
+echo(str("WHEELS: back x2 at z ", BW_Z, " axle y ", BW_Y, " (x ", MX0 + 10, "); wheel x ", MX0 + 10 - WHEEL_W / 2, "..", MX0 + 10 + WHEEL_W / 2,
+         ", BW plate x ", RB[0] - PLATE_T, "..", RB[0], " (", RB[0] - PLATE_T - (MX0 + 10 + WHEEL_W / 2), " for the eccentric)"));
+echo(str("WHEELS: far x2 at z ", FW_Z, " axle x ", FW_X, " (y ", MY0 + 10, "); axle plate to plate ", RB[1] + 20 + CAGE_T - (RF[1] - CAGE_T),
+         " (spacer tubes ", FW_GAP_FRONT, " front, ", RB[1] + 20 - (MY0 + 10 + WHEEL_W / 2), " back)"));
+
 module full() {
   assembly("trough", !animate && show_balls, false);                       // bottom feeder, ball comes in at the port
   sieve3d();
@@ -168,6 +254,7 @@ module full() {
   // beams: F (fixed) between the funnels' F_END lines, M (moving) full height
   color("lightsteelblue") translate([COL_W - 20, -20, F_END]) beam2020(Z_TOP - 2 * F_END);
   color("rosybrown") translate([COL_W - 60, -8.4, DISP_Y_END - 10 + DZ_M]) beam2020(Z_TOP - 2 * DISP_Y_END + 20);
+  if (show_rails) rails3d();
   if (show_balls && !animate) color("steelblue") for (i = [0 : 2 : SIEVE_HOLES - 1])
     translate([HOLE_X, T / 2, Z_SIEVE + PITCH / 2 + PITCH * i]) sphere(d = BALL_D);
 }
@@ -181,6 +268,7 @@ echo(str(Z_TOP - HOLES[N_HOLES - 1][1] - (Z_SIEVE + SIEVE_L - PITCH / 2) == PITC
          "hole pitch carries through sieve -> top funnel: ", Z_TOP - HOLES[N_HOLES - 1][1] - (Z_SIEVE + SIEVE_L - PITCH / 2)));
 
 if (part == "full") full();
+else if (part == "cut") projection(cut = true) translate([0, 0, -CUT_Z]) full();
 else if (part == "exit_floor") out2d() exit_floor2d();
 else if (part == "exit_side_x2") out2d() exit_side2d();
 else if (part == "exit_cap") out2d() exit_cap2d();
