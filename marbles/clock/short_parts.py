@@ -271,26 +271,51 @@ def main():
         dims = {k: (g.bounds[2] - g.bounds[0], g.bounds[3] - g.bounds[1]) for k, g in grown.items()}
         W, H = args.sheet
         placed, skipped = pack_bands([(k, *dims[k]) for k in order], W, H, args.xgap, args.gap, KERF)
-        cuts, notes = [], []
+        # COMMON-LINE rows: parts in a row butt on their NOMINAL edges and share one cut there (a single open
+        # line, centred on the boundary: each neighbour loses half a kerf on that edge); each row's outline is the
+        # union of its parts, kerf-grown, cut once; holes are each part's own, kerf-shrunk.
+        cuts, notes, n_shared = [], [], 0
+        from shapely.ops import unary_union as _union
+        rows = {}
         for k, x, y in placed:
-            g = affinity.translate(grown[k], x - grown[k].bounds[0], y - grown[k].bounds[1])
-            for r in list(g.interiors) + [g.exterior]:
-                cuts.append(s2g.Polyline(list(r.coords), True))
-            notes.append(f"{k} at x {x:.1f} y {y:.1f} ({dims[k][0]:.1f} x {dims[k][1]:.1f}): {parts[k][1]}")
+            rows.setdefault(round(y, 6), []).append((x, k))
+        placed = []
+        for y, row in sorted(rows.items()):
+            row.sort()
+            xn, nominal = KERF / 2, []
+            for _, k in row:
+                g0 = parts[k][0]
+                g = affinity.translate(g0, xn - g0.bounds[0], y + KERF / 2 - g0.bounds[1])
+                nominal.append((k, g))
+                placed.append((k, xn - KERF / 2, y))
+                notes.append(f"{k} at x {xn - KERF / 2:.2f} y {y:.1f} ({dims[k][0]:.1f} x {dims[k][1]:.1f}): {parts[k][1]}")
+                xn += g0.bounds[2] - g0.bounds[0]
+            for k, g in nominal:
+                for r in g.buffer(KERF / 2, join_style=2).interiors:
+                    cuts.append(s2g.Polyline(list(r.coords), True))
+            outline = _union([g for _, g in nominal]).buffer(KERF / 2, join_style=2)
+            cuts.append(s2g.Polyline(list(outline.exterior.coords), True))
+            for (ka, ga), (kb, gb) in zip(nominal, nominal[1:]):
+                xs = ga.bounds[2]
+                y0, y1 = max(ga.bounds[1], gb.bounds[1]) - KERF / 2, min(ga.bounds[3], gb.bounds[3]) + KERF / 2
+                cuts.append(s2g.Polyline([(xs, y0), (xs, y1)], False))
+                n_shared += 1
         cuts = gcode.order(cuts)
-        ext_x = max(x + dims[k][0] for k, x, y in placed); ext_y = max(y + dims[k][1] for k, x, y in placed)
+        ext_x = max(max(x for x, y in (c.points if hasattr(c, "points") else [])) for c in cuts)
+        ext_y = max(max(y for x, y in c.points) for c in cuts)
         name = f"double_sheet{args.tag}_{math.ceil(W)}x{math.ceil(H)}_{args.material}"
         lines = [f"; {name} -- marbles/clock/short_parts.py --double-sheet: {len(placed)} parts, priority order {' '.join(order)}",
                  *[f"; {n}" for n in notes],
                  *([f"; NOT placed (no room): {' '.join(skipped)}"] if skipped else []),
                  f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
                  f"kerf {KERF}; X0 Y0 = the sheet's bottom-left corner; parts reach x {ext_x:.2f} y {ext_y:.2f}",
-                 "; 10-hole parts are the full sheet width: their end cuts run along the stock's own edges", ";"]
+                 f"; common-line rows: parts in a row share one cut where they meet ({n_shared} shared lines); "
+                 "each part is half a kerf short on a shared edge", ";"]
         lines += preamble(s2g, job)
         for i, c in enumerate(cuts, 1):
             lines += emit_cut(s2g, motion, c, i, len(cuts), job)
         gcode.write(out_dir / f"{name}.gcode", lines)
-        print(f"{name}.gcode: {len(placed)} placed, {len(cuts)} cuts, extent {ext_x:.2f} x {ext_y:.2f}; skipped: {skipped or 'none'}")
+        print(f"{name}.gcode: {len(placed)} placed, {len(cuts)} cuts ({n_shared} shared lines), extent {ext_x:.2f} x {ext_y:.2f}; skipped: {skipped or 'none'}")
         for n in notes:
             print("  " + n)
         for k in sorted(set(order)):
