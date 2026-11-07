@@ -18,6 +18,7 @@ Thickness, kerf and fit come from the material profile (mdf3: 2.82 / 0.10).
 import argparse
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
@@ -188,17 +189,21 @@ def double_keeper(n):
     return box(0, 0, L, DBL_W).difference(unary_union(cuts))
 
 
-def double_parts():
-    """{name: (shape, note)} for the two-lane parts (sieve frame: x along, y across)"""
+def double_parts(keys=()):
+    """{name: (shape, note)} for the two-lane parts (sieve frame: x along, y across): the interface, the flange,
+    and double_sieve_<n>h / double_keeper_<n>h for any n asked for in keys (10 always)"""
     from shapely import affinity
     fl = double_flange()[0]
     fl = affinity.translate(fl, -fl.bounds[0], 0)
-    return {
+    out = {
         "double_interface_3h": (double_sieve(3, ["solid", "flange", "hole"])[0], "3 positions: solid / flange (T bolts) / hole"),
         "double_flange": (fl, "wire-track flange for both lanes"),
-        "double_sieve_10h": (double_sieve(10)[0], "10 positions, rail M5 on the centre line"),
-        "double_keeper_10h": (double_keeper(10), "staggered 6 mm view slots 6 off each lane line, rail M5 on the centre line"),
     }
+    sizes = {10} | {int(m.group(1)) for k in keys if (m := re.match(r"double_(?:sieve|keeper)_(\d+)h$", k))}
+    for n in sorted(sizes):
+        out[f"double_sieve_{n}h"] = (double_sieve(n)[0], f"{n} positions, rail M5 on the centre line")
+        out[f"double_keeper_{n}h"] = (double_keeper(n), "staggered 6 mm view slots 6 off each lane line (rows overlap 6), rail M5 on the centre line")
+    return out
 
 
 def pack_bands(items, sheet_w, sheet_h, gap):
@@ -241,6 +246,7 @@ def main():
                     help="nest two-lane parts on one sheet, in this priority order (default: interface flange sieve keeper, twice)")
     ap.add_argument("--sheet", type=float, nargs=2, default=[300.0, 291.0], metavar=("W", "H"))
     ap.add_argument("--gap", type=float, default=0.7)
+    ap.add_argument("--tag", default="", help="file name tag: double_sheet<tag>_<W>x<H>_<material>")
     args = ap.parse_args()
     T, KERF, _ = material_fit(args.material)
     s2g, motion, mat, job = load_profile(args.material, 1000, None)
@@ -250,9 +256,12 @@ def main():
     thumbs = []
     if args.double_sheet is not None:
         from shapely import affinity
-        parts = double_parts()
         alias = {"interface": "double_interface_3h", "flange": "double_flange", "sieve": "double_sieve_10h", "keeper": "double_keeper_10h"}
-        order = [alias.get(k, k) for k in (args.double_sheet or ["interface", "flange", "sieve", "keeper"] * 2)]
+        def key(k):   # interface | flange | sieve | keeper | sieve5 | keeper3 | full names
+            m = re.match(r"(sieve|keeper)(\d+)$", k)
+            return f"double_{m.group(1)}_{m.group(2)}h" if m else alias.get(k, k)
+        order = [key(k) for k in (args.double_sheet or ["interface", "flange", "sieve", "keeper"] * 2)]
+        parts = double_parts(order)
         grown = {k: parts[k][0].buffer(KERF / 2, join_style=2) for k in set(order)}
         dims = {k: (g.bounds[2] - g.bounds[0], g.bounds[3] - g.bounds[1]) for k, g in grown.items()}
         W, H = args.sheet
@@ -265,7 +274,7 @@ def main():
             notes.append(f"{k} at x {x:.1f} y {y:.1f} ({dims[k][0]:.1f} x {dims[k][1]:.1f}): {parts[k][1]}")
         cuts = gcode.order(cuts)
         ext_x = max(x + dims[k][0] for k, x, y in placed); ext_y = max(y + dims[k][1] for k, x, y in placed)
-        name = f"double_sheet_{math.ceil(W)}x{math.ceil(H)}_{args.material}"
+        name = f"double_sheet{args.tag}_{math.ceil(W)}x{math.ceil(H)}_{args.material}"
         lines = [f"; {name} -- marbles/clock/short_parts.py --double-sheet: {len(placed)} parts, priority order {' '.join(order)}",
                  *[f"; {n}" for n in notes],
                  *([f"; NOT placed (no room): {' '.join(skipped)}"] if skipped else []),
