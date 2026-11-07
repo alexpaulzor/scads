@@ -160,6 +160,46 @@ def double_flange(x_c=45.0):
     return plate.difference(unary_union(cuts)), notes, m5
 
 
+def double_keeper(n):
+    """the double sieve's keeper: 71.8 wide, a view-slot row over each lane, rail M5 on the centre line"""
+    L = n * PITCH
+    cuts = view_slots(L, DBL_HOLE_Y[0]) + view_slots(L, DBL_HOLE_Y[1])
+    cuts += [Point(x, DBL_M5_Y).buffer(M5 / 2, 48) for x in rail_m5_x(n)]
+    return box(0, 0, L, DBL_W).difference(unary_union(cuts))
+
+
+def double_parts():
+    """{name: (shape, note)} for the two-lane parts (sieve frame: x along, y across)"""
+    from shapely import affinity
+    fl = double_flange()[0]
+    fl = affinity.translate(fl, -fl.bounds[0], 0)
+    return {
+        "double_interface_3h": (double_sieve(3, ["solid", "flange", "hole"])[0], "3 positions: solid / flange (T bolts) / hole"),
+        "double_flange": (fl, "wire-track flange for both lanes"),
+        "double_sieve_10h": (double_sieve(10)[0], "10 positions, rail M5 on the centre line"),
+        "double_keeper_10h": (double_keeper(10), "view slots over both lanes, rail M5 on the centre line"),
+    }
+
+
+def pack_bands(items, sheet_w, sheet_h, gap):
+    """greedy shelf packing in priority order: each item goes into the first band (row) with room, else a new
+    band if the sheet height allows, else it is skipped. items: [(key, w, h)] -> ([(key, x, y)], [skipped keys])"""
+    bands, placed, skipped = [], [], []          # band = [y, height, used_x]
+    for key, w, h in items:
+        for b in bands:
+            x = b[2] + (gap if b[2] > 0 else 0)
+            if h <= b[1] + 1e-9 and x + w <= sheet_w + 1e-9:
+                placed.append((key, x, b[0])); b[2] = x + w
+                break
+        else:
+            y = bands[-1][0] + bands[-1][1] + gap if bands else 0.0
+            if y + h <= sheet_h + 1e-9 and w <= sheet_w + 1e-9:
+                bands.append([y, h, w]); placed.append((key, 0.0, y))
+            else:
+                skipped.append(key)
+    return placed, skipped
+
+
 def min_web(g):
     best = None
     rs = [LineString(r.coords) for r in g.interiors]
@@ -177,6 +217,10 @@ def main():
     ap.add_argument("--material", default="mdf3")
     ap.add_argument("--sizes", type=int, nargs="+", default=list(range(3, 11)), help="ball holes per piece")
     ap.add_argument("--double-flange", action="store_true", help="only the two-lane wire-track flange")
+    ap.add_argument("--double-sheet", nargs="*", metavar="PART",
+                    help="nest two-lane parts on one sheet, in this priority order (default: interface flange sieve keeper, twice)")
+    ap.add_argument("--sheet", type=float, nargs=2, default=[300.0, 291.0], metavar=("W", "H"))
+    ap.add_argument("--gap", type=float, default=0.7)
     args = ap.parse_args()
     T, KERF, _ = material_fit(args.material)
     s2g, motion, mat, job = load_profile(args.material, 1000, None)
@@ -184,6 +228,40 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"T = {T}, KERF = {KERF}")
     thumbs = []
+    if args.double_sheet is not None:
+        from shapely import affinity
+        parts = double_parts()
+        alias = {"interface": "double_interface_3h", "flange": "double_flange", "sieve": "double_sieve_10h", "keeper": "double_keeper_10h"}
+        order = [alias.get(k, k) for k in (args.double_sheet or ["interface", "flange", "sieve", "keeper"] * 2)]
+        grown = {k: parts[k][0].buffer(KERF / 2, join_style=2) for k in set(order)}
+        dims = {k: (g.bounds[2] - g.bounds[0], g.bounds[3] - g.bounds[1]) for k, g in grown.items()}
+        W, H = args.sheet
+        placed, skipped = pack_bands([(k, *dims[k]) for k in order], W + KERF, H, args.gap)
+        cuts, notes = [], []
+        for k, x, y in placed:
+            g = affinity.translate(grown[k], x - grown[k].bounds[0], y - grown[k].bounds[1])
+            for r in list(g.interiors) + [g.exterior]:
+                cuts.append(s2g.Polyline(list(r.coords), True))
+            notes.append(f"{k} at x {x:.1f} y {y:.1f} ({dims[k][0]:.1f} x {dims[k][1]:.1f}): {parts[k][1]}")
+        cuts = gcode.order(cuts)
+        ext_x = max(x + dims[k][0] for k, x, y in placed); ext_y = max(y + dims[k][1] for k, x, y in placed)
+        name = f"double_sheet_{math.ceil(W)}x{math.ceil(H)}_{args.material}"
+        lines = [f"; {name} -- marbles/clock/short_parts.py --double-sheet: {len(placed)} parts, priority order {' '.join(order)}",
+                 *[f"; {n}" for n in notes],
+                 *([f"; NOT placed (no room): {' '.join(skipped)}"] if skipped else []),
+                 f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
+                 f"kerf {KERF}; X0 Y0 = the sheet's bottom-left corner; parts reach x {ext_x:.2f} y {ext_y:.2f}",
+                 "; 10-hole parts are the full sheet width: their end cuts run along the stock's own edges", ";"]
+        lines += preamble(s2g, job)
+        for i, c in enumerate(cuts, 1):
+            lines += emit_cut(s2g, motion, c, i, len(cuts), job)
+        gcode.write(out_dir / f"{name}.gcode", lines)
+        print(f"{name}.gcode: {len(placed)} placed, {len(cuts)} cuts, extent {ext_x:.2f} x {ext_y:.2f}; skipped: {skipped or 'none'}")
+        for n in notes:
+            print("  " + n)
+        for k in sorted(set(order)):
+            print(f"  {k}: narrowest web {min_web(parts[k][0]):.2f}")
+        return
     if args.double_flange:
         g, notes, m5 = double_flange()
         from shapely import affinity
