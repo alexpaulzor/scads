@@ -123,6 +123,43 @@ def double_sieve(n, kinds=None):
     return box(0, 0, L, DBL_W).difference(unary_union(cuts)), sorted(set(notes)), sorted(m5)
 
 
+# wire-track flange, doubled: one plate for both lanes, cropped to the double sieve's width, the bores at
+# the lanes' centres, bolted through the T pattern that fits the double sieve's flange position. Wire
+# geometry as feeder.scad's tunnel flange (12 ga straights at 45/135/225/315 deg round a 20 mm bore).
+TUN_WIRE, TUN_BORE, TUN_CLR, TUN_SEAT = 2.05, 20.0, 0.3, 0.5
+TUN_RW = TUN_BORE / 2 + TUN_WIRE / 2                         # straight-wire centre radius 11.025
+TUN_HOLE = TUN_WIRE + TUN_CLR                                # notch width / stitch hole 2.35
+TUN_NOTCH_OUT = TUN_RW + TUN_HOLE / 2                        # 12.2
+TUN_FBORE = 2 * (TUN_RW + TUN_WIRE / 2 - TUN_SEAT)           # 23.1
+TUN_SR = (TUN_NOTCH_OUT + FLANGE_BOLT * math.sqrt(2) - M5 / 2) / 2   # single flange's stitch radius 18.99
+FLANGE_HALF = FLANGE_BOLT + M5 / 2 + 4.0                     # 26.5: the single flange's half size (feeder.scad CAP_HW)
+
+
+def double_flange(x_c=45.0):
+    """(shape, notes, m5). Same frame as double_sieve (x along, y across, flange centred on x_c), cropped to
+    DBL_W. Outer stitch holes (the two toward each plate edge) come in to the radius that leaves equal wood to
+    the edge and to the notch end, since the single flange's radius would leave 1.3 to the edge."""
+    m5 = [b for b in double_sieve(3, ["solid", "flange", "hole"])[2]]          # the T pattern
+    m5 = [(bx - 45.0 + x_c, by) for bx, by in m5]
+    plate = box(x_c - FLANGE_HALF, 0, x_c + FLANGE_HALF, DBL_W).buffer(-2, join_style=2).buffer(2, 16)
+    cuts, notes = [], []
+    for y in DBL_HOLE_Y:
+        cuts.append(Point(x_c, y).buffer(TUN_FBORE / 2, 128))
+        for a in (45, 135, 225, 315):
+            u = (math.cos(math.radians(a)), math.sin(math.radians(a)))
+            cuts.append(LineString([(x_c, y), (x_c + TUN_NOTCH_OUT * u[0], y + TUN_NOTCH_OUT * u[1])]).buffer(TUN_HOLE / 2, cap_style=2))
+            outer = (y + u[1] * TUN_SR < y) if y < DBL_W / 2 else (y + u[1] * TUN_SR > y)
+            r = TUN_SR
+            if outer:   # equal wood: edge = notch web -> (y_edge_dist + NOTCH_OUT) / (1 + sin45)
+                r = (min(y, DBL_W - y) + TUN_NOTCH_OUT) / (1 + math.sin(math.radians(45)))
+            cuts.append(Point(x_c + r * u[0], y + r * u[1]).buffer(TUN_HOLE / 2, 32))
+        rr = (min(DBL_HOLE_Y[0], DBL_W - DBL_HOLE_Y[0]) + TUN_NOTCH_OUT) / (1 + math.sin(math.radians(45)))
+    notes.append(f"outer stitch holes at r {rr:.2f} (inner ones at the single flange's {TUN_SR:.2f}): "
+                 f"{rr - TUN_HOLE / 2 - TUN_NOTCH_OUT:.2f} of wood to the notch end and to the edge")
+    cuts += [Point(p).buffer(M5 / 2, 48) for p in m5]
+    return plate.difference(unary_union(cuts)), notes, m5
+
+
 def min_web(g):
     best = None
     rs = [LineString(r.coords) for r in g.interiors]
@@ -139,6 +176,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--material", default="mdf3")
     ap.add_argument("--sizes", type=int, nargs="+", default=list(range(3, 11)), help="ball holes per piece")
+    ap.add_argument("--double-flange", action="store_true", help="only the two-lane wire-track flange")
     args = ap.parse_args()
     T, KERF, _ = material_fit(args.material)
     s2g, motion, mat, job = load_profile(args.material, 1000, None)
@@ -146,6 +184,26 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"T = {T}, KERF = {KERF}")
     thumbs = []
+    if args.double_flange:
+        g, notes, m5 = double_flange()
+        from shapely import affinity
+        gk = affinity.rotate(g, 90, origin=(0, 0)).buffer(KERF / 2, join_style=2)   # longest side along X
+        x0, y0, x1, y1 = gk.bounds
+        name = f"double_flange_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}_{args.material}"
+        loops = [list(r.coords) for r in gk.interiors]
+        cuts = gcode.order([s2g.Polyline([(x - x0, y - y0) for x, y in pl], True) for pl in loops]
+                           + [s2g.Polyline([(x - x0, y - y0) for x, y in gk.exterior.coords], True)])
+        lines = [f"; {name} -- marbles/clock/short_parts.py --double-flange: wire-track flange for both lanes, "
+                 f"{DBL_W:g} wide (the double sieve), bores {TUN_FBORE:.2f} at the lanes, M5 T pattern",
+                 f"; {notes[0]}",
+                 f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
+                 f"kerf {KERF}; X0 Y0 = bottom-left; {x1 - x0:.2f} x {y1 - y0:.2f} mm", ";"]
+        lines += preamble(s2g, job)
+        for i, c in enumerate(cuts, 1):
+            lines += emit_cut(s2g, motion, c, i, len(cuts), job)
+        gcode.write((out_dir / f"{name}.gcode"), lines)
+        print(f"{name}.gcode: narrowest web {min_web(g):.2f}; {notes[0]}")
+        return
     for n in args.sizes:
         for kind, g in (("sieve", sieve(n)), ("keeper", keeper(n))):
             gk = g.buffer(KERF / 2, join_style=2)
