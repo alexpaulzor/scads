@@ -71,6 +71,55 @@ def keeper(n):
     return g.difference(unary_union(cuts))
 
 
+# ---------------------------------------------------------------- DOUBLE sieve / keeper (two lanes in parallel)
+# 71.8 wide = a 20 mm beam band in the middle + on each side a 20 mm ball hole and 5.9 of wood outside it.
+# x along the length (positions every PITCH, first PITCH/2 from the end), y across.
+DBL_BEAM, DBL_WOOD = 20.0, 5.9
+DBL_W = round(DBL_BEAM + 2 * (HOLE_D + DBL_WOOD), 6)                       # 71.8
+DBL_HOLE_Y = (round(DBL_WOOD + HOLE_D / 2, 6), round(DBL_W - DBL_WOOD - HOLE_D / 2, 6))  # 15.9, 55.9: the two lanes
+DBL_M5_Y = round(DBL_W / 2, 6)                                               # 35.9: the beam bolts
+PORT, TAB, PORT_BOLT = 20.0, 10.0, 20.0                            # the standard port interface (feeder.scad)
+
+
+def port_cut(cx, cy, T, fit=0.0):
+    """the port interface as one cut: PORT x PORT opening + a TAB slot T + fit deep on each side"""
+    h, d = PORT / 2, T + fit
+    return unary_union([box(cx - h, cy - h, cx + h, cy + h),
+                        box(cx + h - 0.01, cy - TAB / 2, cx + h + d, cy + TAB / 2),
+                        box(cx - h - d, cy - TAB / 2, cx - h + 0.01, cy + TAB / 2),
+                        box(cx - TAB / 2, cy + h - 0.01, cx + TAB / 2, cy + h + d),
+                        box(cx - TAB / 2, cy - h - d, cx + TAB / 2, cy - h + 0.01)])
+
+
+def double_sieve(n, kinds=None, T=2.82, fit=0.0):
+    """(shape, notes). kinds: one of "hole" | "solid" | "port" per position (default all holes), both lanes.
+    Beam M5 on the centre line at the rail pattern; a port's corner bolts land on the centre line too
+    (shared by both lanes' ports) and replace any rail M5 within 2 hole diameters of them; corner bolts
+    that fall off the plate are left out (and reported)."""
+    kinds = kinds or ["hole"] * n
+    L = n * PITCH
+    cuts, m5, notes = [], [], []
+    for i, k in enumerate(kinds):
+        x = PITCH / 2 + PITCH * i
+        for y in DBL_HOLE_Y:
+            if k == "hole":
+                cuts.append(Point(x, y).buffer(HOLE_D / 2, 128))
+            elif k == "port":
+                cuts.append(port_cut(x, y, T, fit))
+                for bx in (x - PORT_BOLT, x + PORT_BOLT):
+                    for by in (y - PORT_BOLT, y + PORT_BOLT):
+                        if 0 < by < DBL_W:
+                            m5.append((round(bx, 6), round(by, 6)))
+                        else:
+                            notes.append(f"port at x {x:g}: corner bolt ({bx:g}, {by:g}) is off the plate, left out")
+    m5 = sorted(set(m5))
+    for rx in rail_m5_x(n):
+        if all(abs(rx - bx) > 2 * M5 for bx, _ in m5):
+            m5.append((rx, DBL_M5_Y))
+    cuts += [Point(p).buffer(M5 / 2, 48) for p in m5]
+    return box(0, 0, L, DBL_W).difference(unary_union(cuts)), sorted(set(notes)), sorted(m5)
+
+
 def min_web(g):
     best = None
     rs = [LineString(r.coords) for r in g.interiors]
