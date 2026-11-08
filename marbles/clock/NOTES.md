@@ -132,6 +132,12 @@ The steel balls bent K_F / K_M across the ball gap and jammed the lift. Mockup: 
   but the effective length depends on the bob; a bare uniform 1 m rod would be 1.64 s.
 - Open question: does the 1.2 m lift still rock with the pendulum, or is it fixed and driven by it?
 
+### As built (2026-11-08, Alex's photos)
+- Lift beams are exactly 1 m. Sieve column = 2 x 10-hole + 5 + 4 + 3 = 32 positions = 960 mm.
+- Front keepers across both side beams: 100 outside beam to beam (60 between them = the two lanes +
+  the centre band). Same set of lengths: `short_parts.py --double-sheet front10 front10 front3r --tag _front_a`
+  and `... front5 front4 --tag _front_b`.
+
 ### Two-lane layout on one spine (2026-11-07): `lift2_layout.scad` (shapes only, bottom end)
 - Spine = one 2020 T-slot (the pendulum, = F); M = one 2020 V-slot beside it, the 20 mm ball gap between.
   Lane A's S_F on the spine's front face, S_M_A standing off M's front face by 11.22 (sieves 8.4 apart);
