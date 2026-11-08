@@ -140,6 +140,10 @@ FLANGE_EXT = 40.0        # the double flange runs on this far past the T stem, t
                          # over the lanes there (stood off on spacers, it just clears the front keeper's outer face)
 
 
+FLANGE_SLOT_WOOD = 6.0   # extension slots: wood kept to the flange zone and to the plate's end (more than the keepers' 5)
+FLANGE_SLOT_MIN = 14.0   # a clipped slot shorter than this is left out
+
+
 def double_flange(x_c=45.0, ext=None):
     """(shape, notes, m5). Same frame as double_sieve (x along, y across, flange centred on x_c), cropped to
     DBL_W. Outer stitch holes (the two toward each plate edge) come in to the radius that leaves equal wood to
@@ -163,6 +167,21 @@ def double_flange(x_c=45.0, ext=None):
     notes.append(f"outer stitch holes at r {rr:.2f} (inner ones at the single flange's {TUN_SR:.2f}): "
                  f"{rr - TUN_HOLE / 2 - TUN_NOTCH_OUT:.2f} of wood to the notch end and to the edge")
     cuts += [Point(p).buffer(M5 / 2, 48) for p in m5]
+    # keeper slots in the extension: the double keeper's staggered pattern (same hole positions as the interface
+    # plate below it), clipped to the extension with FLANGE_SLOT_WOOD of wood to the flange zone and the end;
+    # slots left shorter than FLANGE_SLOT_MIN are dropped (keep wood rather than cut stubs)
+    a0, a1 = x_c + FLANGE_HALF + FLANGE_SLOT_WOOD, x_c + FLANGE_HALF + ext - FLANGE_SLOT_WOOD
+    n_sl = 0
+    for i in range(int((x_c + FLANGE_HALF + ext) // PITCH) + 1):
+        c = PITCH / 2 + PITCH * i
+        lo, hi = max(c - (PITCH + KS_OVERLAP) / 2, a0), min(c + (PITCH + KS_OVERLAP) / 2, a1)
+        if hi - lo < FLANGE_SLOT_MIN:
+            continue
+        for y_lane, outer in ((DBL_HOLE_Y[0], -1), (DBL_HOLE_Y[1], +1)):
+            y = y_lane + (outer if i % 2 == 0 else -outer) * KS_OFF
+            cuts.append(LineString([(lo + KS_W / 2, y), (hi - KS_W / 2, y)]).buffer(KS_W / 2, 24))
+            n_sl += 1
+    notes.append(f"{n_sl} keeper slots in the {ext:g} mm extension ({FLANGE_SLOT_WOOD:g} of wood kept to the flange and the end)")
     return plate.difference(unary_union(cuts)), notes, m5
 
 
@@ -259,6 +278,27 @@ def pack_bands(items, sheet_w, sheet_h, xgap, ygap, kerf):
     return placed, skipped
 
 
+def write_single(key, g, notes, T, KERF, s2g, motion, mat, job, out_dir, material, emit_cut, preamble, gcode):
+    """one part, one file: <key>_<W>x<H>_<material>.gcode, longest side along X, holes before the outline"""
+    from shapely import affinity
+    if g.bounds[2] - g.bounds[0] < g.bounds[3] - g.bounds[1]:
+        g = affinity.rotate(g, 90, origin=(0, 0))
+    gk = g.buffer(KERF / 2, join_style=2)
+    x0, y0, x1, y1 = gk.bounds
+    name = f"{key}_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}_{material}"
+    cuts = gcode.order([s2g.Polyline([(x - x0, y - y0) for x, y in r.coords], True) for r in gk.interiors]
+                       + [s2g.Polyline([(x - x0, y - y0) for x, y in gk.exterior.coords], True)])
+    lines = [f"; {name} -- marbles/clock/short_parts.py --part {key}", *[f"; {n}" for n in notes],
+             f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
+             f"kerf {KERF}; X0 Y0 = bottom-left; {x1 - x0:.2f} x {y1 - y0:.2f} mm", ";"]
+    lines += preamble(s2g, job)
+    for i, c in enumerate(cuts, 1):
+        lines += emit_cut(s2g, motion, c, i, len(cuts), job)
+    gcode.write(out_dir / f"{name}.gcode", lines)
+    print(f"{name}.gcode: {len(cuts)} cuts, {x1 - x0:.2f} x {y1 - y0:.2f}, narrowest web {min_web(g):.2f}")
+    return out_dir / f"{name}.gcode"
+
+
 def min_web(g):
     best = None
     rs = [LineString(r.coords) for r in g.interiors]
@@ -276,6 +316,7 @@ def main():
     ap.add_argument("--material", default="mdf3")
     ap.add_argument("--sizes", type=int, nargs="+", default=list(range(3, 11)), help="ball holes per piece")
     ap.add_argument("--double-flange", action="store_true", help="only the two-lane wire-track flange")
+    ap.add_argument("--part", nargs="+", help="one G-code per named part (e.g. double_keeper_5h front_keeper_3h)")
     ap.add_argument("--double-sheet", nargs="*", metavar="PART",
                     help="nest two-lane parts on one sheet, in this priority order (default: interface flange sieve keeper, twice)")
     ap.add_argument("--sheet", type=float, nargs=2, default=[300.0, 292.0], metavar=("W", "H"),
@@ -355,6 +396,12 @@ def main():
         for k in sorted(set(order)):
             print(f"  {k}: narrowest web {min_web(parts[k][0]):.2f}")
         return
+    if args.part:
+        parts = double_parts(args.part)
+        for k in args.part:
+            write_single(k, parts[k][0], [parts[k][1]], T, KERF, s2g, motion, mat, job, out_dir, args.material,
+                         emit_cut, preamble, gcode)
+        return
     if args.double_flange:
         g, notes, m5 = double_flange()
         from shapely import affinity
@@ -368,7 +415,7 @@ def main():
                            + [s2g.Polyline([(x - x0, y - y0) for x, y in gk.exterior.coords], True)])
         lines = [f"; {name} -- marbles/clock/short_parts.py --double-flange: wire-track flange for both lanes, "
                  f"{DBL_W:g} wide (the double sieve), bores {TUN_FBORE:.2f} at the lanes, M5 T pattern",
-                 f"; {notes[0]}",
+                 *[f"; {n}" for n in notes],
                  f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
                  f"kerf {KERF}; X0 Y0 = bottom-left; {x1 - x0:.2f} x {y1 - y0:.2f} mm", ";"]
         lines += preamble(s2g, job)
