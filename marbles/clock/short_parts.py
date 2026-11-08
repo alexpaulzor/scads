@@ -240,6 +240,12 @@ def double_parts(keys=()):
         "double_interface_3h": (double_sieve(3, ["solid", "flange", "hole"])[0], "3 positions: solid / flange (T bolts) / hole"),
         "double_flange": (fl, "wire-track flange for both lanes"),
     }
+    for k in keys:   # the regular single-lane sieve / keeper, a la carte: single_sieve_<n>h, single_keeper_<n>h
+        m = re.match(r"single_(sieve|keeper)_(\d+)h$", k)
+        if m:
+            n = int(m.group(2))
+            out[k] = ((sieve if m.group(1) == "sieve" else keeper)(n),
+                      f"single-lane {m.group(1)}, {n} positions, rail M5 at X {rail_m5_x(n)}")
     for k in keys:   # end sieves: last position solid, M5 between EVERY pair of ball holes
         m = re.match(r"(double|single)_sieve_(\d+)h_end$", k)
         if m:
