@@ -74,6 +74,7 @@ interface (tunnel flange + relief), compact D ring jig + mandrel, fit coupon, es
 | P204 | **Switch / diverter:** a soldered wire flipper on a pivot sends each ball one of two ways | needs input | What decides the path? Alternate every ball (toggle), ball-triggered, or set by the clock state (e.g. rollover)? |
 | P205 | Bending jig for the P204 flipper | after P204 | |
 | P206 | Bending jig for the P101 fishhook fingers | after P101 | |
+| P207 | **Spiral run** (`spiral_run.py`): one-cut pull-down spiral on 300×300 stock, pitch 12.7, entry flange on a 2020 post | in design | **TODO (Alex, 2026-11-08): the centre needs a SEPARATE piece** (a small spiral guide on spacers over the exit interface that brings the ball off the shelf into the centre hole as gently as possible). The one-piece curl in v2 is rejected. Open: guide height vs the inner laps, how it mounts on the tie-downs. |
 | **P3xx** | **Clock display (rings, rollover, hands, face)** | | |
 | P300 | **Seconds ring:** 60 positions, turns 6° per second | needs input | Touching at r 182, or groups of 5 at r 218/255, or hole-ring at any r? Driven straight from the escape arbor (`escapement.py` turns once a minute) or advanced by each ball? |
 | P301 | **Minutes ring:** 60 positions | needs input | Zigzag (r 91.1 / 107.1), or hole-ring? Advanced by the ball arriving from the seconds rollover, or geared? |
