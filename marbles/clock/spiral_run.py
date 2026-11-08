@@ -38,9 +38,13 @@ BALL_R = 19.05 / 2
 PITCH = 12.7                   # 1/2"
 MOUNT_Y, MOUNT_STEP, M5 = 10.0, 50.0, 5.0
 SIDE = 6.0                     # wood outside the spiral at the sides
-A0 = STOCK / 2 - SIDE          # 144: x semi-axis of the outer cut
-B0 = 135.0                     # y semi-axis: outer edge 7.5 clear of the mount holes, top at y 290 (< 292 reach)
-CX, CY = STOCK / 2, MOUNT_Y + M5 / 2 + 7.5 + B0
+Y_LO, Y_HI = MOUNT_Y + M5 / 2 + 7.5, 290.0      # the outer cut's lowest point (7.5 clear of the mount holes) and highest
+# the spiral shrinks as it goes, so the outer lap touches each side at a different radius: size and place it so the
+# lap's LEFT (3/4 turn), RIGHT (1/4 turn) and TOP (1/2 turn) extremes land on the stock limits
+A0 = (STOCK - 2 * SIDE + PITCH) / 2                     # x semi-axis at the start
+B0 = (Y_HI - Y_LO + PITCH / 2) / 2                      # y semi-axis at the start
+CX = SIDE + A0 - 0.75 * PITCH                           # x centre
+CY = Y_LO + B0
 B_IN = 46.0                    # the laps stop here (y semi-axis) ...
 CURL_DEG = 200.0               # ... then the curl turns this far more (short enough that an opposite pair of
                                #     tie-down bolts can stay clear of the ball on both sides of the bore) ...
@@ -118,7 +122,7 @@ def exit_flange(tie):
     r, ad, _ = tie
     plate = box(-FLANGE_HALF, -FLANGE_HALF, FLANGE_HALF, FLANGE_HALF).buffer(-2, join_style=2).buffer(2, 16)
     cuts = [Point(0, 0).buffer(TUN_FBORE / 2, 96)]
-    for a in (45, 135, 225, 315):
+    for a in (ad + 45, ad + 135, ad + 225, ad + 315):      # the wire pattern turned to sit midway between the bolts
         u = (math.cos(math.radians(a)), math.sin(math.radians(a)))
         cuts.append(LineString([(0, 0), (TUN_NOTCH_OUT * u[0], TUN_NOTCH_OUT * u[1])]).buffer(TUN_HOLE / 2, cap_style=2))
         cuts.append(Point(TUN_SR * u[0], TUN_SR * u[1]).buffer(TUN_HOLE / 2, 24))
