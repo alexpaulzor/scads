@@ -190,6 +190,7 @@ def double_keeper(n):
 
 
 SIDE_BEAM = 20.0
+FRONT_GAP = 60.0          # Alex: 100 outside beam to beam -> 60 between them (the two lanes + the centre band)
 
 
 def front_keeper(n, gap):
@@ -215,6 +216,15 @@ def double_parts(keys=()):
         "double_interface_3h": (double_sieve(3, ["solid", "flange", "hole"])[0], "3 positions: solid / flange (T bolts) / hole"),
         "double_flange": (fl, "wire-track flange for both lanes"),
     }
+    for k in keys:   # front keepers across both side beams: front_keeper_<n>h, _r = turned 90 deg on the sheet
+        m = re.match(r"front_keeper_(\d+)h(_r)?$", k)
+        if m:
+            g = front_keeper(int(m.group(1)), FRONT_GAP)
+            if m.group(2):
+                g = affinity.rotate(g, 90, origin=(0, 0))
+                g = affinity.translate(g, -g.bounds[0], -g.bounds[1])
+            out[k] = (g, f"front keeper, {m.group(1)} positions, {2 * SIDE_BEAM + FRONT_GAP:g} wide across both side beams"
+                         + (", turned 90 deg" if m.group(2) else ""))
     sizes = {10} | {int(m.group(1)) for k in keys if (m := re.match(r"double_(?:sieve|keeper)_(\d+)h$", k))}
     for n in sorted(sizes):
         out[f"double_sieve_{n}h"] = (double_sieve(n)[0], f"{n} positions, rail M5 on the centre line")
@@ -280,6 +290,9 @@ def main():
         alias = {"interface": "double_interface_3h", "flange": "double_flange", "sieve": "double_sieve_10h", "keeper": "double_keeper_10h"}
         def key(k):   # interface | flange | sieve | keeper | sieve5 | keeper3 | full names
             m = re.match(r"(sieve|keeper)(\d+)$", k)
+            f = re.match(r"front(\d+)(r?)$", k)
+            if f:
+                return f"front_keeper_{f.group(1)}h" + ("_r" if f.group(2) else "")
             return f"double_{m.group(1)}_{m.group(2)}h" if m else alias.get(k, k)
         order = [key(k) for k in (args.double_sheet or ["interface", "flange", "sieve", "keeper"] * 2)]
         parts = double_parts(order)
