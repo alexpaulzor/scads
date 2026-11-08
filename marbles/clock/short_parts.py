@@ -136,13 +136,18 @@ TUN_SR = (TUN_NOTCH_OUT + FLANGE_BOLT * math.sqrt(2) - M5 / 2) / 2   # single fl
 FLANGE_HALF = FLANGE_BOLT + M5 / 2 + 4.0                     # 26.5: the single flange's half size (feeder.scad CAP_HW)
 
 
-def double_flange(x_c=45.0):
+FLANGE_EXT = 40.0        # the double flange runs on this far past the T stem, toward the pendulum centre: a keeper
+                         # over the lanes there (stood off on spacers, it just clears the front keeper's outer face)
+
+
+def double_flange(x_c=45.0, ext=None):
     """(shape, notes, m5). Same frame as double_sieve (x along, y across, flange centred on x_c), cropped to
     DBL_W. Outer stitch holes (the two toward each plate edge) come in to the radius that leaves equal wood to
     the edge and to the notch end, since the single flange's radius would leave 1.3 to the edge."""
     m5 = [b for b in double_sieve(3, ["solid", "flange", "hole"])[2]]          # the T pattern
     m5 = [(bx - 45.0 + x_c, by) for bx, by in m5]
-    plate = box(x_c - FLANGE_HALF, 0, x_c + FLANGE_HALF, DBL_W).buffer(-2, join_style=2).buffer(2, 16)
+    ext = FLANGE_EXT if ext is None else ext
+    plate = box(x_c - FLANGE_HALF, 0, x_c + FLANGE_HALF + ext, DBL_W).buffer(-2, join_style=2).buffer(2, 16)
     cuts, notes = [], []
     for y in DBL_HOLE_Y:
         cuts.append(Point(x_c, y).buffer(TUN_FBORE / 2, 128))
@@ -353,7 +358,9 @@ def main():
     if args.double_flange:
         g, notes, m5 = double_flange()
         from shapely import affinity
-        gk = affinity.rotate(g, 90, origin=(0, 0)).buffer(KERF / 2, join_style=2)   # longest side along X
+        if g.bounds[2] - g.bounds[0] < g.bounds[3] - g.bounds[1]:
+            g = affinity.rotate(g, 90, origin=(0, 0))                                 # longest side along X
+        gk = g.buffer(KERF / 2, join_style=2)
         x0, y0, x1, y1 = gk.bounds
         name = f"double_flange_{math.ceil(x1 - x0 - 1e-9)}x{math.ceil(y1 - y0 - 1e-9)}_{args.material}"
         loops = [list(r.coords) for r in gk.interiors]
