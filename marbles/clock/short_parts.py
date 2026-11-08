@@ -89,7 +89,7 @@ def flange_bolts(cx, cy):
     return [(cx + sx * d, cy + sy * d) for sx in (-1, 0, 1) for sy in (-1, 0, 1) if (sx, sy) != (0, 0)]
 
 
-def double_sieve(n, kinds=None):
+def double_sieve(n, kinds=None, m5_x=None):
     """(shape, notes, m5 list). kinds: "hole" | "solid" | "flange" per position (default all holes), both lanes.
     "flange": the 20 mm ball hole plus the wire-track flange's M5 pattern where it fits (on the plate, and at
     least FLANGE_WEB of wood to the edge and every hole); the two lanes' flanges share the centre-line bolts.
@@ -117,7 +117,7 @@ def double_sieve(n, kinds=None):
                     notes.append(f"flange at ({x:g}, {y:g}): bolt ({b[0]:g}, {b[1]:g}) left out "
                                  + ("(off the plate)" if edge < 0 else f"({min(edge, hole):.2f} of wood)"))
     m5 = sorted(set(m5))
-    for rx in rail_m5_x(n):
+    for rx in (rail_m5_x(n) if m5_x is None else m5_x):
         if all(abs(rx - bx) > 2 * M5 for bx, by in m5 if by == DBL_M5_Y):
             m5.append((rx, DBL_M5_Y))
     cuts = ball_cuts + [Point(p).buffer(M5 / 2, 48) for p in m5]
@@ -240,6 +240,19 @@ def double_parts(keys=()):
         "double_interface_3h": (double_sieve(3, ["solid", "flange", "hole"])[0], "3 positions: solid / flange (T bolts) / hole"),
         "double_flange": (fl, "wire-track flange for both lanes"),
     }
+    for k in keys:   # end sieves: last position solid, M5 between EVERY pair of ball holes
+        m = re.match(r"(double|single)_sieve_(\d+)h_end$", k)
+        if m:
+            n = int(m.group(2))
+            bolts = [PITCH * (i + 1) for i in range(n - 2)]
+            if m.group(1) == "double":
+                g = double_sieve(n, ["hole"] * (n - 1) + ["solid"], m5_x=bolts)[0]
+            else:
+                L = n * PITCH
+                g = box(0, 0, L, 46.0).difference(unary_union(
+                    [Point(PITCH / 2 + PITCH * i, 30.0).buffer(HOLE_D / 2, 128) for i in range(n - 1)]
+                    + [Point(x, 10.0).buffer(M5 / 2, 48) for x in bolts]))
+            out[k] = (g, f"{m.group(1)} sieve, {n} positions, the last one solid, M5 between every pair of holes (x {bolts})")
     for k in keys:   # front keepers across both side beams: front_keeper_<n>h, _r = turned 90 deg on the sheet
         m = re.match(r"front_keeper_(\d+)h(_r)?$", k)
         if m:
