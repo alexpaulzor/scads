@@ -189,6 +189,22 @@ def double_keeper(n):
     return box(0, 0, L, DBL_W).difference(unary_union(cuts))
 
 
+SIDE_BEAM = 20.0
+
+
+def front_keeper(n, gap):
+    """keeper across the FRONT of both side beams: SIDE_BEAM + gap + SIDE_BEAM wide, the double sieve centred in
+    the gap. The double keeper's slot pattern over each lane; M5 into each beam's front slot (beam centre) at the
+    rail pattern."""
+    L = n * PITCH
+    W = 2 * SIDE_BEAM + gap
+    x0 = SIDE_BEAM + (gap - DBL_W) / 2                     # the sieve's edge
+    lanes = (x0 + DBL_HOLE_Y[0], x0 + DBL_HOLE_Y[1])
+    cuts = keeper_slots(L, lanes[0], -1) + keeper_slots(L, lanes[1], +1)
+    cuts += [Point(x, y).buffer(M5 / 2, 48) for x in rail_m5_x(n) for y in (SIDE_BEAM / 2, W - SIDE_BEAM / 2)]
+    return box(0, 0, L, W).difference(unary_union(cuts))
+
+
 def double_parts(keys=()):
     """{name: (shape, note)} for the two-lane parts (sieve frame: x along, y across): the interface, the flange,
     and double_sieve_<n>h / double_keeper_<n>h for any n asked for in keys (10 always)"""
