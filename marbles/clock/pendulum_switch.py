@@ -15,8 +15,8 @@ side face, into its slot):
   - clamp: 4 M5 through every layer below the rails (spacer rings not needed: the layers are solid there)
 
 LIMIT HOLDER (lies on the actuator's 2020): two microswitch seats, one each end of the stroke, each with slotted
-screw holes (fine trip adjustment); the plate's M5 slots let it slide along the rail. Default switch: the common
-KW11-3Z roller lever (27.8 x 15.8 x 10.3, two 3.1 holes 22.2 apart). FLAG: clamps to the actuator rod's eye, trips
+screw holes (fine trip adjustment); the plate's M5 slots let it slide along the rail. Default switch (--switch kw12):
+the uxcell mini roller lever, KW12-3 size (~20 x 10.5, two 2.5 holes 9.5 apart, M2); --switch kw11 for the KW11-3Z. FLAG: clamps to the actuator rod's eye, trips
 the rollers.
 
     python3 marbles/clock/pendulum_switch.py                 # mdf3: switch rail layers + limit holder + flag, and a drawing
@@ -42,8 +42,13 @@ STOP_H = 12.0          # ... to this height
 M5, MARK = 5.0, 1.5
 SPINE_BOLTS_Z = (-28.0, -48.0)   # mount holes (s = 0) into the spine's side slot, below the rail edge
 
-# KW11-3Z roller lever microswitch
-SW_L, SW_W, SW_HOLE, SW_PITCH, SW_HOLE_Y = 27.8, 15.8, 3.1, 22.2, 5.1
+# roller lever microswitches: body length, width (base to body top), screw hole, hole pitch, hole height above base,
+# switch-screw slot length. kw12 = the uxcell "mini micro" pack (KW12-3 size, M2 screws; seller figures, measure);
+# kw11 = the larger KW11-3Z (M3).
+SWITCHES = {"kw12": (20.0, 10.5, 2.4, 9.5, 3.0, 4.0),
+            "kw11": (27.8, 15.8, 3.1, 22.2, 5.1, 6.0)}
+SW_KIND = "kw12"
+SW_L, SW_W, SW_HOLE, SW_PITCH, SW_HOLE_Y, SW_ADJ = SWITCHES[SW_KIND]
 STROKE = 20.0          # actuator stroke (IGDLA-4: assumed ~20; measure)
 ADJ = 6.0              # slot length for adjustment (both the switch screws and the rail M5)
 
@@ -92,18 +97,20 @@ def rail_layer(curve_r, kind):
 
 
 def limit_holder():
+    global SW_L, SW_W, SW_HOLE, SW_PITCH, SW_HOLE_Y, SW_ADJ
+    SW_L, SW_W, SW_HOLE, SW_PITCH, SW_HOLE_Y, SW_ADJ = SWITCHES[SW_KIND]
     """(x along the rail, y across): two switch seats STROKE + SW_L apart, slotted; M5 slots for the 2020"""
-    m5_x = STROKE / 2 + SW_L + ADJ + 5               # end M5 slots: clear of a switch slid fully outward
+    m5_x = STROKE / 2 + SW_L + SW_ADJ + 5               # end M5 slots: clear of a switch slid fully outward
     length = 2 * (m5_x + 7)
     width = SW_W + 22
     g = box(-length / 2, -width / 2, length / 2, width / 2).buffer(-3, join_style=2).buffer(3, 16)
     cuts = []
     for sx in (-1, 1):
         # switch body sits with its lever toward +y (the rod side); screw slots along x
-        cx = sx * (STROKE / 2 + SW_L / 2 + ADJ / 2)
+        cx = sx * (STROKE / 2 + SW_L / 2 + SW_ADJ / 2)
         y = -width / 2 + 4 + SW_HOLE_Y
         for hx in (cx - SW_PITCH / 2, cx + SW_PITCH / 2):
-            cuts.append(LineString([(hx - ADJ / 2, y), (hx + ADJ / 2, y)]).buffer(SW_HOLE / 2, 24))
+            cuts.append(LineString([(hx - SW_ADJ / 2, y), (hx + SW_ADJ / 2, y)]).buffer(SW_HOLE / 2, 24))
         # M5 slot into the 2020 (y = 0 is the slot line when the plate is centred on the extrusion)
     for mx in (-m5_x, m5_x):
         cuts.append(LineString([(mx, -ADJ / 2), (mx, ADJ / 2)]).buffer(M5 / 2, 32))
@@ -144,8 +151,11 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--material", default="mdf3")
     ap.add_argument("--curve", type=float, default=0.0, help="rail curvature radius: 0 flat, >0 concave, <0 convex")
+    ap.add_argument("--switch", choices=sorted(SWITCHES), default=SW_KIND, help="limit switch: kw12 (uxcell mini) or kw11")
+    ap.add_argument("--stroke", type=float, default=STROKE, help="actuator stroke, mm (measure yours)")
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
+    globals().update(SW_KIND=a.switch, STROKE=a.stroke)
     T = gcode.fit(a.material)[0]
     if abs(T - 2.82) > 0.3:
         print(f"note: layer counts assume ~2.82 sheet; {a.material} is {T}: check the ball clearances")
@@ -158,7 +168,8 @@ def main():
              [f"marble switch layer '{kind}', rail profile {tag}; stack: wall_mount | rail_a x2 | spacer x3 | rail_b x2 | wall"],
              a.out, n)
     lh, L, W = limit_holder()
-    emit("limit_holder", lh, a.material, [f"two KW11-3Z seats for a {STROKE:g} mm stroke, slotted +-{ADJ / 2:g}; M5 slots to the 2020"], a.out)
+    emit(f"limit_holder_{SW_KIND}_s{STROKE:g}", lh, a.material,
+         [f"two {SW_KIND} roller-switch seats for a {STROKE:g} mm stroke, slotted +-{SW_ADJ / 2:g}; M5 slots to the 2020"], a.out)
     emit("limit_flag", flag(), a.material, ["trip flag: M4 through the actuator rod's eye"], a.out, 2)
 
 
