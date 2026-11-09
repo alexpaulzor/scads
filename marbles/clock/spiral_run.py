@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Spiral marble run: one 300 x 300 sheet, ONE spiral cut line (nothing removed but holes).
 
-Pull the centre down and the sheet between the turns becomes a descending helical shelf (a slinky): each turn sits a
-little lower than the one outside it, so the outer turn's edge is a low wall. The ball rolls on the shelf, held out
-against that wall by its own centripetal force, round and down to the centre.
+The sheet hangs UNDER the edge beam (the beam sits on top of its mount edge) and is held as a descending helical
+shelf by four STAIR ARMS under it (an X, on 2020s): it drops DROP_REV (10) per revolution, so each strip's edge sits
+at the ball's centre height for the ball on the next strip in - the wall meets the ball at its equator. The ball
+rolls on the shelf, held out against that wall by its own centripetal force, round and down to the centre.
+On the first lap the strip has not yet dropped below the frame, so an ENTRY GUIDE (a flat piece ~10 above the sheet
+on spacers, its inner edge over the cut) is the wall until the frame's own edge takes over; before the cut leaves
+the beam, the beam's face is the wall.
 
 Layout (machine frame, X0 Y0 = the stock's corner; the MOUNT edge is the front, y = 0, so every cut stays under the
 292 mm Y reach; in use that edge is the top, on the beam):
@@ -32,6 +36,7 @@ import math
 import sys
 from pathlib import Path
 
+from shapely import affinity
 from shapely.geometry import LineString, Point, Polygon, box
 from shapely.ops import unary_union
 
@@ -198,12 +203,101 @@ def guide_bolts(g, path, cut):
     return [(p.x, p.y) for p in picked]
 
 
-def holes(cut, bolts):
+DROP_REV = 10.0          # the sheet drops this much per revolution: the outer strip's edge then sits at the ball's
+                         # centre height for the ball on the next strip in (its wall meets the ball at the equator)
+ARM_ANGLES = (45, 135, 225, 315)   # stair arms: rays from the spiral centre (the X)
+ARM_S0 = 40.0            # arms start this far out (clear of the exit flange + its tunnel at the centre)
+ARM_OUT = 15.0           # and run this far past the first lap, under the frame
+ARM_BASE = 30.0          # plate below the lowest step; M5 row 10 above its bottom edge (a 2020 along it)
+ENTRY_SPAN = 180.0       # entry guide: covers the first lap from the start through this many degrees (by then the
+                         # strip is 5 below the frame: the frame edge is a wall of its own; 270 would not fit a sheet)
+ENTRY_W = 14.0           # entry guide band width outside the cut
+BEAM_Y = 20.0            # the edge beam (on TOP of the sheet) covers y 0 .. 20
+
+
+def z_of(t):
+    """the strip whose outer edge is the cut at parameter t: its underside, below the frame's underside"""
+    return -DROP_REV * t / (2 * math.pi)
+
+
+def ray_hits(cut, cut_t, phi_deg):
+    """[(s, t)] where the ray from the centre at phi crosses the cut, outermost first"""
+    phi = math.radians(phi_deg)
+    far = (CX + 400 * math.cos(phi), CY + 400 * math.sin(phi))
+    ray = LineString([(CX, CY), far])
+    out = []
+    for i in range(len(cut) - 1):
+        seg = LineString([cut[i], cut[i + 1]])
+        if seg.intersects(ray):
+            q = seg.intersection(ray)
+            if q.geom_type != "Point":
+                continue
+            f = Point(cut[i]).distance(q) / max(seg.length, 1e-9)
+            out.append((math.dist((CX, CY), (q.x, q.y)), cut_t[i] + f * (cut_t[i + 1] - cut_t[i])))
+    return sorted(out, reverse=True)
+
+
+def stair_arm(cut, cut_t, phi_deg, z_floor):
+    """one stair arm: a plate standing on edge along the ray at phi, (s out from the centre, z up; z = 0 the frame's
+    underside). Each step carries one strip at its height, the risers sit under the cuts; M5 row 10 above the
+    bottom edge (z_floor) every 20, into a 2020. Returns (polygon, steps [(s_in, s_out, z)], m5)."""
+    hits = ray_hits(cut, cut_t, phi_deg)
+    s_max = hits[0][0] + ARM_OUT
+    steps = [(hits[0][0], s_max, 0.0)]                         # the frame
+    for (s_o, t_o), (s_i, _) in zip(hits, hits[1:] + [(ARM_S0, None)]):
+        steps.append((max(s_i, ARM_S0), s_o, z_of(t_o)))
+    steps = [st for st in steps if st[1] > st[0]]
+    top = []
+    for s_in, s_out, z in sorted(steps):                       # inner to outer
+        top += [(s_in, z), (s_out, z)]
+    poly = Polygon([(ARM_S0, z_floor)] + top + [(s_max, z_floor)])
+    m5 = [(x, z_floor + 10) for x in [ARM_S0 + 10 + 20 * i for i in range(int((s_max - ARM_S0 - 20) // 20) + 1)]]
+    return poly.difference(unary_union([Point(m).buffer(M5 / 2, 32) for m in m5])), steps, m5
+
+
+def entry_guide(cut, cut_t):
+    """the entry guide: a flat piece held ~10 above the sheet on spacers, its inner edge over the first lap's cut, so
+    the incoming ball is kept on the first strip while that strip has not yet dropped far enough below the frame to
+    make a wall of its own. Starts where the cut leaves the edge beam (the beam's face is the wall before that).
+    Returns (guide polygon, support M5 [(x, y)] - the same holes go in the sheet's frame)."""
+    span = math.radians(ENTRY_SPAN)
+    first = Polygon([p for p, t in zip(cut, cut_t) if t <= 2 * math.pi])
+    arc = [p for p, t in zip(cut, cut_t) if t <= span]
+    band = LineString(arc).buffer(ENTRY_W + 0.5, cap_style=2, join_style=1).difference(first.buffer(0.5))
+    band = band.difference(box(-10, -10, 400, BEAM_Y + 0.5))
+    stock = box(0, 0, STOCK, STOCK)
+    frame = stock.difference(first)
+    ok = frame.buffer(-(M5 / 2 + 4)).difference(box(-10, -10, 400, BEAM_Y + 6))   # spacers clear the beam
+    near = LineString(arc).buffer(40)
+    cands = [Point(x, y) for x in range(0, 301, 2) for y in range(0, 301, 2)
+             if ok.contains(Point(x, y)) and near.contains(Point(x, y))]
+    al = LineString(arc)
+    picked = []
+    for frac in (0.12, 0.5, 0.9):                               # spread along the guide: nearest frame spot to each
+        target = al.interpolate(frac, normalized=True)
+        if cands:
+            q = min(cands, key=lambda p: p.distance(target))
+            if all(q.distance(o) > 30 for o in picked):
+                picked.append(q)
+    lobes = []
+    for q in picked:
+        hub = q.buffer(M5 / 2 + 5, 32)
+        lobes.append(hub.union(Polygon(list(hub.exterior.coords)).convex_hull)
+                     .union(LineString([(q.x, q.y), al.interpolate(al.project(q)).coords[0]]).buffer(M5 / 2 + 5)))
+    g = unary_union([band] + lobes).difference(first.buffer(0.5)).difference(box(-10, -10, 400, BEAM_Y + 0.5))
+    if g.geom_type == "MultiPolygon":
+        g = max(g.geoms, key=lambda q: q.area)
+    g = g.buffer(1, join_style=1).buffer(-1, join_style=1).difference(unary_union([q.buffer(M5 / 2, 32) for q in picked]))
+    return g, [(q.x, q.y) for q in picked]
+
+
+def holes(cut, bolts, extra=()):
     """[(closed points, label)] on the sheet: the exit bore (enclosed), the guide bolts, the mount row"""
     out = [(list(Point(CX, CY).buffer(TUN_FBORE / 2, 96).exterior.coords), "exit bore")]
     out += [(list(Point(p).buffer(M5 / 2, 48).exterior.coords), "guide M5") for p in bolts]
     mount = [(10 + MOUNT_STEP * i, MOUNT_Y) for i in range(int((STOCK - 20) // MOUNT_STEP) + 1)]
     out += [(list(Point(p).buffer(M5 / 2, 48).exterior.coords), "mount M5") for p in mount]
+    out += [(list(Point(p).buffer(M5 / 2, 48).exterior.coords), "entry guide M5") for p in extra]
     return out, mount
 
 
@@ -291,10 +385,15 @@ def build(pitch=PITCH):
     hold, curl, rmin = best_curl(cut, t_end, pitch)
     g, chan, path = guide(cut, t_end, pitch, hold, curl)
     bolts = guide_bolts(g, path, cut)
-    hole_list, mount = holes(cut, bolts)
+    cut_t = _ts(t_end, pitch)
+    eg, eg_m5 = entry_guide(cut, cut_t)
+    hole_list, mount = holes(cut, bolts, eg_m5)
     ex, ex_bolts = exit_flange(bolts)
-    return dict(cut=cut, ball=ball, laps=laps, length=length, t_end=t_end, hold=hold, curl=curl, rmin=rmin,
-                guide=g, chan=chan, path=path, bolts=bolts, holes=hole_list, mount=mount, exit=ex, exit_bolts=ex_bolts)
+    z_floor = z_of(t_end) - ARM_BASE
+    arms = {phi: stair_arm(cut, cut_t, phi, z_floor) for phi in ARM_ANGLES}
+    return dict(cut=cut, cut_t=cut_t, ball=ball, laps=laps, length=length, t_end=t_end, hold=hold, curl=curl, rmin=rmin,
+                guide=g, chan=chan, path=path, bolts=bolts, holes=hole_list, mount=mount, exit=ex, exit_bolts=ex_bolts,
+                entry_guide=eg, entry_m5=eg_m5, arms=arms, z_floor=z_floor)
 
 
 def main():
@@ -331,6 +430,26 @@ def main():
                            "a 2nd copy stacked on top = the spacer layer (a taller wall)"],
                           a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(g.exterior.coords))
         print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
+        eg = B["entry_guide"]
+        x0, y0, x1, y1 = eg.bounds
+        p, n, mins = emit(gcode.name("spiral_entry_guide", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
+                          [list(r.coords) for r in eg.interiors], [], mat,
+                          "spiral_entry_guide -- marbles/clock/spiral_run.py: wall over the first lap until it has dropped",
+                          [f"lies ~10 above the sheet (spacers, e.g. 2 M5 nuts = 8) on the sheet's {len(B['entry_m5'])} entry-guide M5;"
+                           f" inner edge over the first lap's cut for {ENTRY_SPAN:g} deg from where the cut leaves the edge beam"],
+                          a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(eg.exterior.coords))
+        print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
+        for phi, (arm, steps, m5) in B["arms"].items():
+            ag = affinity.translate(arm, 0, -B["z_floor"])
+            x0, y0, x1, y1 = ag.bounds
+            p, n, mins = emit(gcode.name(f"spiral_stair_{phi}", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
+                              [list(r.coords) for r in ag.interiors], [], mat,
+                              f"spiral_stair_{phi} -- marbles/clock/spiral_run.py: stair arm under the spiral at {phi} deg",
+                              [f"stands on edge along the ray at {phi} deg from the spiral centre, inner end {ARM_S0:g} out; "
+                               f"steps {DROP_REV:g} per lap (at this angle: " + ", ".join(f"{-z:.1f}" for _, _, z in sorted(steps, key=lambda q: -q[1])) + " below the frame)",
+                               f"M5 row 10 above the bottom edge into a 2020; the frame-level step is {-B['z_floor']:.1f} above the bottom edge"],
+                              a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(ag.exterior.coords))
+            print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
         g2 = fl.buffer(0)
         x0, y0 = g2.bounds[0], g2.bounds[1]
         p, n, mins = emit(gcode.name("spiral_entry_flange", g2.bounds[2] - x0 + 0.1, g2.bounds[3] - y0 + 0.1, mat).rsplit("_", 1)[0],

@@ -135,3 +135,10 @@ Saved mid-stream; nothing here is tested yet. Alex has notes and ideas still to 
   and `limit_holder_single` (one uxcell mini roller switch per holder, cut 2, one turned face down; 0° and 90° seats,
   switch turned over for -90°; slides on the actuator's 2020). Switch geometry from the uxcell drawing; the roller's
   free height is scaled off the picture. Actuator stroke still assumed 20 mm.
+- **P207, 2026-11-09 later:** 10 mm drop per lap (each strip's edge at the next ball's centre height), held by 4
+  `spiral_stair_<angle>` arms (an X under the sheet, each bolted along a 2020; the beams can't cross at the centre:
+  the exit tunnel goes down there). Edge beam now ON TOP of the sheet. `spiral_entry_guide` (180 deg, on ~8-10 mm
+  spacers over 3 new frame holes) keeps the first lap's ball on until the strip has dropped. Shelf slope 0.66 deg on
+  the first lap, 1.56 deg on the last: may be too shallow for a slow ball (test). OPEN: the entry flange as drawn
+  stands where the beam now is; how do balls arrive along the top rail? The centre's four supports differ by ~2 mm
+  from a flat plane (shim).
