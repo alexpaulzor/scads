@@ -2,14 +2,17 @@
 """PIN-WHEEL deadbeat escapement, sized for soft thin stock (WIP, untested).
 
 Why: the Graham deadbeat in escapement.py needs slim wooden teeth and slim pallets. Here the escape wheel is a
-LANTERN-style disc carrying N steel PINS (rod, nails or smooth bolt shanks) on a big circle, so every working contact
-is a steel pin on a pallet, and nothing in wood has to be thin:
-  - ESCAPE WHEEL: a spoked disc (2 laminated layers) with N pin holes; the pins stand out of its front face into the
-    anchor's plane. 30 pins: 1 rev/min with a seconds pendulum (the 1 m spine), so a seconds hand fits its arbor.
-  - ANCHOR: a thick-armed rocker on the pendulum's arbor (below the wheel, as in escapement.py), its arms spanning
-    7.5 pins. Deadbeat: the locking faces are arcs about the anchor arbor (no recoil), lift on inclined impulse faces.
+LANTERN wheel: two identical wooden RINGS on opposite faces of 2020 SPOKES (20 apart), with N M3 SCREWS spanning
+them as the pins (nut + washers outside). The anchor works in the 20 mm gap and catches the screw shanks, so the
+thin wood never has to be stiff and every working contact is steel on the pallet:
+  - RINGS: rim with the M3 holes, wood spokes over the beams, an octagon hub with a 608 seat (a 608 in each ring on
+    a fixed 8 mm axle). 30 pins: 1 rev/min with a seconds pendulum (the 1 m spine) - a seconds hand fits.
+  - 2020 SPOKES: 4 at 90 deg (needed), 4 more at 45 (optional), each butting a flat of the OCTAGON HUB SPACER
+    (mdf3 x7 = the gap) round the bearing, ending short of where the anchor sweeps; M5 + T-nuts through the rings.
+  - ANCHOR: a thick-armed rocker on the pendulum's arbor (below the wheel), arms spanning 7.5 pins. Deadbeat: the
+    locking faces are arcs about the anchor arbor (no recoil), lift on inclined impulse faces.
   - PALLETS: separate blocks bolted to the arm ends through radial SLOTS (adjust the lock depth with a screwdriver),
-    cut from a harder material than the anchor (black acrylic by default) - or face them with brass / steel shim.
+    cut from black acrylic by default - or faced with brass / steel shim.
 The pallet faces come from the classic point-tooth Graham layout, offset by the pin radius (a round pin touching a
 pallet face = its centre touching the face grown by the radius), so the geometry stays exact for any pin size.
 
@@ -33,7 +36,8 @@ from laser_parts import gcode  # noqa: E402
 
 N = 30                 # pins: 1 rev/min on a seconds pendulum
 R = 130.0              # pin-centre radius (wheel ~280 across: fits a 292 sheet)
-PIN_D = 4.0            # steel pin diameter
+PIN_D = 3.0            # pins = M3 screws spanning the two wheel rings (nut + washers), the pallets work on the shank
+PIN_HOLE = 3.3         # M3 clearance in the rings
 SPAN = 7.5             # anchor spans 7.5 pins (90 deg): the classic Graham proportion
 LIFT = 3.0             # anchor degrees during impulse
 DROP = 1.5             # free wheel degrees per beat after impulse
@@ -42,10 +46,13 @@ AMP = 8.0              # design swing, deg each side (the check also runs smalle
 ARM_W = 16.0           # anchor arm width (soft wood: wide)
 RIM = 9.0              # wheel rim wood outside the pin circle
 RIM_IN = 12.0          # rim band inside the pin circle
-SPOKES = 6
-SPOKE_W = 14.0
-HUB_R = 22.0
-ARBOR_D = 8.1          # 8 mm arbor
+SPOKES = 8            # wood spokes over the 2020 beam spokes (4 at 0/90/180/270; the 45s are optional beams)
+SPOKE_W = 20.0         # = the 2020
+GAP = 20.0             # the two rings sit on opposite faces of the 2020 spokes: the anchor works in this gap
+BRG_D = 22.0           # 608 skate bearing seat (one in each ring, on a fixed 8 mm axle)
+HUB_A = 25.0           # hub = octagon, flats this far from the centre: every 2020 spoke (8 x 20 wide) butts a flat
+SPOKE_M5 = (37.0, 62.0, 87.0)    # M5 into T-nuts in each spoke's face (the beams end at ~97: the anchor sweeps beyond)
+ARBOR_D = 8.1          # 8 mm anchor arbor
 PAL_BOLT = 3.2         # M3 pallet bolts
 PAL_ADJ = 3.0          # pallet slot length (radial adjustment)
 SHEET = (300.0, 292.0)
@@ -56,6 +63,8 @@ W = (0.0, D)
 R0 = math.sqrt(D * D - R * R)                          # anchor arbor to the tangent points (pallet radius)
 WI = R * math.radians(PITCH / 2 - DROP)                # radial impulse travel at the pallets
 PR = PIN_D / 2
+OCT = Polygon([(HUB_A / math.cos(math.radians(22.5)) * math.cos(math.radians(22.5 + 45 * i)),
+                HUB_A / math.cos(math.radians(22.5)) * math.sin(math.radians(22.5 + 45 * i))) for i in range(8)])
 
 
 def polar(r, a_deg, c=(0.0, 0.0)):
@@ -128,13 +137,30 @@ def anchor(amp=AMP):
 
 
 def wheel():
-    """the escape wheel disc: rim with the pin holes, spokes, hub"""
+    """one of the TWO wheel rings (identical; they sit on opposite faces of the 2020 spokes): rim with the M3 pin
+    holes, 8 wood spokes over the beams (the 45-degree ones only matter if you fit those beams), an octagon hub with
+    the bearing seat, M5 along each spoke into T-nuts"""
     rim = Point(W).buffer(R + PR + RIM, 128).difference(Point(W).buffer(R - PR - RIM_IN, 128))
-    spokes = [LineString([W, polar(R, 90 - i * 360 / SPOKES + 30, W)]).buffer(SPOKE_W / 2) for i in range(SPOKES)]
-    g = unary_union([rim, Point(W).buffer(HUB_R, 64)] + spokes).buffer(3).buffer(-3)
-    holes = [Point(polar(R, 90 - k * PITCH, W)).buffer(PR, 32) for k in range(N)]
-    holes += [Point(W).buffer(ARBOR_D / 2, 48)] + [Point(polar(14, 45 + 90 * i, W)).buffer(1.6, 16) for i in range(4)]
+    spokes = [LineString([W, polar(R, i * 360 / SPOKES, W)]).buffer(SPOKE_W / 2, cap_style=2) for i in range(SPOKES)]
+    hub = affinity.translate(OCT, *W).buffer(2, join_style=1)
+    g = unary_union([rim, hub] + spokes).buffer(3).buffer(-3)
+    holes = [Point(polar(R, 90 - k * PITCH, W)).buffer(PIN_HOLE / 2, 32) for k in range(N)]
+    holes.append(Point(W).buffer(BRG_D / 2, 64))
+    holes += [Point(polar(r, i * 360 / SPOKES, W)).buffer(2.5, 32) for i in range(SPOKES) for r in SPOKE_M5]
     return g.difference(unary_union(holes))
+
+
+def hub_spacer():
+    """the octagon spacer in the gap round the bearing: every spoke's inner end butts one of its flats"""
+    return OCT.difference(Point(0, 0).buffer(BRG_D / 2, 64))
+
+
+def beam_reach(amp_max=12.0):
+    """how far out (from the wheel centre) the 2020 spokes may run: clear of the pallets and the anchor in the gap"""
+    body, eb, xb, _ = anchor()
+    parts = unary_union([body, eb, xb])
+    near = min(affinity.rotate(parts, th, origin=(0, 0)).distance(Point(W)) for th in [amp_max * (i / 6 - 1) for i in range(13)])
+    return near
 
 
 # ---------------------------------------------------------------- kinematic check (as escapement.simulate)
@@ -222,10 +248,12 @@ def emit(name, g, mat, notes, out_dir, copies=1):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--pin", type=float, default=PIN_D, help="working pin diameter (4 = an M3 screw in a 3/4 mm sleeve)")
     ap.add_argument("--wood", default="ply3")
     ap.add_argument("--pallet-material", default="acrylic3")
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
+    globals().update(PIN_D=a.pin, PR=a.pin / 2)
     report()
     print("kinematic check:")
     for amp in (LIFT / 2 + KAPPA / 2 + 1.0, 3.0, AMP, AMP + 4.0):
@@ -235,8 +263,16 @@ def main():
     if a.check:
         return
     body, eb, xb, _ = anchor()
-    emit("esc_pin_wheel", wheel(), a.wood, [f"{N} pin holes d{PIN_D:g} on r {R:g} (test the press fit first); 2 layers glued"],
-         a.out, 2)
+    reach = beam_reach()
+    corner = 10 / math.tan(math.radians(22.5))          # a 45-degree beam's square end meets its neighbours here
+    print(f"2020 spokes: inner end at the hub flat ({HUB_A:g} from the centre), outer end within {reach - 3:.1f} "
+          f"(the anchor comes to {reach:.1f} at a +-12 deg swing): beam length {reach - 3 - HUB_A:.0f}; a 45-deg beam "
+          f"cut square needs its inner end at {corner + 0.5:.1f} if there is no octagon spacer")
+    emit("esc_pin_ring", wheel(), a.wood,
+         [f"one of 2 rings: {N} M3 holes on r {R:g}, 608 seat d{BRG_D:g}, 8 spokes 20 wide over the 2020s (M5 at {SPOKE_M5})",
+          f"rings on opposite faces of the 2020 spokes, {GAP:g} apart; M3 x {GAP + 2 * 2.63 + 8:.0f}+ screws = the pins"], a.out, 2)
+    emit("esc_pin_hub_spacer", hub_spacer(), "mdf3",
+         [f"octagon, flats {HUB_A:g} from the centre, 608 hole d{BRG_D:g}: cut 7 for a {GAP:g} gap (7 x 2.82 = 19.74)"], a.out, 7)
     emit("esc_pin_anchor", body, a.wood, [f"anchor body, arms span {SPAN:g} pins; 3 layers glued; M3 holes for the pallet blocks"],
          a.out, 3)
     emit("esc_pin_pallet_entry", eb, a.pallet_material, ["entry (right) pallet block: radial slots for the lock depth"], a.out)
