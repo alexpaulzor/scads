@@ -16,7 +16,7 @@ Layout (machine frame, X0 Y0 = the stock's corner; the MOUNT edge is the front, 
     last strip joins the centre) and curls it into the bore along the gentlest curve the space allows (searched:
     largest smallest turning radius, the channel never coming back within 4 mm of itself). A 2nd copy stacked on it
     is the spacer: a taller wall. It only works if the step at the last lap (how far the strip outside it sits
-    above the centre) is more than the guide's height, about 2.3 mm for one layer: otherwise a ball on the previous
+    above the centre) is more than the guide's height, about 2 mm for one layer (sheet thickness - 0.75; see ROADMAP P207): otherwise a ball on the previous
     lap grazes the guide's edge.
   - entry: a cropped wire-track flange stands on the sheet at the start, its bore centred NO_DROP_AXIS above the
     surface, so a ball resting on the tunnel's bottom wires is already at shelf level: it rolls straight off the wire
