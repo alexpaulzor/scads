@@ -107,6 +107,8 @@ NUT_H = 4.7;              // M5 nut height, for the bolt-length report
 TUN_WIRE = 2.05;          // straight wire diameter (12 ga), as ring_jig_compact.py
 TUN_BORE = 20;            // clear bore inside the straight wires (ring jig --bore)
 TUN_ANGLES = [45, 135, 225, 315];   // straight-wire angles (ring jig --angles); 0 = +x, 90 = up
+TUN_NOTCH_ANGLES = [45, 135, 225, 315, 0, 90, 180, 270];   // flange notches: one toward each of the 8 bolts (shared
+                          // interface, short_parts.wire_pattern); a stitch hole only where it keeps WEB of wood
 TUN_CLR = 0.3;            // clearance on the wire notches and the stitch holes
 TUN_SEAT = 0.5;           // how deep each wire sits in its notch; the flange bore is opened out to just this much inside the wires' outer edges
 TUN_STITCH = true;        // a stitch hole outboard of each notch: the wire passes through the notch, bends back and returns through it
@@ -321,7 +323,12 @@ TUN_HOLE = TUN_WIRE + TUN_CLR;                       // wire notch width and sti
 TUN_NOTCH_OUT = TUN_RW + TUN_HOLE / 2;               // notch's outer end, from the port centre
 TUN_FBORE = 2 * (TUN_RW + TUN_WIRE / 2 - TUN_SEAT);  // flange + relief bore: the ball clears the plates by much more than it clears the wires
 TUN_SR = TUN_STITCH_R > 0 ? TUN_STITCH_R : (TUN_NOTCH_OUT + PORT_BOLT * sqrt(2) - M5 / 2) / 2;
-TUN_STITCHES = [for (a = TUN_ANGLES) PORT_C + TUN_SR * [cos(a), sin(a)]];
+function tun_wood(p, d) = min([for (b = concat(PORT_BOLTS, MID_ALL)) norm(p - b)]) - M5 / 2 - d / 2;
+TUN_NOTCHES = [for (a = TUN_NOTCH_ANGLES) if (tun_wood(PORT_C + TUN_NOTCH_OUT * [cos(a), sin(a)], TUN_HOLE) >= WEB) a];
+TUN_STITCH_ANGLES = [for (a = TUN_NOTCHES) if (tun_wood(PORT_C + TUN_SR * [cos(a), sin(a)], TUN_HOLE) >= WEB) a];
+TUN_STITCHES = [for (a = TUN_STITCH_ANGLES) PORT_C + TUN_SR * [cos(a), sin(a)]];
+// notch-only angles (a bolt where the stitch hole would go): bend that wire's end 90 deg outward on the flange's
+// outer face and clamp it under the bolt's washer; they need no relief slot
 module port_plate2d() difference() {
   offset(r = 2) offset(delta = -2) translate(PORT_C - [CAP_HW, CAP_HW]) square([2 * CAP_HW, 2 * CAP_HW]);
   m5s(concat(PORT_BOLTS, MID_ALL));
@@ -330,7 +337,7 @@ module tunnel_flange2d() difference() {
   port_plate2d();
   translate(PORT_C) {
     circle(d = TUN_FBORE, $fn = 128);
-    for (a = TUN_ANGLES) rotate(a) translate([0, -TUN_HOLE / 2]) square([TUN_NOTCH_OUT, TUN_HOLE]);
+    for (a = TUN_NOTCHES) rotate(a) translate([0, -TUN_HOLE / 2]) square([TUN_NOTCH_OUT, TUN_HOLE]);
   }
   if (TUN_STITCH) for (q = TUN_STITCHES) translate(q) circle(d = TUN_HOLE, $fn = 24);
 }
@@ -341,7 +348,7 @@ TUN_SLOT_W = TUN_WIRE + 1;
 module tunnel_relief2d() difference() {
   port_plate2d();
   translate(PORT_C) circle(d = TUN_FBORE, $fn = 128);
-  for (a = TUN_ANGLES) hull() for (r = [TUN_RW, TUN_SR]) translate(PORT_C + r * [cos(a), sin(a)]) circle(d = TUN_SLOT_W, $fn = 24);
+  for (a = TUN_STITCH_ANGLES) hull() for (r = [TUN_RW, TUN_SR]) translate(PORT_C + r * [cos(a), sin(a)]) circle(d = TUN_SLOT_W, $fn = 24);
 }
 
 // ------------------------------------------------------------------ 3D assembly
@@ -414,7 +421,7 @@ TUN_STITCH_WEB_EDGE = CAP_HW - 2 - max([for (q = TUN_STITCHES) max(abs(q[0] - PO
 if (TUN_STITCH) echo(str(min(TUN_STITCH_WEB_NOTCH, TUN_STITCH_WEB_BOLT, TUN_STITCH_WEB_EDGE) >= WEB ? "ok   " : "WARN ",
          "tunnel stitch holes d", TUN_HOLE, " at r ", r2(TUN_SR), " (", r2(TUN_SR - TUN_RW), " out from the wire): wood to the notch ", r2(TUN_STITCH_WEB_NOTCH),
          ", to the nearest bolt hole ", r2(TUN_STITCH_WEB_BOLT), ", to the edge ", r2(TUN_STITCH_WEB_EDGE), " (need ", WEB, ")"));
-TUN_RELIEF_WEB = min([for (a = TUN_ANGLES, b = concat(PORT_BOLTS, MID_ALL)) min([for (r = [TUN_RW : 0.5 : TUN_SR]) norm(PORT_C + r * [cos(a), sin(a)] - b)]) - M5 / 2 - TUN_SLOT_W / 2]);
+TUN_RELIEF_WEB = min([for (a = TUN_STITCH_ANGLES, b = concat(PORT_BOLTS, MID_ALL)) min([for (r = [TUN_RW : 0.5 : TUN_SR]) norm(PORT_C + r * [cos(a), sin(a)] - b)]) - M5 / 2 - TUN_SLOT_W / 2]);
 echo(str(TUN_RELIEF_WEB >= WEB && T >= TUN_WIRE ? "ok   " : "WARN ", "tunnel relief: slots ", TUN_SLOT_W, " wide, wood to the nearest bolt hole ", r2(TUN_RELIEF_WEB),
          " (need ", WEB, "); sheet ", T, " for a ", TUN_WIRE, " wire bend"));
 // ball resting on the two lowest wires (at +-45 deg below centre): how far its centre sits below the tunnel axis

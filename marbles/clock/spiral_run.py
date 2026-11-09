@@ -18,7 +18,8 @@ Layout (machine frame, X0 Y0 = the stock's corner; the MOUNT edge is the front, 
     is the spacer: a taller wall. It only works if the step at the last lap (how far the strip outside it sits
     above the centre) is more than the guide's height, about 2 mm for one layer (sheet thickness - 0.75; see ROADMAP P207): otherwise a ball on the previous
     lap grazes the guide's edge.
-  - entry: a cropped wire-track flange stands on the sheet at the start, its bore centred NO_DROP_AXIS above the
+  - entry: a cropped wire-track flange stands on the sheet at the start (lower wires moved toward the sides so every
+    notch and stitch hole stays closed: entry_flange()), its bore centred so a ball on those wires is at shelf level, above the
     surface, so a ball resting on the tunnel's bottom wires is already at shelf level: it rolls straight off the wire
     ends onto the shelf, parallel to the beam. The flange bolts to the side of a short 2020 post, held to the beam by
     a corner bracket through a mount hole.
@@ -37,6 +38,8 @@ from shapely.ops import unary_union
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 from laser_parts import gcode  # noqa: E402  (quickcut's gcode core)
+sys.path.insert(0, str(HERE))
+from short_parts import wire_pattern, FLANGE_ANGLES  # noqa: E402  (the shared 8-notch flange pattern)
 
 STOCK = 300.0
 BALL_R = 19.05 / 2
@@ -204,43 +207,66 @@ def holes(cut, bolts):
     return out, mount
 
 
+EXIT_REPORT = []
+
+
 def exit_flange(bolts):
     """the wire-track flange that goes UNDER the sheet's exit bore: bore, wire notches, stitch holes as the standard
     flange, bolted through the guide bolts that land on it; the wire pattern is turned to clear them"""
     plate = box(-FLANGE_HALF, -FLANGE_HALF, FLANGE_HALF, FLANGE_HALF).buffer(-2, join_style=2).buffer(2, 16)
     rel = [(x - CX, y - CY) for x, y in bolts if abs(x - CX) < FLANGE_HALF and abs(y - CY) < FLANGE_HALF]
-    def feats(rot):
-        out = []
-        for a in (rot + 45, rot + 135, rot + 225, rot + 315):
-            u = (math.cos(math.radians(a)), math.sin(math.radians(a)))
-            out.append(LineString([(0, 0), (TUN_NOTCH_OUT * u[0], TUN_NOTCH_OUT * u[1])]).buffer(TUN_HOLE / 2, cap_style=2))
-            out.append(Point(TUN_SR * u[0], TUN_SR * u[1]).buffer(TUN_HOLE / 2, 24))
-        return out
-    rot = max(range(0, 90, 2), key=lambda r: min([unary_union(feats(r)).distance(Point(b)) for b in rel] or [0]))
-    cuts = [Point(0, 0).buffer(TUN_FBORE / 2, 96)] + feats(rot) + [Point(b).buffer(M5 / 2, 48) for b in rel]
+    holes = [Point(b).buffer(M5 / 2, 48) for b in rel]
+
+    def score(rot):                                  # the 4 wire notches + stitches must all fit; then most extras
+        cuts, rep = wire_pattern((0, 0), plate, rel, rot=rot)
+        core = sum(1 for a, r in rep if r and round(a - rot) % 90 == 45)
+        return (core, len(rep), sum(1 for _, r in rep if r)), cuts, rep
+    rot = max(range(0, 90, 1), key=lambda r: score(r)[0])
+    _, wc, rep = score(rot)
+    cuts = [Point(0, 0).buffer(TUN_FBORE / 2, 96)] + wc + holes
+    EXIT_REPORT[:] = [rot] + rep
     return plate.difference(unary_union(cuts)), rel
 
 
+def ball_drop(alpha_deg):
+    """a ball resting on two wires at +-alpha below horizontal (on the TUN_RW circle): its centre sits this far below
+    the tunnel axis (None if the wires are too far apart to hold it)"""
+    a = math.radians(alpha_deg)
+    half = TUN_RW * math.cos(a)
+    reach = BALL_R + TUN_WIRE / 2
+    if half >= reach:
+        return None
+    return TUN_RW * math.sin(a) - math.sqrt(reach ** 2 - half ** 2)
+
+
 def entry_flange():
-    """the cropped wire-track flange (u across the tunnel, v up from the sheet), bore centre at (0, NO_DROP_AXIS).
-    Its bottom edge sits on the sheet: the bore and the two lower wire notches open through it."""
-    v0 = NO_DROP_AXIS
-    plate = box(-FLANGE_HALF, 0, FLANGE_HALF, v0 + FLANGE_HALF)
-    plate = plate.buffer(-2, join_style=2).buffer(2, 16).union(box(-FLANGE_HALF + 2, 0, FLANGE_HALF - 2, 2))
-    cuts = [Point(0, v0).buffer(TUN_FBORE / 2, 96)]
-    for a in (45, 135, 225, 315):
-        u = (math.cos(math.radians(a)), math.sin(math.radians(a)))
-        end = TUN_NOTCH_OUT if a < 180 else (v0 + 1) / abs(u[1])          # lower notches run out through the bottom
-        cuts.append(LineString([(0, v0), (end * u[0], v0 + end * u[1])]).buffer(TUN_HOLE / 2, cap_style=2))
-        s = (TUN_SR * u[0], v0 + TUN_SR * u[1])
-        if s[1] - TUN_HOLE / 2 > 4:
-            cuts.append(Point(s).buffer(TUN_HOLE / 2, 24))
-    bolts = [(sx * FLANGE_BOLT, v0 + sy * FLANGE_BOLT) for sx in (-1, 0, 1) for sy in (0, 1) if (sx, sy) != (0, 0)]
-    cuts += [Point(b).buffer(M5 / 2, 48) for b in bolts]
+    """the cropped wire-track flange (u across the tunnel, v up from the sheet). Its bottom edge sits on the sheet.
+    The two LOWER wires move from 45 deg toward the sides (+-ALPHA below horizontal, the steepest that still keeps
+    every notch and stitch hole closed with FLANGE_MIN_WOOD), so the bore centre is ball_drop(ALPHA) + BALL_R up:
+    a ball on those wires is at shelf level and rolls straight off onto the shelf. The other notches of the 8
+    pattern are added where they fit. Returns (shape, bolts, v0, alpha, report)."""
+    best = None
+    for k in range(0, 57):
+        alpha = 45 - 0.5 * k
+        d = ball_drop(alpha)
+        if d is None:
+            break
+        v0 = BALL_R + d
+        plate = box(-FLANGE_HALF, 0, FLANGE_HALF, v0 + FLANGE_HALF).buffer(-2, join_style=2).buffer(2, 16)
+        plate = plate.union(box(-FLANGE_HALF + 2, 0, FLANGE_HALF - 2, 2))
+        bolts = [(sx * FLANGE_BOLT, v0 + sy * FLANGE_BOLT) for sx in (-1, 0, 1) for sy in (0, 1) if (sx, sy) != (0, 0)]
+        angles = (45, 135, 180 + alpha, 360 - alpha, 0, 90, 180)
+        wc, rep = wire_pattern((0, v0), plate, bolts, angles=angles)
+        got = {round(a, 1): r for a, r in rep}
+        if all(got.get(round(a, 1)) for a in angles[:4]):
+            best = (alpha, v0, plate, bolts, wc, rep)
+            break
+    alpha, v0, plate, bolts, wc, rep = best
+    cuts = [Point(0, v0).buffer(TUN_FBORE / 2, 96)] + wc + [Point(b).buffer(M5 / 2, 48) for b in bolts]
     g = plate.difference(unary_union(cuts))
     if g.geom_type == "MultiPolygon":
-        g = max(g.geoms, key=lambda q: q.area)     # slivers between the opened bore and the lower notches fall out
-    return g, bolts
+        g = max(g.geoms, key=lambda q: q.area)
+    return g, bolts, v0, alpha, rep
 
 
 def emit(path_stem, polys_closed, opens, mat, title, notes, out_dir, shift=(0.0, 0.0), outline=None):
@@ -278,10 +304,13 @@ def main():
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
     B = build(a.pitch)
-    fl, fl_bolts = entry_flange()
+    fl, fl_bolts, v0, alpha, fl_rep = entry_flange()
     print(f"spiral: {B['laps']:.2f} laps, {B['length'] / 1000:.2f} m of cut; centre guide: hold {B['hold']} deg on the last "
           f"lap, curl {B['curl']} deg into the bore, tightest turn r {B['rmin']:.1f} (ball centre); {len(B['bolts'])} guide M5, "
-          f"{len(B['exit_bolts'])} through the exit flange; no-drop axis {NO_DROP_AXIS:.2f}")
+          f"{len(B['exit_bolts'])} through the exit flange")
+    print(f"entry flange: lower wires at +-{alpha:g} deg below horizontal, bore centre {v0:.2f} above the sheet; notches/stitch "
+          f"{[(round(a, 1), r) for a, r in fl_rep]}")
+    print(f"exit flange: pattern turned {EXIT_REPORT[0]} deg; notches/stitch {[(round(a, 1), r) for a, r in EXIT_REPORT[1:]]}")
     for mat in a.material:
         p, n, mins = emit("spiral_run_300x290", [h for h, _ in B["holes"]], [B["cut"]], mat,
                           "spiral_run v3 -- marbles/clock/spiral_run.py: ONE spiral cut on 300 x 300 stock (no outline cut)",
@@ -307,8 +336,8 @@ def main():
         p, n, mins = emit(gcode.name("spiral_entry_flange", g2.bounds[2] - x0 + 0.1, g2.bounds[3] - y0 + 0.1, mat).rsplit("_", 1)[0],
                           [list(r.coords) for r in g2.interiors], [], mat,
                           "spiral_entry_flange -- marbles/clock/spiral_run.py: cropped wire-track flange, bottom edge on the sheet",
-                          [f"bore centre {NO_DROP_AXIS:.2f} above the bottom edge: a ball on the tunnel's lower wires is at shelf level",
-                           "lower notches open through the bottom edge; bolts to the side of a 2020 post (M5 at u -20)"],
+                          [f"bore centre {v0:.2f} above the bottom edge; lower wires at +-{alpha:g} deg below horizontal: a ball on them is at shelf level",
+                           "all notches and stitch holes closed; bolts to the side of a 2020 post (M5 at u -20)"],
                           a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(g2.exterior.coords))
         print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
         ex = B["exit"]

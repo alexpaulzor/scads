@@ -136,6 +136,48 @@ TUN_SR = (TUN_NOTCH_OUT + FLANGE_BOLT * math.sqrt(2) - M5 / 2) / 2   # single fl
 FLANGE_HALF = FLANGE_BOLT + M5 / 2 + 4.0                     # 26.5: the single flange's half size (feeder.scad CAP_HW)
 
 
+FLANGE_ANGLES = (45, 135, 225, 315, 0, 90, 180, 270)   # 8 notches, one toward each of the 8 bolts; the
+                                                       # wire-track's own 4 (45/135/225/315) take priority
+FLANGE_MIN_WOOD = 3.0    # thinnest wood a notch or stitch hole may leave (to the edge, a bolt hole, another cut)
+
+
+def wire_pattern(c, plate, bolts, angles=FLANGE_ANGLES, min_wood=FLANGE_MIN_WOOD, rot=0.0):
+    """the wire-track notches + stitch holes round a bore centred on c, for each angle in order (rot added).
+    A notch is kept only if it leaves min_wood to the plate's edge, every bolt hole and every cut kept so far
+    (the bore aside); its stitch hole sits at TUN_SR when that leaves min_wood all round, else the radius nearest
+    TUN_SR that does, else it is left out (a bolt is in the way: bend that wire back under the bolt's washer).
+    Returns (cuts, report): report = [(angle, stitch radius or None)] for the kept notches."""
+    cx, cy = c
+    bore = Point(c).buffer(TUN_FBORE / 2 + 0.01, 64)
+    holes = [Point(b).buffer(M5 / 2, 32) for b in bolts]
+    edge = plate.exterior
+    kept, report = [], []
+
+    def clear(g):
+        if g.distance(edge) < min_wood or not plate.buffer(-0.01).contains(g.centroid):
+            return False
+        return all(g.distance(h) >= min_wood for h in holes) and all(g.difference(bore).distance(k.difference(bore)) >= min_wood
+                                                                    for k in kept)
+    for a0 in angles:
+        a = math.radians(a0 + rot)
+        u = (math.cos(a), math.sin(a))
+        notch = LineString([(cx, cy), (cx + TUN_NOTCH_OUT * u[0], cy + TUN_NOTCH_OUT * u[1])]).buffer(TUN_HOLE / 2, cap_style=2)
+        if not clear(notch.difference(bore)):
+            continue
+        kept.append(notch)
+        r_lo = TUN_NOTCH_OUT + TUN_HOLE / 2 + min_wood
+        st = None
+        for r in sorted([r_lo + 0.05 * i for i in range(int((TUN_SR + 3 - r_lo) / 0.05) + 1)], key=lambda r: abs(r - TUN_SR)):
+            h = Point(cx + r * u[0], cy + r * u[1]).buffer(TUN_HOLE / 2, 24)
+            if clear(h):
+                st = (r, h)
+                break
+        if st:
+            kept.append(st[1])
+        report.append((a0 + rot, round(st[0], 2) if st else None))
+    return kept, report
+
+
 FLANGE_EXT = 40.0        # the double flange runs on this far past the T stem, toward the pendulum centre: a keeper
                          # over the lanes there (stood off on spacers, it just clears the front keeper's outer face)
 
@@ -155,17 +197,11 @@ def double_flange(x_c=45.0, ext=None):
     cuts, notes = [], []
     for y in DBL_HOLE_Y:
         cuts.append(Point(x_c, y).buffer(TUN_FBORE / 2, 128))
-        for a in (45, 135, 225, 315):
-            u = (math.cos(math.radians(a)), math.sin(math.radians(a)))
-            cuts.append(LineString([(x_c, y), (x_c + TUN_NOTCH_OUT * u[0], y + TUN_NOTCH_OUT * u[1])]).buffer(TUN_HOLE / 2, cap_style=2))
-            outer = (y + u[1] * TUN_SR < y) if y < DBL_W / 2 else (y + u[1] * TUN_SR > y)
-            r = TUN_SR
-            if outer:   # equal wood: edge = notch web -> (y_edge_dist + NOTCH_OUT) / (1 + sin45)
-                r = (min(y, DBL_W - y) + TUN_NOTCH_OUT) / (1 + math.sin(math.radians(45)))
-            cuts.append(Point(x_c + r * u[0], y + r * u[1]).buffer(TUN_HOLE / 2, 32))
-        rr = (min(DBL_HOLE_Y[0], DBL_W - DBL_HOLE_Y[0]) + TUN_NOTCH_OUT) / (1 + math.sin(math.radians(45)))
-    notes.append(f"outer stitch holes at r {rr:.2f} (inner ones at the single flange's {TUN_SR:.2f}): "
-                 f"{rr - TUN_HOLE / 2 - TUN_NOTCH_OUT:.2f} of wood to the notch end and to the edge")
+        wc, rep = wire_pattern((x_c, y), plate, m5)
+        cuts += wc
+        notes.append(f"port y {y:g}: {len(rep)} notches at {[int(a) for a, _ in rep]} deg; stitch holes "
+                     + ", ".join(f"{int(a)}:{r:g}" for a, r in rep if r) + "; notch only (a bolt or the edge in the way): "
+                     + (", ".join(str(int(a)) for a, r in rep if not r) or "none"))
     cuts += [Point(p).buffer(M5 / 2, 48) for p in m5]
     # keeper slots in the extension: the double keeper's staggered pattern (same hole positions as the interface
     # plate below it), clipped to the extension with FLANGE_SLOT_WOOD of wood to the flange zone and the end;
