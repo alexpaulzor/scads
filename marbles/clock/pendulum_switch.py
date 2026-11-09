@@ -15,9 +15,9 @@ side face, into its slot):
   - clamp: 4 M5 through every layer below the rails (spacer rings not needed: the layers are solid there)
 
 LIMIT HOLDER (lies on the actuator's 2020): two microswitch seats, one each end of the stroke, each with slotted
-screw holes (fine trip adjustment); the plate's M5 slots let it slide along the rail. Default switch (--switch kw12):
-the uxcell mini roller lever, KW12-3 size (~20 x 10.5, two 2.5 holes 9.5 apart, M2); --switch kw11 for the KW11-3Z. FLAG: clamps to the actuator rod's eye, trips
-the rollers.
+screw holes (fine trip adjustment); the plate's M5 slots let it slide along the rail. Switch: the
+uxcell mini roller lever (19.9 x 10.7 x 6.4, two 2.4 holes 9.5 apart, M2; roller over the body's end). FLAG: bolts to the actuator rod's eye, rides
+between the rollers and ramps onto one at each end of the stroke.
 
     python3 marbles/clock/pendulum_switch.py                 # mdf3: switch rail layers + limit holder + flag, and a drawing
     python3 marbles/clock/pendulum_switch.py --material ply3 --curve -400
@@ -42,15 +42,20 @@ STOP_H = 12.0          # ... to this height
 M5, MARK = 5.0, 1.5
 SPINE_BOLTS_Z = (-28.0, -48.0)   # mount holes (s = 0) into the spine's side slot, below the rail edge
 
-# roller lever microswitches: body length, width (base to body top), screw hole, hole pitch, hole height above base,
-# switch-screw slot length. kw12 = the uxcell "mini micro" pack (KW12-3 size, M2 screws; seller figures, measure);
-# kw11 = the larger KW11-3Z (M3).
-SWITCHES = {"kw12": (20.0, 10.5, 2.4, 9.5, 3.0, 4.0),
-            "kw11": (27.8, 15.8, 3.1, 22.2, 5.1, 6.0)}
-SW_KIND = "kw12"
-SW_L, SW_W, SW_HOLE, SW_PITCH, SW_HOLE_Y, SW_ADJ = SWITCHES[SW_KIND]
-STROKE = 20.0          # actuator stroke (IGDLA-4: assumed ~20; measure)
-ADJ = 6.0              # slot length for adjustment (both the switch screws and the rail M5)
+# uxcell mini roller-lever switch (G605 / KW12 size), from the seller's drawing. x along the body from its end
+# AWAY from the roller, y up from the body's base (the terminal edge). Two M2 holes, roller at the far end.
+SW_L, SW_H, SW_T = 19.9, 10.7, 6.4      # body length, height (base to top), thickness
+SW_HOLE_X = (5.2, 14.7)                 # screw holes (9.5 apart, centred on the body)
+SW_HOLE_Y = 2.5                         # hole centres above the base
+SW_HOLE = 2.4                           # M2 clearance (the switch's own holes are 2.4)
+PIN = 3.5                               # terminals stick out below the base
+ROLL_X = 5.2 + 14.5                     # roller centre: 14.5 from the first hole = over the body's far end
+ROLL_Y, ROLL_D = 15.4, 4.8              # roller centre height when free + diameter: SCALED OFF THE DRAWING (no dims)
+SW_ADJ = 4.0                            # screw slot length: trip point +-2
+STROKE = 20.0                           # actuator stroke (IGDLA-4: assumed ~20; measure)
+ADJ = 6.0                               # plate M5 slot length
+FLAG_FLAT = 24.0                        # flag's flat (roller-pressing) edge length
+PRESS = 1.5                             # how far the flag pushes a roller in (flag's M4 slot sets it)
 
 
 def profile(curve_r):
@@ -96,33 +101,45 @@ def rail_layer(curve_r, kind):
     return g.difference(unary_union(holes))
 
 
+def roller_x():
+    """roller centres at +-this: the flag's flat edge end reaches the roller centre at the end of the stroke"""
+    return FLAG_FLAT / 2 + STROKE / 2
+
+
 def limit_holder():
-    global SW_L, SW_W, SW_HOLE, SW_PITCH, SW_HOLE_Y, SW_ADJ
-    SW_L, SW_W, SW_HOLE, SW_PITCH, SW_HOLE_Y, SW_ADJ = SWITCHES[SW_KIND]
-    """(x along the rail, y across): two switch seats STROKE + SW_L apart, slotted; M5 slots for the 2020"""
-    m5_x = STROKE / 2 + SW_L + SW_ADJ + 5               # end M5 slots: clear of a switch slid fully outward
-    length = 2 * (m5_x + 7)
-    width = SW_W + 22
-    g = box(-length / 2, -width / 2, length / 2, width / 2).buffer(-3, join_style=2).buffer(3, 16)
+    """(x along the actuator, y across; y = 0 is the switches' base line, the 2020 under y 0..20 when the plate's
+    M5 slots sit on its centreline y = 10). Two switches mirrored, rollers facing each other at x = +-roller_x(),
+    levers toward +y; terminals overhang the -y edge for soldering. Screw slots along x: trip point +-SW_ADJ/2."""
+    rx = roller_x()
+    outer = rx + ROLL_X + SW_ADJ / 2                     # far end of a body slid fully outward (|x|)
+    m5_x = outer + 2 + M5 / 2 + 1.5                      # end M5 slots past the bodies (head clear: ~4.25 radius)
+    x1 = m5_x + 7
+    y0, y1 = -0.5, 20.0                                  # pins hang off y0; plate covers the 2020 top
+    g = box(-x1, y0, x1, y1).buffer(-3, join_style=2).buffer(3, 16)
+    # body spans |x| from rx - (SW_L - ROLL_X) (roller end) to rx - (SW_L - ROLL_X) + SW_L; holes measured from the
+    # FAR end, so |x|hole = far - hx
     cuts = []
     for sx in (-1, 1):
-        # switch body sits with its lever toward +y (the rod side); screw slots along x
-        cx = sx * (STROKE / 2 + SW_L / 2 + SW_ADJ / 2)
-        y = -width / 2 + 4 + SW_HOLE_Y
-        for hx in (cx - SW_PITCH / 2, cx + SW_PITCH / 2):
-            cuts.append(LineString([(hx - SW_ADJ / 2, y), (hx + SW_ADJ / 2, y)]).buffer(SW_HOLE / 2, 24))
-        # M5 slot into the 2020 (y = 0 is the slot line when the plate is centred on the extrusion)
+        far = rx - (SW_L - ROLL_X) + SW_L
+        for hx in SW_HOLE_X:
+            x = sx * (far - hx)
+            cuts.append(LineString([(x - SW_ADJ / 2, SW_HOLE_Y), (x + SW_ADJ / 2, SW_HOLE_Y)]).buffer(SW_HOLE / 2, 24))
     for mx in (-m5_x, m5_x):
-        cuts.append(LineString([(mx, -ADJ / 2), (mx, ADJ / 2)]).buffer(M5 / 2, 32))
-    cuts.append(LineString([(-ADJ, 0), (ADJ, 0)]).buffer(M5 / 2, 32))
-    return g.difference(unary_union(cuts)), length, width
+        cuts.append(LineString([(mx, 10 - ADJ / 2), (mx, 10 + ADJ / 2)]).buffer(M5 / 2, 32))
+    return g.difference(unary_union(cuts)), 2 * x1, y1 - y0
 
 
 def flag():
-    """trip flag: bolts through the actuator rod's eye (M4 clearance + a slot for reach), wide enough to hit both rollers"""
-    g = box(0, 0, 40, 18).buffer(-2, join_style=2).buffer(2, 16)
-    cuts = [LineString([(8, 9), (16, 9)]).buffer(2.2, 24)]
-    return g.difference(unary_union(cuts))
+    """trip flag, lying flat at the rollers' height: a bar whose -y edge presses the rollers (flat FLAG_FLAT long,
+    30 deg ramps at the ends so the rollers climb on), and an arm to the rod eye with an M4 slot along y (sets PRESS)."""
+    h = 8.0                                              # bar depth (y)
+    ramp = (PRESS + 2) / math.tan(math.radians(30))
+    bar = Polygon([(-FLAG_FLAT / 2, 0), (FLAG_FLAT / 2, 0), (FLAG_FLAT / 2 + ramp, PRESS + 2),
+                   (FLAG_FLAT / 2 + ramp, h), (-FLAG_FLAT / 2 - ramp, h), (-FLAG_FLAT / 2 - ramp, PRESS + 2)])
+    arm = box(-7, h - 1, 7, h + 24)
+    g = bar.union(arm).buffer(-1, join_style=2).buffer(1, 16)
+    slot = LineString([(0, h + 7), (0, h + 18)]).buffer(2.2, 24)
+    return g.difference(slot)
 
 
 def emit(name, g, mat, notes, out_dir, copies=1):
@@ -151,11 +168,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--material", default="mdf3")
     ap.add_argument("--curve", type=float, default=0.0, help="rail curvature radius: 0 flat, >0 concave, <0 convex")
-    ap.add_argument("--switch", choices=sorted(SWITCHES), default=SW_KIND, help="limit switch: kw12 (uxcell mini) or kw11")
     ap.add_argument("--stroke", type=float, default=STROKE, help="actuator stroke, mm (measure yours)")
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
-    globals().update(SW_KIND=a.switch, STROKE=a.stroke)
+    globals().update(STROKE=a.stroke)
     T = gcode.fit(a.material)[0]
     if abs(T - 2.82) > 0.3:
         print(f"note: layer counts assume ~2.82 sheet; {a.material} is {T}: check the ball clearances")
@@ -168,9 +184,10 @@ def main():
              [f"marble switch layer '{kind}', rail profile {tag}; stack: wall_mount | rail_a x2 | spacer x3 | rail_b x2 | wall"],
              a.out, n)
     lh, L, W = limit_holder()
-    emit(f"limit_holder_{SW_KIND}_s{STROKE:g}", lh, a.material,
-         [f"two {SW_KIND} roller-switch seats for a {STROKE:g} mm stroke, slotted +-{SW_ADJ / 2:g}; M5 slots to the 2020"], a.out)
-    emit("limit_flag", flag(), a.material, ["trip flag: M4 through the actuator rod's eye"], a.out, 2)
+    emit(f"limit_holder_s{STROKE:g}", lh, a.material,
+         [f"two uxcell mini roller switches, rollers facing, {2 * roller_x():g} apart, for a {STROKE:g} mm stroke; "
+          f"M2 slots +-{SW_ADJ / 2:g}; M5 slots to the 2020"], a.out)
+    emit("limit_flag", flag(), a.material, [f"trip flag: flat {FLAG_FLAT:g}, 30 deg ramps; M4 slot to the rod eye"], a.out, 2)
 
 
 if __name__ == "__main__":
