@@ -14,8 +14,10 @@ side face, into its slot):
     B zone: end 1 -> RPWM line, end 2 -> LPWM line (each through its NC limit switch; 1k pull-downs on the IBT-2).
   - clamp: 4 M5 through every layer below the rails (spacer rings not needed: the layers are solid there)
 
-LIMIT HOLDER (lies on the actuator's 2020): two microswitch seats, one each end of the stroke, each with slotted
-screw holes (fine trip adjustment); the plate's M5 slots let it slide along the rail. Switch: the
+LIMIT HOLDER (lies on the actuator's 2020): ONE switch per holder, cut 2; the second is turned face down so the inner
+ends face each other (they can butt). Each slides on the rail (2 M5 into T-nuts) to set the stroke, and has two seats:
+0 deg (lever across the rail) and 90 deg (lever along it, head-on to the flag; turn the switch over for -90), each
+slotted for a fine trip adjustment. WIP: untested. Switch: the
 uxcell mini roller lever (19.9 x 10.7 x 6.4, two 2.4 holes 9.5 apart, M2; roller over the body's end). FLAG: bolts to the actuator rod's eye, rides
 between the rollers and ramps onto one at each end of the stroke.
 
@@ -106,27 +108,33 @@ def roller_x():
     return FLAG_FLAT / 2 + STROKE / 2
 
 
+HOLD_M5 = (-28.0, -46.0)   # the holder's two M5 into the 2020 (T-nuts slide in the slot: the holder slides on the rail)
+B_Y0 = 3.0                 # 90 deg seat: the switch body spans y B_Y0 .. B_Y0 + SW_L
+
+
+def seats():
+    """switch screw-hole centres per orientation, in holder coordinates (x along the rail, x = 0 the INNER end that
+    faces the other holder; y across, y = 0 the edge the 0 deg switch's terminals hang over, the 2020 under y 0..20).
+      0 deg: base on y = 0, lever toward +y, body x -SW_L..0 so its roller (if the switch lies roller-inward) is
+             flush with the inner end. Turn the switch over and the roller sits at the outer end instead.
+      90 deg: lever toward +x (the roller meets the flag head-on), base at x = -(roller top), body across the rail.
+             Turn the switch over for -90 (the roller moves to the other side of the rail): the holes are symmetric."""
+    roll_top = ROLL_Y + ROLL_D / 2
+    s0 = [(-SW_L + hx, SW_HOLE_Y) for hx in SW_HOLE_X]
+    s90 = [(-roll_top + SW_HOLE_Y, B_Y0 + hx) for hx in SW_HOLE_X]
+    return s0, s90, roll_top
+
+
 def limit_holder():
-    """(x along the actuator, y across; y = 0 is the switches' base line, the 2020 under y 0..20 when the plate's
-    M5 slots sit on its centreline y = 10). Two switches mirrored, rollers facing each other at x = +-roller_x(),
-    levers toward +y; terminals overhang the -y edge for soldering. Screw slots along x: trip point +-SW_ADJ/2."""
-    rx = roller_x()
-    outer = rx + ROLL_X + SW_ADJ / 2                     # far end of a body slid fully outward (|x|)
-    m5_x = outer + 2 + M5 / 2 + 1.5                      # end M5 slots past the bodies (head clear: ~4.25 radius)
-    x1 = m5_x + 7
-    y0, y1 = -0.5, 20.0                                  # pins hang off y0; plate covers the 2020 top
-    g = box(-x1, y0, x1, y1).buffer(-3, join_style=2).buffer(3, 16)
-    # body spans |x| from rx - (SW_L - ROLL_X) (roller end) to rx - (SW_L - ROLL_X) + SW_L; holes measured from the
-    # FAR end, so |x|hole = far - hx
-    cuts = []
-    for sx in (-1, 1):
-        far = rx - (SW_L - ROLL_X) + SW_L
-        for hx in SW_HOLE_X:
-            x = sx * (far - hx)
-            cuts.append(LineString([(x - SW_ADJ / 2, SW_HOLE_Y), (x + SW_ADJ / 2, SW_HOLE_Y)]).buffer(SW_HOLE / 2, 24))
-    for mx in (-m5_x, m5_x):
-        cuts.append(LineString([(mx, 10 - ADJ / 2), (mx, 10 + ADJ / 2)]).buffer(M5 / 2, 32))
-    return g.difference(unary_union(cuts)), 2 * x1, y1 - y0
+    """ONE switch per holder; cut 2 and turn one over (face down) so the two inner ends face each other and can butt.
+    Each switch seat is slotted along x (trip point +-SW_ADJ/2); two M5 holes on the rail centreline."""
+    s0, s90, roll_top = seats()
+    x0 = HOLD_M5[1] - 7
+    y1 = B_Y0 + SW_L + 1.5
+    g = box(x0, -3, 0, y1).buffer(-3, join_style=2).buffer(3, 16)        # -3: wood under the 0 deg screw holes
+    cuts = [LineString([(x - SW_ADJ / 2, y), (x + SW_ADJ / 2, y)]).buffer(SW_HOLE / 2, 24) for x, y in s0 + s90]
+    cuts += [Point(mx, 10).buffer(M5 / 2, 32) for mx in HOLD_M5]
+    return g.difference(unary_union(cuts)), -x0, y1 + 3
 
 
 def flag():
@@ -184,9 +192,10 @@ def main():
              [f"marble switch layer '{kind}', rail profile {tag}; stack: wall_mount | rail_a x2 | spacer x3 | rail_b x2 | wall"],
              a.out, n)
     lh, L, W = limit_holder()
-    emit(f"limit_holder_s{STROKE:g}", lh, a.material,
-         [f"two uxcell mini roller switches, rollers facing, {2 * roller_x():g} apart, for a {STROKE:g} mm stroke; "
-          f"M2 slots +-{SW_ADJ / 2:g}; M5 slots to the 2020"], a.out)
+    emit("limit_holder_single", lh, a.material,
+         ["ONE uxcell mini roller switch per holder: cut 2, turn one face down so the inner ends face each other",
+          f"seats: 0 deg (lever across the rail) and 90 deg (lever along it; turn the switch over for -90); M2 slots +-{SW_ADJ / 2:g}",
+          "two M5 on the rail centreline: slide along the 2020 to set the stroke"], a.out, 2)
     emit("limit_flag", flag(), a.material, [f"trip flag: flat {FLAG_FLAT:g}, 30 deg ramps; M4 slot to the rod eye"], a.out, 2)
 
 

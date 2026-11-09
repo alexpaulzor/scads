@@ -74,7 +74,7 @@ interface (tunnel flange + relief), compact D ring jig + mandrel, fit coupon, es
 | P204 | **Switch / diverter:** a soldered wire flipper on a pivot sends each ball one of two ways | needs input | What decides the path? Alternate every ball (toggle), ball-triggered, or set by the clock state (e.g. rollover)? |
 | P205 | Bending jig for the P204 flipper | after P204 | |
 | P206 | Bending jig for the P101 fishhook fingers | after P101 | |
-| P207 | **Spiral run** (`spiral_run.py`): one-cut pull-down spiral on 300×300 stock, pitch 12.7, entry flange on a 2020 post | in design | **TODO (Alex, 2026-11-08): the centre needs a SEPARATE piece** (a small spiral guide on spacers over the exit interface that brings the ball off the shelf into the centre hole as gently as possible). The one-piece curl in v2 is rejected. Open: guide height vs the inner laps, how it mounts on the tie-downs. |
+| P207 | **Spiral run** (`spiral_run.py`): one-cut pull-down spiral on 300×300 stock, pitch 12.7, entry flange on a 2020 post | **WIP v3 (2026-11-09)** | v3: the cut just stops after the laps; a **separate centre guide** (`spiral_centre_guide_*`, optional 2nd copy as the spacer) lies on the solid centre and channels the ball from the last lap into the exit bore (90° curl, tightest turn r 22). The v2 one-piece curl is rejected. Open: does the step at the last lap clear the guide (needs > ~2.3 mm for one layer); which material (first cuts tonight); Alex has notes and ideas still to add. |
 | **P3xx** | **Clock display (rings, rollover, hands, face)** | | |
 | P300 | **Seconds ring:** 60 positions, turns 6° per second | needs input | Touching at r 182, or groups of 5 at r 218/255, or hole-ring at any r? Driven straight from the escape arbor (`escapement.py` turns once a minute) or advanced by each ball? |
 | P301 | **Minutes ring:** 60 positions | needs input | Zigzag (r 91.1 / 107.1), or hole-ring? Advanced by the ball arriving from the seconds rollover, or geared? |
@@ -126,3 +126,12 @@ interface (tunnel flange + relief), compact D ring jig + mandrel, fit coupon, es
 - **Fun:** balls riding on the pendulum, down a tube, inside a gear; bells; switches; an overflow track; a gallery of
   Rube Goldberg mechanisms; a viewing cutout in every guard.
 - **Motor:** F150 wiper motor (12 V) or the microwave motor.
+
+## WIP log (2026-11-09)
+
+Saved mid-stream; nothing here is tested yet. Alex has notes and ideas still to add.
+- **P207 spiral v3:** sheet + separate centre guide + entry and exit flanges, all in ply3 / mdf3 / birch3 (`spiral_run.py`).
+- **P410 pendulum drive:** `pendulum_switch.py`: marble switch rail (layer stack, copper-foil contacts, `--curve`), trip flag,
+  and `limit_holder_single` (one uxcell mini roller switch per holder, cut 2, one turned face down; 0° and 90° seats,
+  switch turned over for -90°; slides on the actuator's 2020). Switch geometry from the uxcell drawing; the roller's
+  free height is scaled off the picture. Actuator stroke still assumed 20 mm.
