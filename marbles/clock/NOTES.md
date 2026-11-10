@@ -74,6 +74,12 @@ Claude's own uncertain assumptions are marked **(assumed)**. Please confirm or c
 - **Validate before cutting:** `cd cnc_vibes/cnc_vibes && python3 cnc.py validate <file>`.
   - Engraves at F5000 get flagged against the unconfirmed 3000 cap.
 
+### Design rule: relief holes at the ends of flexing slits (Alex, 2026-11-10)
+
+Wherever a part has a thin slit or single cut line and the material beside it will flex, end the cut in a small round
+hole (about 3 mm) so the slit's sharp end can't start a crack. This applies to wood and acrylic alike, and acrylic needs it most.
+Example: `spiral_run.py` puts a 3 mm hole on both ends of the spiral cut (`RELIEF_D`).
+
 ## 3. Hardware on hand
 
 - **Extrusion:** lots of 2020, both T-slot and V-slot.

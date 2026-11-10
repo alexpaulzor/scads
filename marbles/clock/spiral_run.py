@@ -311,9 +311,14 @@ def entry_guide(cut, cut_t):
     return g, [(q.x, q.y) for q in picked]
 
 
+RELIEF_D = 3.0          # stress-relief hole at each end of the spiral cut: the strips flex, a slit's sharp end would crack
+
+
 def holes(cut, bolts, extra=()):
-    """[(closed points, label)] on the sheet: the exit bore (enclosed), the guide bolts, the mount row"""
+    """[(closed points, label)] on the sheet: the exit bore (enclosed), the guide bolts, the mount row, and a relief
+    hole centred on each end of the spiral cut"""
     out = [(list(Point(CX, CY).buffer(TUN_FBORE / 2, 96).exterior.coords), "exit bore")]
+    out += [(list(Point(cut[i]).buffer(RELIEF_D / 2, 32).exterior.coords), "relief") for i in (0, -1)]
     out += [(list(Point(p).buffer(M5 / 2, 48).exterior.coords), "guide M5") for p in bolts]
     mount = [(10 + MOUNT_STEP * i, MOUNT_Y) for i in range(int((STOCK - 20) // MOUNT_STEP) + 1)]
     out += [(list(Point(p).buffer(M5 / 2, 48).exterior.coords), "mount M5") for p in mount]
