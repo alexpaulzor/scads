@@ -42,7 +42,7 @@ def main():
          # the arm: 2020 segment, side slot on +y: 6 opening through the lips, wider cavity behind, floor at y = 4
          f"module arm() color(\"silver\") difference() {{ translate([{x0},-10,-10]) cube([{x1 - x0},20,20]);"
          f" translate([{x0 - 1},8.2,-3]) cube([{x1 - x0 + 2},2,6]); translate([{x0 - 1},{floor},-5.5]) cube([{x1 - x0 + 2},{8.2 - floor},11]); }}",
-         f"module tpart() color(\"#1a1a1a\") translate([0,0,-1.5]) linear_extrude(3) {poly(t)}",
+         f"module tpart() {{ color(\"#1a1a1a\") translate([0,0,-3]) linear_extrude(2.95) {poly(t)} color(\"#333\") translate([0,0,0.05]) linear_extrude(2.95) {poly(t)} }}",
          f"module clamp() color(\"burlywood\") translate([{u_c},{floor + E.BAR_H},0]) rotate([-90,0,0]) linear_extrude({E.CLAMP_T}) {poly(E.clamp_part())}",
          "module screws() for (x = [" + ",".join(f"{v:.2f}" for v in m5x) + "]) translate([x,0,0]) {"
          f" color(\"gold\") translate([0,{floor + 1},0]) rotate([-90,0,0]) cylinder(d=5,h={E.BAR_H + E.CLAMP_T + 4});"

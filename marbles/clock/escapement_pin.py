@@ -69,7 +69,8 @@ BAR_H = 6.3            # the T's bar: just over the slot depth, so the clamp bea
 BAR_L = 30.0           # the bar's length along the arm
 STEM_W = 12.0          # the stem's width where it leaves the slot (through the clamp)
 CLAMP_T = 2.63         # ply3
-CLAMP_SLOT = 3.1       # for the 3 mm stem
+CLAMP_SLOT = 6.2       # for the 6 mm stem (2 layers of 3 mm acrylic)
+T_LAYERS = 2           # the T is 2 identical layers of 3 mm acrylic (6 thick: fills the 6 mm slot opening), pinned by an M3
 CLAMP_END = 9.0        # clamp beyond each end of the bar: the M5 sits here
 ADJ_TRAVEL = 4.0       # slide the T (with the clamp loosened) this far each way along the arm to set the lock depth
 HUB_CLR = 4.0          # the anchor hub plates keep at least this far from the rings over the swing
@@ -157,6 +158,9 @@ def t_pallet(pal, a_beam, a_sh, side):
     stem_root = rect(u, n, u_c - STEM_W / 2, u_c + STEM_W / 2, 10 - SLOT_D + BAR_H - 0.01, 10 + BAR_H - SLOT_D + CLAMP_T + 1.5)
     stem = unary_union([stem_root, start]).convex_hull
     t = unary_union([bar, stem, pal]).buffer(0.8).buffer(-0.8)
+    pin = at(u, n, u_c, 10 - SLOT_D + BAR_H + CLAMP_T + 6.0)          # M3 through both layers, just above the clamp
+    if t.buffer(-(1.6 + 2.5)).contains(Point(pin)):
+        t = t.difference(Point(pin).buffer(1.65, 24))
     clamp_foot = rect(u, n, s0 - CLAMP_END - 3, s1 + CLAMP_END + 3, 10, 10 - SLOT_D + BAR_H + CLAMP_T)
     m5 = [at(u, n, s0 - CLAMP_END + 2, 10), at(u, n, s1 + CLAMP_END - 2, 10)]
     return dict(t=t, clamp=clamp_foot, u_c=u_c, r_b=s1 + CLAMP_END + 6, m5=m5)
@@ -390,10 +394,11 @@ def main():
          [f"anchor hub plate: 608 seat, M5 along the 3 beams (arms {ie['a']:.1f} / {ix['a']:.1f} deg, tail {TAIL_A:g}); cut 2, one each side"], a.out, 2)
     for nm, ub in (("entry", eb), ("exit", xb)):
         emit(f"esc_pin_pallet_{nm}", ub["t"], a.pallet_material,
-             [f"{nm} pallet: upside-down T, bar {BAR_L:g} x {BAR_H:g} sits on the floor of the arm's side T-slot, the stem carries the "
-              f"working faces; slide along the slot (+-{ADJ_TRAVEL:g}) to set the lock depth"], a.out, 1)
+             [f"{nm} pallet: upside-down T, cut {T_LAYERS} (2 x 3 mm = 6 thick, pinned with an M3 through the stem); bar {BAR_L:g} x {BAR_H:g} "
+              f"sits on the floor of the arm's side T-slot, the stem carries the working faces; slide +-{ADJ_TRAVEL:g} to set the lock depth"],
+             a.out, T_LAYERS)
     emit("esc_pin_pallet_clamp", clamp_part(), a.wood,
-         [f"pallet clamp (cut 2, one per arm): lies on the arm's face over the T's bar, the stem through the {CLAMP_SLOT:g} slot; "
+         [f"pallet clamp (cut 2, one per arm): lies on the arm's face over the T's bar, the 6 mm stem through the {CLAMP_SLOT:g} slot; "
           f"M5 each end into T-nuts in the same slot"], a.out, 2)
 
 
