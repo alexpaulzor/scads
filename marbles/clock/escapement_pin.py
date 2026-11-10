@@ -35,7 +35,7 @@ sys.path.insert(0, str(HERE.parent))
 from laser_parts import gcode  # noqa: E402
 
 N = 30                 # pins: 1 rev/min on a seconds pendulum
-R = 130.0              # pin-centre radius (wheel ~280 across: fits a 292 sheet)
+R = 110.0              # pin-centre radius: in from the rim, so the pallet tips stay >= 9 inside the rings even at +-12 deg
 PIN_D = 3.0            # pins = M3 screws spanning the two wheel rings (nut + washers), the pallets work on the shank
 PIN_HOLE = 3.3         # M3 clearance in the rings
 SPAN = 7.5             # anchor spans 7.5 pins (90 deg): the classic Graham proportion
@@ -44,14 +44,15 @@ DROP = 1.5             # free wheel degrees per beat after impulse
 KAPPA = 1.0            # lock depth (anchor degrees) a pallet already has when the other drops
 AMP = 8.0              # design swing, deg each side (the check also runs smaller and larger)
 ARM_W = 16.0           # anchor arm width (soft wood: wide)
-RIM = 9.0              # wheel rim wood outside the pin circle
+RING_R = 144.5         # ring outer radius: 289 across, the most a 292 sheet takes in one piece
+RIM = RING_R - R - 1.5  # ring wood outside the pin circle (for a 3 mm pin)
 RIM_IN = 12.0          # rim band inside the pin circle
 SPOKES = 8            # wood spokes over the 2020 beam spokes (4 at 0/90/180/270; the 45s are optional beams)
 SPOKE_W = 20.0         # = the 2020
 GAP = 20.0             # the two rings sit on opposite faces of the 2020 spokes: the anchor works in this gap
 BRG_D = 22.0           # 608 skate bearing seat (one in each ring, on a fixed 8 mm axle)
 HUB_A = 25.0           # hub = octagon, flats this far from the centre: every 2020 spoke (8 x 20 wide) butts a flat
-SPOKE_M5 = (37.0, 62.0, 87.0)    # M5 into T-nuts in each spoke's face (the beams end at ~97: the anchor sweeps beyond)
+SPOKE_M5 = None        # M5 into T-nuts along each spoke: spread over the beam's length (set from beam_reach())
 ARBOR_D = 8.1          # 8 mm anchor arbor
 PAL_BOLT = 3.2         # M3 pallet bolts
 PAL_ADJ = 3.0          # pallet slot length (radial adjustment)
@@ -146,8 +147,33 @@ def wheel():
     g = unary_union([rim, hub] + spokes).buffer(3).buffer(-3)
     holes = [Point(polar(R, 90 - k * PITCH, W)).buffer(PIN_HOLE / 2, 32) for k in range(N)]
     holes.append(Point(W).buffer(BRG_D / 2, 64))
-    holes += [Point(polar(r, i * 360 / SPOKES, W)).buffer(2.5, 32) for i in range(SPOKES) for r in SPOKE_M5]
+    holes += [Point(polar(r, i * 360 / SPOKES, W)).buffer(2.5, 32) for i in range(SPOKES) for r in spoke_m5()]
     return g.difference(unary_union(holes))
+
+
+def spoke_m5():
+    """3 M5 per spoke, from 12 past the hub flat to 12 short of the beam's end"""
+    global SPOKE_M5
+    if SPOKE_M5 is None:
+        a, b = HUB_A + 12, beam_reach() - 3 - 12
+        SPOKE_M5 = tuple(round(a + (b - a) * i / 2, 1) for i in range(3))
+    return SPOKE_M5
+
+
+def tip_margin(amp_max=12.0):
+    """how far inside the rings' edge the pallets' working tips (both ends of each impulse face, where a pin is
+    caught and released) stay over the whole swing. While a pin is locked the contact sits on that pin, at R."""
+    h, k = LIFT / 2, KAPPA / 2
+    ro, ri = R0 + WI / 2, R0 - WI / 2
+    a_tip, b_tip = 45 - h + k, 135 + h - k
+    pts = [polar(ro - PR, a_tip), polar(ri - PR, a_tip + LIFT), polar(ri + PR, b_tip), polar(ro + PR, b_tip - LIFT)]
+    far = 0.0
+    for i in range(25):
+        th = amp_max * (i / 12 - 1)
+        for p in pts:
+            q = affinity.rotate(Point(p), th, origin=(0, 0))
+            far = max(far, math.dist(W, (q.x, q.y)))
+    return RING_R - far
 
 
 def hub_spacer():
@@ -265,11 +291,13 @@ def main():
     body, eb, xb, _ = anchor()
     reach = beam_reach()
     corner = 10 / math.tan(math.radians(22.5))          # a 45-degree beam's square end meets its neighbours here
+    print(f"rings {2 * RING_R:g} across: the pallets' working tips stay {tip_margin():.1f} inside the rings' edge over a +-12 deg swing; "
+          f"ring band outside the pin circle {RING_R - R:.1f}")
     print(f"2020 spokes: inner end at the hub flat ({HUB_A:g} from the centre), outer end within {reach - 3:.1f} "
           f"(the anchor comes to {reach:.1f} at a +-12 deg swing): beam length {reach - 3 - HUB_A:.0f}; a 45-deg beam "
           f"cut square needs its inner end at {corner + 0.5:.1f} if there is no octagon spacer")
     emit("esc_pin_ring", wheel(), a.wood,
-         [f"one of 2 rings: {N} M3 holes on r {R:g}, 608 seat d{BRG_D:g}, 8 spokes 20 wide over the 2020s (M5 at {SPOKE_M5})",
+         [f"one of 2 rings: {N} M3 holes on r {R:g}, 608 seat d{BRG_D:g}, 8 spokes 20 wide over the 2020s (M5 at {spoke_m5()})",
           f"rings on opposite faces of the 2020 spokes, {GAP:g} apart; M3 x {GAP + 2 * 2.63 + 8:.0f}+ screws = the pins"], a.out, 2)
     emit("esc_pin_hub_spacer", hub_spacer(), "mdf3",
          [f"octagon, flats {HUB_A:g} from the centre, 608 hole d{BRG_D:g}: cut 7 for a {GAP:g} gap (7 x 2.82 = 19.74)"], a.out, 7)
