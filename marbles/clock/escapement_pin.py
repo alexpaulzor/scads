@@ -60,10 +60,19 @@ BRG_D = 22.0           # 608 skate bearing seat (one in each ring, on a fixed 8 
 HUB_A = 25.0           # hub = octagon, flats this far from the centre: every 2020 spoke (8 x 20 wide) butts a flat
 SPOKE_M5 = None        # M5 into T-nuts along each spoke: spread over the beam's length (set from beam_reach())
 ARBOR_D = 8.1          # 8 mm anchor arbor
-PAL_LAYERS = 5         # pallet bracket: 5 acrylic layers (15 thick, on the gap's centre plane): 2 solid outer, 3 inner
-                       # with the bolt channels
-PAL_PAD_W = 22.0       # bracket pad: how far it stands off the arm's side face
-PAL_WALL = 5.0         # wood between the bolt head and the arm's face
+# pallet = an upside-down T of 3 mm acrylic, held in the arm's SIDE T-slot (no glue, no drilled-hole alignment):
+#   its BAR lies in the slot on the slot floor and stands a hair proud of the face; its STEM comes out of the slot (on the
+#   gap's centre plane) and carries the working faces. A ply3 CLAMP strip lies on the arm's face over the bar: the stem
+#   passes through its 3 mm centre slot, and an M5 at each end into a T-nut in the same slot presses the bar onto the floor.
+SLOT_D = 6.0           # 2020 T-slot depth, face to floor (lib/t2020beam.scad: notch 6 x 6)
+BAR_H = 6.3            # the T's bar: just over the slot depth, so the clamp bears on it
+BAR_L = 30.0           # the bar's length along the arm
+STEM_W = 12.0          # the stem's width where it leaves the slot (through the clamp)
+CLAMP_T = 2.63         # ply3
+CLAMP_SLOT = 3.1       # for the 3 mm stem
+CLAMP_END = 9.0        # clamp beyond each end of the bar: the M5 sits here
+ADJ_TRAVEL = 4.0       # slide the T (with the clamp loosened) this far each way along the arm to set the lock depth
+HUB_CLR = 4.0          # the anchor hub plates keep at least this far from the rings over the swing
 SHEET = (300.0, 292.0)
 
 PITCH = 360.0 / N
@@ -131,63 +140,75 @@ def at(u, n, s_, t):
     return (u[0] * s_ + n[0] * t, u[1] * s_ + n[1] * t)
 
 
-def pallet_bracket(pal, a_beam, r_end, a_sh, side):
-    """a pallet BRACKET off the arm's side face (the face toward the pallet): a pad standing PAL_PAD_W off the face,
-    a web, and the working pallet, all on the gap's centre plane. Two M5 bolts run across the pad, through channels
-    in the inner layers, into T-nuts in the arm's side slot: slide the bracket along the arm to set the lock depth.
-    Returns (outer layer, inner layer, bolt points on the arm's face)."""
+def rect(u, n, s0, s1, t0, t1):
+    return Polygon([at(u, n, s0, t0), at(u, n, s1, t0), at(u, n, s1, t1), at(u, n, s0, t1)])
+
+
+def t_pallet(pal, a_beam, a_sh, side):
+    """the T pallet on an arm at a_beam: bar in the side slot nearest the pallet, stem out to the working shape.
+    Returns dict(t=the T part, clamp=clamp outline in the wheel plane (for clearance), u_c=bar centre along the arm,
+    r_b=where the arm may end, m5=[clamp screw points on the arm])"""
     u, n = frame(a_beam, side)
-    s1, s2 = r_end - 40, r_end
-    pad = Polygon([at(u, n, s1, 10), at(u, n, s2, 10), at(u, n, s2, 10 + PAL_PAD_W), at(u, n, s1, 10 + PAL_PAD_W)])
     start = pal.intersection(Polygon([(0, 0), polar(400, a_sh), polar(400, a_sh + side * 3.0)]))
-    strip = Polygon([at(u, n, s2 - 12, 10), at(u, n, s2, 10), at(u, n, s2, 10 + PAL_PAD_W), at(u, n, s2 - 12, 10 + PAL_PAD_W)])
-    web = unary_union([strip, start]).convex_hull
-    outer = unary_union([pad, web, pal]).buffer(1.0).buffer(-1.0)
-    chans, bolts = [], []
-    for sc in (s1 + 7, s1 + 21):
-        shank = Polygon([at(u, n, sc - 2.65, 9), at(u, n, sc + 2.65, 9), at(u, n, sc + 2.65, 10 + PAL_WALL), at(u, n, sc - 2.65, 10 + PAL_WALL)])
-        head = Polygon([at(u, n, sc - 4.6, 10 + PAL_WALL), at(u, n, sc + 4.6, 10 + PAL_WALL),
-                        at(u, n, sc + 4.6, 11 + PAL_PAD_W), at(u, n, sc - 4.6, 11 + PAL_PAD_W)])
-        chans += [shank, head]
-        bolts.append(at(u, n, sc, 10))
-    inner = outer.difference(unary_union(chans))
-    return outer, inner, bolts
+    c = start.centroid
+    u_c = c.x * u[0] + c.y * u[1]                                  # bar centred under the pallet's root
+    s0, s1 = u_c - BAR_L / 2, u_c + BAR_L / 2
+    bar = rect(u, n, s0, s1, 10 - SLOT_D, 10 - SLOT_D + BAR_H)
+    stem_root = rect(u, n, u_c - STEM_W / 2, u_c + STEM_W / 2, 10 - SLOT_D + BAR_H - 0.01, 10 + BAR_H - SLOT_D + CLAMP_T + 1.5)
+    stem = unary_union([stem_root, start]).convex_hull
+    t = unary_union([bar, stem, pal]).buffer(0.8).buffer(-0.8)
+    clamp_foot = rect(u, n, s0 - CLAMP_END - 3, s1 + CLAMP_END + 3, 10, 10 - SLOT_D + BAR_H + CLAMP_T)
+    m5 = [at(u, n, s0 - CLAMP_END + 2, 10), at(u, n, s1 + CLAMP_END - 2, 10)]
+    return dict(t=t, clamp=clamp_foot, u_c=u_c, r_b=s1 + CLAMP_END + 6, m5=m5)
+
+
+def clamp_part():
+    """the clamp strip, flat (x along the arm, y across the arm's face): 3.1 slot for the stem (+ travel), M5 each end"""
+    L = BAR_L + 2 * CLAMP_END + 6
+    g = box(-L / 2, -10, L / 2, 10).buffer(-2, join_style=2).buffer(2, join_style=1)
+    sl = LineString([(-(STEM_W / 2 + ADJ_TRAVEL), 0), (STEM_W / 2 + ADJ_TRAVEL, 0)]).buffer(CLAMP_SLOT / 2, cap_style=2)
+    holes = [Point(sx * (BAR_L / 2 + CLAMP_END - 2), 0).buffer(2.65, 32) for sx in (-1, 1)]
+    return g.difference(unary_union([sl] + holes))
 
 
 def anchor(amp=AMP, amp_max=12.0):
-    """(hub plate, entry bracket (outer, inner), exit bracket (outer, inner), (entry, exit working shapes)).
-    The anchor is 2 identical HUB PLATES sandwiching three 2020 beams (two arms up to the pallets, one down to the
-    pendulum) round a stack of 608s on the fixed axle. The arms pass through the wheel's gap; a pallet bracket hangs
-    off each arm's side face. The arm angles are the nearest to the pallets that keep the beams and brackets (all
-    but the working faces) out of the pins' path over a +-amp_max swing."""
+    """(hub plate, entry U, exit U, (entry, exit working shapes)). The anchor is 2 identical HUB PLATES sandwiching
+    three 2020 beams (two arms up to the pallets, one down to the pendulum) round a stack of 608s on the fixed axle.
+    The arms pass through the wheel's gap; each carries a T pallet clamped in its side slot. The arm angles are the
+    nearest to the pallets that keep the beams, clamps and T's (all but the working faces) out of the pins' path over
+    a +-amp_max swing, with the hub plates clear of the rings."""
     e, x, a_sh, b_sh = pallets(amp)
     ring = pin_ring()
+    disc = Point(W).buffer(RING_R, 256)
     sweep = [amp_max * (i / 8 - 1) for i in range(17)]
     out = {}
     for name, pal, a0, side in (("entry", e, a_sh, +1), ("exit", x, b_sh, -1)):
-        r_end = R0 - WI / 2 + PR - 1.0                       # the beam stops just inside the pallet's inner face
         for k in range(120):
             a_b = a0 - side * 0.5 * k
-            beam = arm_beam(a_b, r_end)
-            outer, inner, bolts = pallet_bracket(pal, a_b, r_end, a0, side)
-            nonwork = unary_union([beam, outer.difference(pal.buffer(0.3))])
-            if all(affinity.rotate(nonwork, th, origin=(0, 0)).intersection(ring).area < 1e-3 for th in sweep):
-                out[name] = (a_b, r_end, beam, outer, inner, bolts)
+            ub = t_pallet(pal, a_b, a0, side)
+            r_b = ub["r_b"]
+            beam = arm_beam(a_b, r_b)
+            nonwork = unary_union([beam, ub["clamp"], ub["t"].difference(pal.buffer(0.3))])
+            overlay = LineString([(0, 0), polar(HUB_ARM, a_b)]).buffer(ARM_W / 2 + 3, cap_style=1)   # the hub plate's arm
+            if all(affinity.rotate(nonwork, th, origin=(0, 0)).intersection(ring).area < 1e-3 for th in sweep) and \
+                    min(affinity.rotate(overlay, th, origin=(0, 0)).distance(disc) for th in sweep) >= HUB_CLR:
+                out[name] = dict(ub, a=a_b, r_b=r_b, beam=beam)
                 break
-    a_be, a_bx = out["entry"][0], out["exit"][0]
+    a_be, a_bx = out["entry"]["a"], out["exit"]["a"]
     hub = unary_union([Point(0, 0).buffer(HUB_PLATE_R, 64)] +
                       [LineString([(0, 0), polar(HUB_ARM, a)]).buffer(ARM_W / 2 + 3, cap_style=1) for a in (a_be, a_bx, TAIL_A)])
     hub = hub.buffer(4).buffer(-4)
     holes = [Point(0, 0).buffer(BRG_D / 2, 64)] + [Point(polar(r, a)).buffer(2.5, 32) for a in (a_be, a_bx, TAIL_A) for r in (19, 29)]
     hub = hub.difference(unary_union(holes))
     ANCHOR_INFO.update(out, tail=arm_beam(TAIL_A, 90.0))
-    return hub, out["entry"][3:5], out["exit"][3:5], (e, x)
+    return hub, out["entry"], out["exit"], (e, x)
 
 
 def anchor_parts():
     """everything of the anchor that sits in the wheel's gap (for clearance checks and drawings)"""
     anchor()
-    return unary_union([ANCHOR_INFO["entry"][2], ANCHOR_INFO["exit"][2], ANCHOR_INFO["entry"][3], ANCHOR_INFO["exit"][3]])
+    i, x = ANCHOR_INFO["entry"], ANCHOR_INFO["exit"]
+    return unary_union([i["beam"], x["beam"], i["clamp"], x["clamp"], i["t"], x["t"]])
 
 
 def hub_ring_clearance(amp_max=12.0):
@@ -352,13 +373,13 @@ def main():
         return
     hub, eb, xb, _ = anchor()
     reach = beam_reach()
-    ie, ix = ANCHOR_INFO["entry"], ANCHOR_INFO["exit"]
+    ie, ix = eb, xb
     print(f"rings {2 * RING_R:g} across: the pallets' working tips stay {tip_margin():.1f} inside the rings' edge over a +-12 deg swing; "
           f"ring band outside the pin circle {RING_R - R:.1f}")
     print(f"wheel spokes (2020): {HUB_A:g} to {reach - 3:.1f} from the centre (the anchor comes to {reach:.1f} at +-12 deg): "
           f"length {reach - 3 - HUB_A:.0f}; M3 x 30-35 screws as the pins (nuts flare the rings a little at the pins)")
     print(f"anchor: axle {D:.1f} below the wheel centre; hub plates clear the rings by {hub_ring_clearance():.1f} at +-12 deg; arms (2020) at "
-          f"{ie[0]:.1f} / {ix[0]:.1f} deg, {ARM_IN:g} to {ie[1]:.1f} from the axle = {ie[1] - ARM_IN:.0f} long; tail {TAIL_A:g}; "
+          f"{ie['a']:.1f} / {ix['a']:.1f} deg, {ARM_IN:g} to {ie['r_b']:.1f} from the axle = {ie['r_b'] - ARM_IN:.0f} long; tail {TAIL_A:g}; "
           f"3 x 608 stacked between the plates")
     emit("esc_pin_ring", wheel(), a.wood,
          [f"one of 2 rings: {N} M3 holes on r {R:g}, 608 seat d{BRG_D:g}, 8 spokes 20 wide over the 2020s (M5 at {spoke_m5()})",
@@ -366,14 +387,14 @@ def main():
     emit("esc_pin_hub_spacer", hub_spacer(), "mdf3",
          [f"OPTIONAL octagon round the wheel's bearings, flats {HUB_A:g} from the centre: cut 7, or stack 608s instead"], a.out, 7)
     emit("esc_pin_anchor_plate", hub, a.wood,
-         [f"anchor hub plate: 608 seat, M5 along the 3 beams (arms {ie[0]:.1f} / {ix[0]:.1f} deg, tail {TAIL_A:g}); cut 2, one each side"], a.out, 2)
-    n_in = PAL_LAYERS - 2
-    for nm, (outer, inner) in (("entry", eb), ("exit", xb)):
-        emit(f"esc_pin_pallet_{nm}_outer", outer, a.pallet_material,
-             [f"{nm} pallet bracket, OUTER layer: cut 2 (the 2 faces of the {PAL_LAYERS}-layer stack)"], a.out, 2)
-        emit(f"esc_pin_pallet_{nm}_inner", inner, a.pallet_material,
-             [f"{nm} pallet bracket, INNER layer (2 M5 bolt channels): cut {n_in}; glue the small loose pieces back in their places"],
-             a.out, n_in)
+         [f"anchor hub plate: 608 seat, M5 along the 3 beams (arms {ie['a']:.1f} / {ix['a']:.1f} deg, tail {TAIL_A:g}); cut 2, one each side"], a.out, 2)
+    for nm, ub in (("entry", eb), ("exit", xb)):
+        emit(f"esc_pin_pallet_{nm}", ub["t"], a.pallet_material,
+             [f"{nm} pallet: upside-down T, bar {BAR_L:g} x {BAR_H:g} sits on the floor of the arm's side T-slot, the stem carries the "
+              f"working faces; slide along the slot (+-{ADJ_TRAVEL:g}) to set the lock depth"], a.out, 1)
+    emit("esc_pin_pallet_clamp", clamp_part(), a.wood,
+         [f"pallet clamp (cut 2, one per arm): lies on the arm's face over the T's bar, the stem through the {CLAMP_SLOT:g} slot; "
+          f"M5 each end into T-nuts in the same slot"], a.out, 2)
 
 
 if __name__ == "__main__":
