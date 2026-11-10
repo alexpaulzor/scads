@@ -44,7 +44,12 @@ the new batch).
       top rail.
 - Not planned: the stair arms and the glue-up form (`spiral_stair_*`, `spiral_form_*`). You're making your own
   supports.
-- [ ] **Acrylic spiral** (400 × 300 black sheet, heat-formed?): **not designed yet**. See the open questions below.
+- [ ] **Acrylic spiral, round**, with a 20 mm entry run on its left (from a 400 × 300 black sheet). All `acrylic3`, F150 × 1;
+      drawing `spiral_run_round.png`:
+  - `spiral_run_round_296x290_acrylic3` × 1 (about 30 min),
+  - `spiral_centre_guide_99x105_acrylic3` × 1 (or × 2),
+  - `spiral_entry_guide_150x285_acrylic3` × 1,
+  - `spiral_exit_flange_54x54_acrylic3` × 1.
 
 ## Jigs
 
@@ -67,4 +72,3 @@ the new batch).
 - Escapement frame: what holds the wheel axle and the rocker axle (183.6 mm apart, wheel above).
 - Marble drive for the escape wheel: big ball wheel + lantern pinion, about 6:1.
 - Seconds hand / disc on the escape wheel axle.
-- Acrylic spiral variant (size, heat-forming).

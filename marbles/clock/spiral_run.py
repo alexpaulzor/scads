@@ -46,7 +46,9 @@ from laser_parts import gcode  # noqa: E402  (quickcut's gcode core)
 sys.path.insert(0, str(HERE))
 from short_parts import wire_pattern, FLANGE_ANGLES  # noqa: E402  (the shared 8-notch flange pattern)
 
-STOCK = 300.0
+STOCK = 300.0                  # stock width (X)
+STOCK_H = 300.0                # stock height (Y)
+ENTRY_RUN = 0.0                # extra flat width left of the spiral for the entry run (round variant)
 BALL_R = 19.05 / 2
 PITCH = 12.7                   # 1/2"
 MOUNT_Y, MOUNT_STEP, M5 = 10.0, 50.0, 5.0
@@ -58,6 +60,24 @@ A0 = (STOCK - 2 * SIDE + PITCH) / 2                     # x semi-axis at the sta
 B0 = (Y_HI - Y_LO + PITCH / 2) / 2                      # y semi-axis at the start
 CX = SIDE + A0 - 0.75 * PITCH                           # x centre
 CY = Y_LO + B0
+
+
+def configure(round_=False, entry_run=0.0):
+    """round_: a circular spiral sized by the height (290 across), with entry_run of extra flat sheet to its left (the
+    ball's run along the top rail before the ramp starts); the stock width follows. Otherwise the original 300 x 300
+    elliptical fill."""
+    global STOCK, ENTRY_RUN, A0, B0, CX, CY
+    B0 = (Y_HI - Y_LO + PITCH / 2) / 2
+    if round_:
+        A0 = B0
+        ENTRY_RUN = entry_run
+        CX = SIDE + entry_run + A0 - 0.75 * PITCH            # the lap's left extreme (3/4 turn) lands entry_run in
+        STOCK = math.ceil(CX + A0 - 0.25 * PITCH + SIDE)     # its right extreme (1/4 turn) + SIDE
+    else:
+        STOCK, ENTRY_RUN = 300.0, 0.0
+        A0 = (STOCK - 2 * SIDE + PITCH) / 2
+        CX = SIDE + A0 - 0.75 * PITCH
+    CY = Y_LO + B0
 B_IN = 46.0                    # the laps stop here (y semi-axis): the centre inside the LAST lap is solid
 GUIDE_GAP = 0.5                # the centre guide's outer edge sits this far inside the last lap of the cut
 GUIDE_LAYERS = 1               # guide layers on the sheet (2 = guide + a same-shape spacer: a taller wall)
@@ -265,7 +285,7 @@ def entry_guide(cut, cut_t):
     arc = [p for p, t in zip(cut, cut_t) if t <= span]
     band = LineString(arc).buffer(ENTRY_W + 0.5, cap_style=2, join_style=1).difference(first.buffer(0.5))
     band = band.difference(box(-10, -10, 400, BEAM_Y + 0.5))
-    stock = box(0, 0, STOCK, STOCK)
+    stock = box(0, 0, STOCK, STOCK_H)
     frame = stock.difference(first)
     ok = frame.buffer(-(M5 / 2 + 4)).difference(box(-10, -10, 400, BEAM_Y + 6))   # spacers clear the beam
     near = LineString(arc).buffer(40)
@@ -400,9 +420,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--material", nargs="+", default=["ply3", "mdf3", "birch3"])
     ap.add_argument("--pitch", type=float, default=PITCH)
+    ap.add_argument("--round", action="store_true", help="circular spiral (290 across) + an entry run beside it")
+    ap.add_argument("--entry-run", type=float, default=20.0, help="with --round: extra flat sheet left of the spiral, mm")
+    ap.add_argument("--parts", nargs="+", default=["sheet", "centre", "entry_guide", "stairs", "entry_flange", "exit_flange"])
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
+    configure(a.round, a.entry_run)
     B = build(a.pitch)
+    sheet_name = gcode.name("spiral_run" + ("_round" if a.round else ""), STOCK, Y_HI, "x").rsplit("_", 1)[0]
     fl, fl_bolts, v0, alpha, fl_rep = entry_flange()
     print(f"spiral: {B['laps']:.2f} laps, {B['length'] / 1000:.2f} m of cut; centre guide: hold {B['hold']} deg on the last "
           f"lap, curl {B['curl']} deg into the bore, tightest turn r {B['rmin']:.1f} (ball centre); {len(B['bolts'])} guide M5, "
@@ -411,61 +436,68 @@ def main():
           f"{[(round(a, 1), r) for a, r in fl_rep]}")
     print(f"exit flange: pattern turned {EXIT_REPORT[0]} deg; notches/stitch {[(round(a, 1), r) for a, r in EXIT_REPORT[1:]]}")
     for mat in a.material:
-        p, n, mins = emit("spiral_run_300x290", [h for h, _ in B["holes"]], [B["cut"]], mat,
-                          "spiral_run v3 -- marbles/clock/spiral_run.py: ONE spiral cut on 300 x 300 stock (no outline cut)",
-                          [f"pitch {a.pitch:g}, {B['laps']:.2f} laps; {B['length'] / 1000:.2f} m of cut; the cut stops, the centre is solid",
-                           "X0 Y0 = the stock's corner, the MOUNT edge toward the front (Y0); in use that edge is the top",
-                           "centre: exit bore 23.1 (enclosed) + the centre guide's M5 holes (they also hold the exit flange underneath)"],
-                          a.out)
-        print(f"{p.name}: {n} cuts, ~{mins:.0f} min")
-        g = B["guide"]
-        x0, y0, x1, y1 = g.bounds
-        cuts = [list(r.coords) for r in g.interiors] + [list(Point(b).buffer(M5 / 2, 48).exterior.coords) for b in B["bolts"]]
-        p, n, mins = emit(gcode.name("spiral_centre_guide", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
-                          cuts, [], mat,
-                          "spiral_centre_guide -- marbles/clock/spiral_run.py: the separate centre piece (cut 1 per layer)",
-                          [f"lies on the sheet's solid centre, inside the last lap; its channel takes the ball off the last shelf "
-                           f"and curls {B['curl']} deg into the exit bore (tightest turn r {B['rmin']:.0f})",
-                           "same M5 pattern as the sheet's centre holes: guide + sheet (+ exit flange) bolt together",
-                           "a 2nd copy stacked on top = the spacer layer (a taller wall)"],
-                          a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(g.exterior.coords))
-        print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
-        eg = B["entry_guide"]
-        x0, y0, x1, y1 = eg.bounds
-        p, n, mins = emit(gcode.name("spiral_entry_guide", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
-                          [list(r.coords) for r in eg.interiors], [], mat,
-                          "spiral_entry_guide -- marbles/clock/spiral_run.py: wall over the first lap until it has dropped",
-                          [f"lies ~10 above the sheet (spacers, e.g. 2 M5 nuts = 8) on the sheet's {len(B['entry_m5'])} entry-guide M5;"
-                           f" inner edge over the first lap's cut for {ENTRY_SPAN:g} deg from where the cut leaves the edge beam"],
-                          a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(eg.exterior.coords))
-        print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
-        for phi, (arm, steps, m5) in B["arms"].items():
-            ag = affinity.translate(arm, 0, -B["z_floor"])
-            x0, y0, x1, y1 = ag.bounds
-            p, n, mins = emit(gcode.name(f"spiral_stair_{phi}", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
-                              [list(r.coords) for r in ag.interiors], [], mat,
-                              f"spiral_stair_{phi} -- marbles/clock/spiral_run.py: stair arm under the spiral at {phi} deg",
-                              [f"stands on edge along the ray at {phi} deg from the spiral centre, inner end {ARM_S0:g} out; "
-                               f"steps {DROP_REV:g} per lap (at this angle: " + ", ".join(f"{-z:.1f}" for _, _, z in sorted(steps, key=lambda q: -q[1])) + " below the frame)",
-                               f"M5 row 10 above the bottom edge into a 2020; the frame-level step is {-B['z_floor']:.1f} above the bottom edge"],
-                              a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(ag.exterior.coords))
+        if "sheet" in a.parts:
+            p, n, mins = emit(sheet_name, [h for h, _ in B["holes"]], [B["cut"]], mat,
+                              f"spiral_run v3 -- marbles/clock/spiral_run.py: ONE spiral cut on {STOCK:g} x {STOCK_H:g} stock (no outline cut)"
+                              + (f"; round, {ENTRY_RUN:g} mm entry run left of it" if a.round else ""),
+                              [f"pitch {a.pitch:g}, {B['laps']:.2f} laps; {B['length'] / 1000:.2f} m of cut; the cut stops, the centre is solid",
+                               "X0 Y0 = the stock's corner, the MOUNT edge toward the front (Y0); in use that edge is the top",
+                               "centre: exit bore 23.1 (enclosed) + the centre guide's M5 holes (they also hold the exit flange underneath)"],
+                              a.out)
+            print(f"{p.name}: {n} cuts, ~{mins:.0f} min")
+        if "centre" in a.parts:
+            g = B["guide"]
+            x0, y0, x1, y1 = g.bounds
+            cuts = [list(r.coords) for r in g.interiors] + [list(Point(b).buffer(M5 / 2, 48).exterior.coords) for b in B["bolts"]]
+            p, n, mins = emit(gcode.name("spiral_centre_guide", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
+                              cuts, [], mat,
+                              "spiral_centre_guide -- marbles/clock/spiral_run.py: the separate centre piece (cut 1 per layer)",
+                              [f"lies on the sheet's solid centre, inside the last lap; its channel takes the ball off the last shelf "
+                               f"and curls {B['curl']} deg into the exit bore (tightest turn r {B['rmin']:.0f})",
+                               "same M5 pattern as the sheet's centre holes: guide + sheet (+ exit flange) bolt together",
+                               "a 2nd copy stacked on top = the spacer layer (a taller wall)"],
+                              a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(g.exterior.coords))
             print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
-        g2 = fl.buffer(0)
-        x0, y0 = g2.bounds[0], g2.bounds[1]
-        p, n, mins = emit(gcode.name("spiral_entry_flange", g2.bounds[2] - x0 + 0.1, g2.bounds[3] - y0 + 0.1, mat).rsplit("_", 1)[0],
-                          [list(r.coords) for r in g2.interiors], [], mat,
-                          "spiral_entry_flange -- marbles/clock/spiral_run.py: cropped wire-track flange, bottom edge on the sheet",
-                          [f"bore centre {v0:.2f} above the bottom edge; lower wires at +-{alpha:g} deg below horizontal: a ball on them is at shelf level",
-                           "all notches and stitch holes closed; bolts to the side of a 2020 post (M5 at u -20)"],
-                          a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(g2.exterior.coords))
-        print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
-        ex = B["exit"]
-        p, n, mins = emit(gcode.name("spiral_exit_flange", 2 * FLANGE_HALF + 0.1, 2 * FLANGE_HALF + 0.1, mat).rsplit("_", 1)[0],
-                          [list(r.coords) for r in ex.interiors], [], mat,
-                          "spiral_exit_flange -- marbles/clock/spiral_run.py: wire-track flange under the exit bore",
-                          ["bore / notches / stitch holes as the standard flange; M5 = the centre guide bolts that land on it"],
-                          a.out, shift=(FLANGE_HALF + 0.05, FLANGE_HALF + 0.05), outline=Polygon(ex.exterior.coords))
-        print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
+        if "entry_guide" in a.parts:
+            eg = B["entry_guide"]
+            x0, y0, x1, y1 = eg.bounds
+            p, n, mins = emit(gcode.name("spiral_entry_guide", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
+                              [list(r.coords) for r in eg.interiors], [], mat,
+                              "spiral_entry_guide -- marbles/clock/spiral_run.py: wall over the first lap until it has dropped",
+                              [f"lies ~10 above the sheet (spacers, e.g. 2 M5 nuts = 8) on the sheet's {len(B['entry_m5'])} entry-guide M5;"
+                               f" inner edge over the first lap's cut for {ENTRY_SPAN:g} deg from where the cut leaves the edge beam"],
+                              a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(eg.exterior.coords))
+            print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
+        if "stairs" in a.parts:
+            for phi, (arm, steps, m5) in B["arms"].items():
+                ag = affinity.translate(arm, 0, -B["z_floor"])
+                x0, y0, x1, y1 = ag.bounds
+                p, n, mins = emit(gcode.name(f"spiral_stair_{phi}", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
+                                  [list(r.coords) for r in ag.interiors], [], mat,
+                                  f"spiral_stair_{phi} -- marbles/clock/spiral_run.py: stair arm under the spiral at {phi} deg",
+                                  [f"stands on edge along the ray at {phi} deg from the spiral centre, inner end {ARM_S0:g} out; "
+                                   f"steps {DROP_REV:g} per lap (at this angle: " + ", ".join(f"{-z:.1f}" for _, _, z in sorted(steps, key=lambda q: -q[1])) + " below the frame)",
+                                   f"M5 row 10 above the bottom edge into a 2020; the frame-level step is {-B['z_floor']:.1f} above the bottom edge"],
+                                  a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(ag.exterior.coords))
+                print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
+        if "entry_flange" in a.parts:
+            g2 = fl.buffer(0)
+            x0, y0 = g2.bounds[0], g2.bounds[1]
+            p, n, mins = emit(gcode.name("spiral_entry_flange", g2.bounds[2] - x0 + 0.1, g2.bounds[3] - y0 + 0.1, mat).rsplit("_", 1)[0],
+                              [list(r.coords) for r in g2.interiors], [], mat,
+                              "spiral_entry_flange -- marbles/clock/spiral_run.py: cropped wire-track flange, bottom edge on the sheet",
+                              [f"bore centre {v0:.2f} above the bottom edge; lower wires at +-{alpha:g} deg below horizontal: a ball on them is at shelf level",
+                               "all notches and stitch holes closed; bolts to the side of a 2020 post (M5 at u -20)"],
+                              a.out, shift=(-x0 + 0.05, -y0 + 0.05), outline=Polygon(g2.exterior.coords))
+            print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
+        if "exit_flange" in a.parts:
+            ex = B["exit"]
+            p, n, mins = emit(gcode.name("spiral_exit_flange", 2 * FLANGE_HALF + 0.1, 2 * FLANGE_HALF + 0.1, mat).rsplit("_", 1)[0],
+                              [list(r.coords) for r in ex.interiors], [], mat,
+                              "spiral_exit_flange -- marbles/clock/spiral_run.py: wire-track flange under the exit bore",
+                              ["bore / notches / stitch holes as the standard flange; M5 = the centre guide bolts that land on it"],
+                              a.out, shift=(FLANGE_HALF + 0.05, FLANGE_HALF + 0.05), outline=Polygon(ex.exterior.coords))
+            print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
 
 
 if __name__ == "__main__":
