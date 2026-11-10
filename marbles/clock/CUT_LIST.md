@@ -46,7 +46,12 @@ the new batch).
   supports.
 - [ ] **Acrylic spiral, round**, with a 20 mm entry run on its left (from a 400 × 300 black sheet). All `acrylic3`, F150 × 1;
       drawing `spiral_run_round.png`:
-  - `spiral_run_round_296x290_acrylic3` × 1 (about 30 min),
+  - Layered and screwed version (the ball rolls on the acrylic top; 119 M3 spots, 3 mm in from each step, every 35 mm):
+    - `spiral_run_round_pilot_296x290_acrylic3` × 1 (top): 2.5 mm pilot holes, tap M3 by hand. About 36 min.
+    - `spiral_run_round_slot_296x290_ply3` × 1 or 2 (below): 3.3 × 6.3 mm slots along the lap. About 18 min each.
+    - Screws go in from underneath. Length = ply layers + 2–2.7 mm into the acrylic:
+      1 ply → M3 × 5, 2 ply → M3 × 8.
+  - Plain single-sheet version: `spiral_run_round_296x290_acrylic3` × 1 (about 30 min),
   - `spiral_centre_guide_99x105_acrylic3` × 1 (or × 2),
   - `spiral_entry_guide_150x285_acrylic3` × 1,
   - `spiral_exit_flange_54x54_acrylic3` × 1.

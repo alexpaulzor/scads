@@ -311,6 +311,10 @@ def entry_guide(cut, cut_t):
     return g, [(q.x, q.y) for q in picked]
 
 
+SCREW_IN = 3.0          # layer screws: centred this far in from the step (each lap's outer cut), toward the centre
+SCREW_STEP = 35.0       # ... every this far along the lap
+PILOT_D = 2.5           # M3 tap drill (tapped top layer)
+SLOT_W, SLOT_TRAVEL = 3.3, 3.0   # clearance slots in the other layers, along the lap: 3.3 wide, 3 of travel (6.3 long)
 RELIEF_D = 3.0          # stress-relief hole at each end of the spiral cut: the strips flex, a slit's sharp end would crack
 
 
@@ -324,6 +328,33 @@ def holes(cut, bolts, extra=()):
     out += [(list(Point(p).buffer(M5 / 2, 48).exterior.coords), "mount M5") for p in mount]
     out += [(list(Point(p).buffer(M5 / 2, 48).exterior.coords), "entry guide M5") for p in extra]
     return out, mount
+
+
+def screw_points(cut, avoid):
+    """(point, tangent) for the layer screws: along the cut every SCREW_STEP, SCREW_IN in from it on the inner side
+    (the lap whose outer edge this cut is), skipping spots within 4 mm (edge to edge) of the other holes / cut ends"""
+    line = LineString(cut)
+    out, s_ = [], SCREW_STEP / 2
+    while s_ < line.length - SCREW_STEP / 2:
+        p0, p1 = line.interpolate(s_ - 0.5), line.interpolate(s_ + 0.5)
+        tx, ty = p1.x - p0.x, p1.y - p0.y
+        d = math.hypot(tx, ty)
+        tx, ty = tx / d, ty / d
+        c = line.interpolate(s_)
+        q = Point(c.x - ty * SCREW_IN, c.y + tx * SCREW_IN)            # left of travel (CCW) = toward the centre
+        if all(q.distance(Polygon(h)) > 4 + SLOT_W / 2 + SLOT_TRAVEL / 2 for h in avoid):
+            out.append(((q.x, q.y), (tx, ty)))
+        s_ += SCREW_STEP
+    return out
+
+
+def screw_cuts(pts, kind):
+    """closed outlines: kind 'pilot' (tap-drill holes) or 'slot' (clearance slots along the lap)"""
+    if kind == "pilot":
+        return [list(Point(p).buffer(PILOT_D / 2, 24).exterior.coords) for p, _ in pts]
+    h = SLOT_TRAVEL / 2
+    return [list(LineString([(p[0] - t[0] * h, p[1] - t[1] * h), (p[0] + t[0] * h, p[1] + t[1] * h)]).buffer(SLOT_W / 2, 16).exterior.coords)
+            for p, t in pts]
 
 
 EXIT_REPORT = []
@@ -427,12 +458,19 @@ def main():
     ap.add_argument("--pitch", type=float, default=PITCH)
     ap.add_argument("--round", action="store_true", help="circular spiral (290 across) + an entry run beside it")
     ap.add_argument("--entry-run", type=float, default=20.0, help="with --round: extra flat sheet left of the spiral, mm")
+    ap.add_argument("--screws", choices=["none", "pilot", "slot"], default="none",
+                    help="layer screws on the sheet: pilot = M3 tap holes (tapped top layer), slot = clearance slots (layers below)")
     ap.add_argument("--parts", nargs="+", default=["sheet", "centre", "entry_guide", "stairs", "entry_flange", "exit_flange"])
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
     configure(a.round, a.entry_run)
     B = build(a.pitch)
-    sheet_name = gcode.name("spiral_run" + ("_round" if a.round else ""), STOCK, Y_HI, "x").rsplit("_", 1)[0]
+    sheet_name = gcode.name("spiral_run" + ("_round" if a.round else "") + ("" if a.screws == "none" else "_" + a.screws),
+                            STOCK, Y_HI, "x").rsplit("_", 1)[0]
+    screw_pts = screw_points(B["cut"], [h for h, _ in B["holes"]]) if a.screws != "none" else []
+    sheet_holes = [h for h, _ in B["holes"]] + (screw_cuts(screw_pts, a.screws) if screw_pts else [])
+    if screw_pts:
+        print(f"layer screws: {len(screw_pts)} x {a.screws}, {SCREW_IN:g} in from the step, every {SCREW_STEP:g} along each lap")
     fl, fl_bolts, v0, alpha, fl_rep = entry_flange()
     print(f"spiral: {B['laps']:.2f} laps, {B['length'] / 1000:.2f} m of cut; centre guide: hold {B['hold']} deg on the last "
           f"lap, curl {B['curl']} deg into the bore, tightest turn r {B['rmin']:.1f} (ball centre); {len(B['bolts'])} guide M5, "
@@ -442,7 +480,7 @@ def main():
     print(f"exit flange: pattern turned {EXIT_REPORT[0]} deg; notches/stitch {[(round(a, 1), r) for a, r in EXIT_REPORT[1:]]}")
     for mat in a.material:
         if "sheet" in a.parts:
-            p, n, mins = emit(sheet_name, [h for h, _ in B["holes"]], [B["cut"]], mat,
+            p, n, mins = emit(sheet_name, sheet_holes, [B["cut"]], mat,
                               f"spiral_run v3 -- marbles/clock/spiral_run.py: ONE spiral cut on {STOCK:g} x {STOCK_H:g} stock (no outline cut)"
                               + (f"; round, {ENTRY_RUN:g} mm entry run left of it" if a.round else ""),
                               [f"pitch {a.pitch:g}, {B['laps']:.2f} laps; {B['length'] / 1000:.2f} m of cut; the cut stops, the centre is solid",
