@@ -312,7 +312,7 @@ def entry_guide(cut, cut_t):
 
 
 SCREW_IN = 3.0          # layer screws: centred this far in from the step (each lap's outer cut), toward the centre
-SCREW_STEP = 35.0       # ... every this far along the lap
+SCREW_STEP = 100.0      # ... every this far along the lap (~8-9 on the outer lap, ~3-4 on the inner)
 PILOT_D = 2.5           # M3 tap drill (tapped top layer)
 SLOT_W, SLOT_TRAVEL = 3.3, 3.0   # clearance slots in the other layers, along the lap: 3.3 wide, 3 of travel (6.3 long)
 RELIEF_D = 3.0          # stress-relief hole at each end of the spiral cut: the strips flex, a slit's sharp end would crack
