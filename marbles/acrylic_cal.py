@@ -4,8 +4,9 @@ for 3 mm black acrylic on the 10 W diode, shifted so the plate's bottom-left is 
 by quickcut (frame pass, park, validation).
 
 5 rings, inner slow -> outer fast (feed = perimeter / loop time), each split into 4 sectors cut 1..4 times. Read which
-(feed x passes) sectors dropped out cleanly; labels are etched. Range chosen from published starting points for 10 W
-diodes on 3 mm black acrylic: 100 % power, roughly 150-250 mm/min, 2-4 passes.
+(feed x passes) sectors dropped out cleanly; labels are etched. Range brackets the published 10 W figures for 3 mm black acrylic
+(xTool: 180 mm/min x 2; D1 Pro guide: 200 mm/min x 2-3; a LightBurn user: 200 mm/min x 2; sources in cnc_vibes'
+material_profiles/laser_materials.yaml, acrylic3).
 
     python3 marbles/acrylic_cal.py          # -> marbles/gcode/acrylic_cal_<W>x<H>_acrylic3.gcode
 """
