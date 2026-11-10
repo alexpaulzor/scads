@@ -145,3 +145,5 @@ Saved mid-stream; nothing here is tested yet. Alex has notes and ideas still to 
 - **P207 lamination (2026-11-09):** plan: 3 spiral sheets glued in shape. `spiral_form.py` = the glue-up form: 24
   small hollow stair holders (8 rays x 3, each 3 identical mdf3 layers glued), on 2 sheets; per-ray heights printed
   and in `spiral_form.png`. Untested.
+
+- **Cut list (2026-11-10):** designed-but-uncut parts are tracked in `CUT_LIST.md` (tick them off as you cut).
