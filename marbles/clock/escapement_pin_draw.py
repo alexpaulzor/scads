@@ -22,7 +22,8 @@ def draw(ax, g, c, a=1.0, ls="-"):
             ax.plot(*r.xy, ls, color="k", lw=.6)
 
 
-body, eb, xb, (e, x) = E.anchor()
+hub, (eb, _ebi), (xb, _xbi), (e, x) = E.anchor()
+arms = unary_union([E.ANCHOR_INFO["entry"][2], E.ANCHOR_INFO["exit"][2], E.ANCHOR_INFO["tail"]])
 pal = unary_union([e, x])
 th, phi = E.AMP, 0.0
 while E.pins(phi).intersection(affinity.rotate(pal, th, origin=(0, 0))).area < 1e-4 and phi < 12:
@@ -41,15 +42,19 @@ for k in range(E.N):
     ax.add_patch(plt.Circle(E.polar(E.R, 90 - k * E.PITCH - phi, E.W), E.PR, color="dimgray", zorder=4))
 for t, c in ((-12, "tab:red"), (12, "tab:red")):
     draw(ax, affinity.rotate(unary_union([eb, xb]), t, origin=(0, 0)), c, .12, "--")
-draw(ax, affinity.rotate(body, th, origin=(0, 0)), "peru", .95)
+draw(ax, affinity.rotate(arms, th, origin=(0, 0)), "silver", .95)
+draw(ax, affinity.rotate(hub, th, origin=(0, 0)), "peru", .8)
+for bx in E.ANCHOR_INFO["entry"][5] + E.ANCHOR_INFO["exit"][5]:
+    q = affinity.rotate(LineString([bx, bx]).buffer(2.5), th, origin=(0, 0))
+    draw(ax, q, "k", 1)
 draw(ax, affinity.rotate(eb, th, origin=(0, 0)), "#222", .9)
 draw(ax, affinity.rotate(xb, th, origin=(0, 0)), "#222", .9)
 ax.add_patch(plt.Circle((0, 0), 4, color="k"))
 ax.set_aspect("equal")
 ax.grid(alpha=.25)
-ax.set_title(f"Front view, front ring see-through: rings {2 * E.RING_R:g} across, {E.N} M3 pins on r{E.R:g}; pallets at +{th:g} deg "
-             f"(red ghosts: +-12 deg),\nworking tips stay >= {E.tip_margin():.0f} mm inside the rings; 2020 spokes "
-             f"{E.HUB_A:g}..{reach:.0f} from the centre (4 needed solid, 4 optional dashed)", fontsize=9)
+ax.set_title(f"Front view, front ring see-through: rings {2 * E.RING_R:g} across, {E.N} M3 pins on r{E.R:g}; anchor (2020 arms, hub plates, "
+             f"acrylic pallet brackets on the arms' side faces)\nat +{th:g} deg (red ghosts: +-12 deg); tips stay {E.tip_margin():.0f} mm inside the rings; "
+             f"wheel 2020 spokes {E.HUB_A:g}..{reach:.0f}", fontsize=9)
 ax2 = fig.add_subplot(1, 2, 2)
 T = 2.63
 for y0 in (0, T + E.GAP):

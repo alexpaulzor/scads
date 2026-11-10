@@ -35,30 +35,39 @@ sys.path.insert(0, str(HERE.parent))
 from laser_parts import gcode  # noqa: E402
 
 N = 30                 # pins: 1 rev/min on a seconds pendulum
-R = 110.0              # pin-centre radius: in from the rim, so the pallet tips stay >= 9 inside the rings even at +-12 deg
+R = 100.0              # pin-centre radius: in from the rim, so the pallet tips stay ~9 inside the rings even at +-12 deg
 PIN_D = 3.0            # pins = M3 screws spanning the two wheel rings (nut + washers), the pallets work on the shank
 PIN_HOLE = 3.3         # M3 clearance in the rings
-SPAN = 7.5             # anchor spans 7.5 pins (90 deg): the classic Graham proportion
+SPAN = 9.5             # anchor spans 9.5 pins (114 deg): drops its axle far enough below the wheel that the hub
+                       # (2 plates round a stack of 608s, wider than the gap) clears the rings
 LIFT = 3.0             # anchor degrees during impulse
 DROP = 1.5             # free wheel degrees per beat after impulse
 KAPPA = 1.0            # lock depth (anchor degrees) a pallet already has when the other drops
-AMP = 8.0              # design swing, deg each side (the check also runs smaller and larger)
-ARM_W = 16.0           # anchor arm width (soft wood: wide)
+AMP = 12.0             # design swing, deg each side (the check also runs smaller and larger)
+ARM_W = 20.0           # anchor arms = 2020 beams between the 2 hub plates
+ARM_IN = 13.0          # arm beams start this far from the anchor axle (clear of the 608 stack)
+HUB_PLATE_R = 22.0     # anchor hub plate radius round the axle (11 of wood round the 608)
+HUB_ARM = 35.0         # the hub plates run this far along each beam (M5 at 19 and 29): short, to clear the rings
+TAIL_A = 270.0         # the third beam (the pendulum, or a stub to it) points straight down
 RING_R = 144.5         # ring outer radius: 289 across, the most a 292 sheet takes in one piece
 RIM = RING_R - R - 1.5  # ring wood outside the pin circle (for a 3 mm pin)
 RIM_IN = 12.0          # rim band inside the pin circle
 SPOKES = 8            # wood spokes over the 2020 beam spokes (4 at 0/90/180/270; the 45s are optional beams)
 SPOKE_W = 20.0         # = the 2020
-GAP = 20.0             # the two rings sit on opposite faces of the 2020 spokes: the anchor works in this gap
+GAP = 20.0             # the rings sit on opposite faces of the 2020 spokes; at the pins, M3 nuts flare them a little
+                       # wider so the anchor's 2020 arms pass between without binding
 BRG_D = 22.0           # 608 skate bearing seat (one in each ring, on a fixed 8 mm axle)
 HUB_A = 25.0           # hub = octagon, flats this far from the centre: every 2020 spoke (8 x 20 wide) butts a flat
 SPOKE_M5 = None        # M5 into T-nuts along each spoke: spread over the beam's length (set from beam_reach())
 ARBOR_D = 8.1          # 8 mm anchor arbor
-PAL_BOLT = 3.2         # M3 pallet bolts
-PAL_ADJ = 3.0          # pallet slot length (radial adjustment)
+PAL_LAYERS = 5         # pallet bracket: 5 acrylic layers (15 thick, on the gap's centre plane): 2 solid outer, 3 inner
+                       # with the bolt channels
+PAL_PAD_W = 22.0       # bracket pad: how far it stands off the arm's side face
+PAL_WALL = 5.0         # wood between the bolt head and the arm's face
 SHEET = (300.0, 292.0)
 
 PITCH = 360.0 / N
+BETA = SPAN * PITCH / 2                                # the pallets sit at anchor angles BETA and 180 - BETA
 D = R / math.cos(math.radians(SPAN * PITCH / 2))       # anchor arbor to wheel centre
 W = (0.0, D)
 R0 = math.sqrt(D * D - R * R)                          # anchor arbor to the tangent points (pallet radius)
@@ -89,52 +98,103 @@ def pallets(amp=AMP):
     away; locking face = its inner arc."""
     h, k = LIFT / 2, KAPPA / 2
     ro, ri = R0 + WI / 2, R0 - WI / 2
-    a_tip = 45 - h + k
-    a_sh = 45 - amp - 6.0
+    a_tip = BETA - h + k
+    a_sh = BETA - amp - 6.0
     entry = arc(ro, a_sh, a_tip) + [polar(ri, a_tip + LIFT)] + arc(ri, a_tip + LIFT, a_sh)
-    b_tip = 135 + h - k
-    b_sh = 135 + amp + 6.0
+    b_tip = 180 - BETA + h - k
+    b_sh = 180 - BETA + amp + 6.0
     exitp = arc(ri, b_sh, b_tip) + [polar(ro, b_tip - LIFT)] + arc(ro, b_tip - LIFT, b_sh)
     e = Polygon(entry).buffer(0).buffer(-PR, join_style=1)
     x = Polygon(exitp).buffer(0).buffer(-PR, join_style=1)
     return e, x, a_sh, b_sh
 
 
-def pallet_block(pal, a_end, side):
-    """a pallet block: the working shape plus a tail running back along the arm with 2 radial slots"""
-    tail_a = a_end - side * 7.0                          # tail extends away from the wheel along the circle
-    tail = Polygon(arc(R0 + 8, a_end + side * 1.0, tail_a) + arc(R0 - 8, tail_a, a_end + side * 1.0))
-    g = unary_union([pal, tail]).buffer(1.0).buffer(-1.0)
-    slots, centres = [], []
-    for da in (2.0, 5.5):
-        a = a_end - side * da
-        c0, c1 = polar(R0 - PAL_ADJ / 2, a), polar(R0 + PAL_ADJ / 2, a)
-        slots.append(LineString([c0, c1]).buffer(PAL_BOLT / 2, 24))
-        centres.append(polar(R0, a))
-    return g.difference(unary_union(slots)), centres
+ANCHOR_INFO = {}
 
 
-def anchor(amp=AMP):
-    """(anchor body, entry block, exit block): the body = hub + 2 wide arms ending under the pallet blocks' tails,
-    with M3 holes at the slot centres; a crutch tail down to the pendulum"""
+def pin_ring():
+    return Point(W).buffer(R + PR + 0.5, 256).difference(Point(W).buffer(R - PR - 0.5, 256))
+
+
+def arm_beam(a, r_end):
+    return LineString([polar(ARM_IN, a), polar(r_end, a)]).buffer(ARM_W / 2, cap_style=2)
+
+
+def frame(a_beam, side):
+    """unit vectors along the arm and across it, toward the pallet's side"""
+    u = (math.cos(math.radians(a_beam)), math.sin(math.radians(a_beam)))
+    n = (-side * u[1], side * u[0])
+    return u, n
+
+
+def at(u, n, s_, t):
+    return (u[0] * s_ + n[0] * t, u[1] * s_ + n[1] * t)
+
+
+def pallet_bracket(pal, a_beam, r_end, a_sh, side):
+    """a pallet BRACKET off the arm's side face (the face toward the pallet): a pad standing PAL_PAD_W off the face,
+    a web, and the working pallet, all on the gap's centre plane. Two M5 bolts run across the pad, through channels
+    in the inner layers, into T-nuts in the arm's side slot: slide the bracket along the arm to set the lock depth.
+    Returns (outer layer, inner layer, bolt points on the arm's face)."""
+    u, n = frame(a_beam, side)
+    s1, s2 = r_end - 40, r_end
+    pad = Polygon([at(u, n, s1, 10), at(u, n, s2, 10), at(u, n, s2, 10 + PAL_PAD_W), at(u, n, s1, 10 + PAL_PAD_W)])
+    start = pal.intersection(Polygon([(0, 0), polar(400, a_sh), polar(400, a_sh + side * 3.0)]))
+    strip = Polygon([at(u, n, s2 - 12, 10), at(u, n, s2, 10), at(u, n, s2, 10 + PAL_PAD_W), at(u, n, s2 - 12, 10 + PAL_PAD_W)])
+    web = unary_union([strip, start]).convex_hull
+    outer = unary_union([pad, web, pal]).buffer(1.0).buffer(-1.0)
+    chans, bolts = [], []
+    for sc in (s1 + 7, s1 + 21):
+        shank = Polygon([at(u, n, sc - 2.65, 9), at(u, n, sc + 2.65, 9), at(u, n, sc + 2.65, 10 + PAL_WALL), at(u, n, sc - 2.65, 10 + PAL_WALL)])
+        head = Polygon([at(u, n, sc - 4.6, 10 + PAL_WALL), at(u, n, sc + 4.6, 10 + PAL_WALL),
+                        at(u, n, sc + 4.6, 11 + PAL_PAD_W), at(u, n, sc - 4.6, 11 + PAL_PAD_W)])
+        chans += [shank, head]
+        bolts.append(at(u, n, sc, 10))
+    inner = outer.difference(unary_union(chans))
+    return outer, inner, bolts
+
+
+def anchor(amp=AMP, amp_max=12.0):
+    """(hub plate, entry bracket (outer, inner), exit bracket (outer, inner), (entry, exit working shapes)).
+    The anchor is 2 identical HUB PLATES sandwiching three 2020 beams (two arms up to the pallets, one down to the
+    pendulum) round a stack of 608s on the fixed axle. The arms pass through the wheel's gap; a pallet bracket hangs
+    off each arm's side face. The arm angles are the nearest to the pallets that keep the beams and brackets (all
+    but the working faces) out of the pins' path over a +-amp_max swing."""
     e, x, a_sh, b_sh = pallets(amp)
-    eb, ec = pallet_block(e, a_sh, +1)
-    xb, xc = pallet_block(x, b_sh, -1)
-    arm_e = LineString([(0, 0), polar(R0, a_sh - 6.0)]).buffer(ARM_W / 2, cap_style=1)
-    arm_x = LineString([(0, 0), polar(R0, b_sh + 6.0)]).buffer(ARM_W / 2, cap_style=1)
-    pad_e = Polygon(arc(R0 + 8, a_sh - 1.0, a_sh - 8.5) + arc(R0 - 8, a_sh - 8.5, a_sh - 1.0))
-    pad_x = Polygon(arc(R0 + 8, b_sh + 1.0, b_sh + 8.5) + arc(R0 - 8, b_sh + 8.5, b_sh + 1.0))
-    hub = Point(0, 0).buffer(20, 64)
-    tail = box(-9, -70, 9, 0)
-    body = unary_union([arm_e, arm_x, pad_e, pad_x, hub, tail]).buffer(2).buffer(-2)
-    holes = [Point(0, 0).buffer(ARBOR_D / 2, 48)] + [Point(c).buffer(PAL_BOLT / 2, 24) for c in ec + xc]
-    holes += [Point(0, y).buffer(2.6, 24) for y in (-45, -60)]           # crutch / pendulum bolts
-    body = body.difference(unary_union(holes))
-    # window the arms (lighter, and you can see through them)
-    for a in (a_sh - 6.0, b_sh + 6.0):
-        win = LineString([polar(32, a), polar(R0 - 22, a)]).buffer(ARM_W / 2 - 5, cap_style=1)
-        body = body.difference(win)
-    return body, eb, xb, (e, x)
+    ring = pin_ring()
+    sweep = [amp_max * (i / 8 - 1) for i in range(17)]
+    out = {}
+    for name, pal, a0, side in (("entry", e, a_sh, +1), ("exit", x, b_sh, -1)):
+        r_end = R0 - WI / 2 + PR - 1.0                       # the beam stops just inside the pallet's inner face
+        for k in range(120):
+            a_b = a0 - side * 0.5 * k
+            beam = arm_beam(a_b, r_end)
+            outer, inner, bolts = pallet_bracket(pal, a_b, r_end, a0, side)
+            nonwork = unary_union([beam, outer.difference(pal.buffer(0.3))])
+            if all(affinity.rotate(nonwork, th, origin=(0, 0)).intersection(ring).area < 1e-3 for th in sweep):
+                out[name] = (a_b, r_end, beam, outer, inner, bolts)
+                break
+    a_be, a_bx = out["entry"][0], out["exit"][0]
+    hub = unary_union([Point(0, 0).buffer(HUB_PLATE_R, 64)] +
+                      [LineString([(0, 0), polar(HUB_ARM, a)]).buffer(ARM_W / 2 + 3, cap_style=1) for a in (a_be, a_bx, TAIL_A)])
+    hub = hub.buffer(4).buffer(-4)
+    holes = [Point(0, 0).buffer(BRG_D / 2, 64)] + [Point(polar(r, a)).buffer(2.5, 32) for a in (a_be, a_bx, TAIL_A) for r in (19, 29)]
+    hub = hub.difference(unary_union(holes))
+    ANCHOR_INFO.update(out, tail=arm_beam(TAIL_A, 90.0))
+    return hub, out["entry"][3:5], out["exit"][3:5], (e, x)
+
+
+def anchor_parts():
+    """everything of the anchor that sits in the wheel's gap (for clearance checks and drawings)"""
+    anchor()
+    return unary_union([ANCHOR_INFO["entry"][2], ANCHOR_INFO["exit"][2], ANCHOR_INFO["entry"][3], ANCHOR_INFO["exit"][3]])
+
+
+def hub_ring_clearance(amp_max=12.0):
+    """how far the anchor hub plates (outside the gap) stay from the rings' edge over the swing"""
+    hub = anchor()[0]
+    disc = Point(W).buffer(RING_R, 256)
+    return min(affinity.rotate(hub, th, origin=(0, 0)).distance(disc) for th in [amp_max * (i / 6 - 1) for i in range(13)])
 
 
 def wheel():
@@ -152,11 +212,12 @@ def wheel():
 
 
 def spoke_m5():
-    """3 M5 per spoke, from 12 past the hub flat to 12 short of the beam's end"""
+    """M5 per spoke, 8 in from each end of the beam (a third one in the middle if the beam is long enough)"""
     global SPOKE_M5
     if SPOKE_M5 is None:
-        a, b = HUB_A + 12, beam_reach() - 3 - 12
-        SPOKE_M5 = tuple(round(a + (b - a) * i / 2, 1) for i in range(3))
+        a, b = HUB_A + 8, beam_reach() - 3 - 8
+        n = 3 if b - a >= 36 else 2
+        SPOKE_M5 = tuple(round(a + (b - a) * i / (n - 1), 1) for i in range(n))
     return SPOKE_M5
 
 
@@ -165,7 +226,7 @@ def tip_margin(amp_max=12.0):
     caught and released) stay over the whole swing. While a pin is locked the contact sits on that pin, at R."""
     h, k = LIFT / 2, KAPPA / 2
     ro, ri = R0 + WI / 2, R0 - WI / 2
-    a_tip, b_tip = 45 - h + k, 135 + h - k
+    a_tip, b_tip = BETA - h + k, 180 - BETA + h - k
     pts = [polar(ro - PR, a_tip), polar(ri - PR, a_tip + LIFT), polar(ri + PR, b_tip), polar(ro + PR, b_tip - LIFT)]
     far = 0.0
     for i in range(25):
@@ -183,8 +244,7 @@ def hub_spacer():
 
 def beam_reach(amp_max=12.0):
     """how far out (from the wheel centre) the 2020 spokes may run: clear of the pallets and the anchor in the gap"""
-    body, eb, xb, _ = anchor()
-    parts = unary_union([body, eb, xb])
+    parts = anchor_parts()
     near = min(affinity.rotate(parts, th, origin=(0, 0)).distance(Point(W)) for th in [amp_max * (i / 6 - 1) for i in range(13)])
     return near
 
@@ -193,7 +253,7 @@ def beam_reach(amp_max=12.0):
 def simulate(amp=AMP, cycles=2, steps=240, grow_w=0.0, grow_a=0.0, design_amp=AMP, verbose=True):
     """the pendulum swings amp * cos(pi t) (one beat per unit t); the wheel, driven clockwise, turns until a pin is
     stopped. Reports per beat the wheel's advance and biggest free step (drop), the worst recoil, and runaway."""
-    e, x = anchor(design_amp)[3]
+    e, x = pallets(design_amp)[:2]
     pal = unary_union([e, x]).buffer(grow_a, join_style=2)
     pal_area = pal.area
 
@@ -258,8 +318,10 @@ def emit(name, g, mat, notes, out_dir, copies=1):
     job = gcode.job(mat)
     gk = g.buffer(kerf / 2, join_style=2)
     x0, y0, x1, y1 = gk.bounds
-    cuts = [gcode.Polyline([(x - x0, y - y0) for x, y in r.coords], True) for r in gk.interiors]
-    cuts.append(gcode.Polyline([(x - x0, y - y0) for x, y in gk.exterior.coords], True))
+    cuts = []
+    for pg in getattr(gk, "geoms", [gk]):                  # loose pieces (bracket inner layers) are cut too
+        cuts += [gcode.Polyline([(x - x0, y - y0) for x, y in r.coords], True) for r in pg.interiors]
+        cuts.append(gcode.Polyline([(x - x0, y - y0) for x, y in pg.exterior.coords], True))
     cuts = gcode.order(cuts)
     stem = gcode.name(name, x1 - x0, y1 - y0, mat)
     lines = gcode.preamble(job, title=f"{stem} -- marbles/clock/escapement_pin.py: cut {copies}",
@@ -282,29 +344,36 @@ def main():
     globals().update(PIN_D=a.pin, PR=a.pin / 2)
     report()
     print("kinematic check:")
-    for amp in (LIFT / 2 + KAPPA / 2 + 1.0, 3.0, AMP, AMP + 4.0):
+    for amp in (LIFT / 2 + KAPPA / 2 + 1.0, 8.0, AMP):
         simulate(amp)
     for gw, ga in ((0.15, 0.0), (-0.15, 0.0), (0.0, 0.15), (0.0, -0.15)):
         simulate(AMP, cycles=1, grow_w=gw, grow_a=ga)
     if a.check:
         return
-    body, eb, xb, _ = anchor()
+    hub, eb, xb, _ = anchor()
     reach = beam_reach()
-    corner = 10 / math.tan(math.radians(22.5))          # a 45-degree beam's square end meets its neighbours here
+    ie, ix = ANCHOR_INFO["entry"], ANCHOR_INFO["exit"]
     print(f"rings {2 * RING_R:g} across: the pallets' working tips stay {tip_margin():.1f} inside the rings' edge over a +-12 deg swing; "
           f"ring band outside the pin circle {RING_R - R:.1f}")
-    print(f"2020 spokes: inner end at the hub flat ({HUB_A:g} from the centre), outer end within {reach - 3:.1f} "
-          f"(the anchor comes to {reach:.1f} at a +-12 deg swing): beam length {reach - 3 - HUB_A:.0f}; a 45-deg beam "
-          f"cut square needs its inner end at {corner + 0.5:.1f} if there is no octagon spacer")
+    print(f"wheel spokes (2020): {HUB_A:g} to {reach - 3:.1f} from the centre (the anchor comes to {reach:.1f} at +-12 deg): "
+          f"length {reach - 3 - HUB_A:.0f}; M3 x 30-35 screws as the pins (nuts flare the rings a little at the pins)")
+    print(f"anchor: axle {D:.1f} below the wheel centre; hub plates clear the rings by {hub_ring_clearance():.1f} at +-12 deg; arms (2020) at "
+          f"{ie[0]:.1f} / {ix[0]:.1f} deg, {ARM_IN:g} to {ie[1]:.1f} from the axle = {ie[1] - ARM_IN:.0f} long; tail {TAIL_A:g}; "
+          f"3 x 608 stacked between the plates")
     emit("esc_pin_ring", wheel(), a.wood,
          [f"one of 2 rings: {N} M3 holes on r {R:g}, 608 seat d{BRG_D:g}, 8 spokes 20 wide over the 2020s (M5 at {spoke_m5()})",
-          f"rings on opposite faces of the 2020 spokes, {GAP:g} apart; M3 x {GAP + 2 * 2.63 + 8:.0f}+ screws = the pins"], a.out, 2)
+          f"rings on opposite faces of the 2020 spokes; 3 x 608 stacked at the hub, or the octagon spacer x7"], a.out, 2)
     emit("esc_pin_hub_spacer", hub_spacer(), "mdf3",
-         [f"octagon, flats {HUB_A:g} from the centre, 608 hole d{BRG_D:g}: cut 7 for a {GAP:g} gap (7 x 2.82 = 19.74)"], a.out, 7)
-    emit("esc_pin_anchor", body, a.wood, [f"anchor body, arms span {SPAN:g} pins; 3 layers glued; M3 holes for the pallet blocks"],
-         a.out, 3)
-    emit("esc_pin_pallet_entry", eb, a.pallet_material, ["entry (right) pallet block: radial slots for the lock depth"], a.out)
-    emit("esc_pin_pallet_exit", xb, a.pallet_material, ["exit (left) pallet block: radial slots for the lock depth"], a.out)
+         [f"OPTIONAL octagon round the wheel's bearings, flats {HUB_A:g} from the centre: cut 7, or stack 608s instead"], a.out, 7)
+    emit("esc_pin_anchor_plate", hub, a.wood,
+         [f"anchor hub plate: 608 seat, M5 along the 3 beams (arms {ie[0]:.1f} / {ix[0]:.1f} deg, tail {TAIL_A:g}); cut 2, one each side"], a.out, 2)
+    n_in = PAL_LAYERS - 2
+    for nm, (outer, inner) in (("entry", eb), ("exit", xb)):
+        emit(f"esc_pin_pallet_{nm}_outer", outer, a.pallet_material,
+             [f"{nm} pallet bracket, OUTER layer: cut 2 (the 2 faces of the {PAL_LAYERS}-layer stack)"], a.out, 2)
+        emit(f"esc_pin_pallet_{nm}_inner", inner, a.pallet_material,
+             [f"{nm} pallet bracket, INNER layer (2 M5 bolt channels): cut {n_in}; glue the small loose pieces back in their places"],
+             a.out, n_in)
 
 
 if __name__ == "__main__":
