@@ -15,7 +15,8 @@ the new batch).
   - pallets: 2 × entry, 2 × exit.
   - Not on it: the spiral exit flange (no room) and the entry guide (150 × 285 mm). Cut those from a second sheet,
     or in ply3.
-  - The ply3 layers under this spiral need the matching 287 × 291 slot sheet. **Not generated yet.**
+  - The ply3 layers under this spiral: `spiral_run_round_trim_slot_287x290_ply3`, × 1 or 2. It's the same
+    trimmed 287 × 291 piece with slots instead of tap holes.
 - [ ] **Escapement side plate** `esc_side_plate_290x290_ply3`, cut 2 (one per side): lantern ring + 1 pallet clamp
       (about 9 min each).
   - The rocker hub plate (86 × 80) doesn't fit beside the ring on 300 mm stock: cut `esc_pin_anchor_plate` × 2 from an

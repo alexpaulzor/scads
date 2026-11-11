@@ -478,15 +478,20 @@ def main():
     ap.add_argument("--pitch", type=float, default=PITCH)
     ap.add_argument("--round", action="store_true", help="circular spiral (290 across) + an entry run beside it")
     ap.add_argument("--entry-run", type=float, default=20.0, help="with --round: extra flat sheet left of the spiral, mm")
+    ap.add_argument("--stock-h", type=float, default=300.0, help="stock height (291 = inside the 292 mm Y reach)")
+    ap.add_argument("--trim", action="store_true", help="cut an outline, trimmed to follow the spiral away from the mount edge")
     ap.add_argument("--screws", choices=["none", "pilot", "slot"], default="none",
                     help="layer screws on the sheet: pilot = M3 tap holes (tapped top layer), slot = clearance slots (layers below)")
     ap.add_argument("--parts", nargs="+", default=["sheet", "centre", "entry_guide", "stairs", "entry_flange", "exit_flange"])
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
-    configure(a.round, a.entry_run)
+    configure(a.round, a.entry_run, a.stock_h)
+    global TRIM
+    TRIM = a.trim
     B = build(a.pitch)
-    sheet_name = gcode.name("spiral_run" + ("_round" if a.round else "") + ("" if a.screws == "none" else "_" + a.screws),
-                            STOCK, Y_HI, "x").rsplit("_", 1)[0]
+    sheet_name = gcode.name("spiral_run" + ("_round" if a.round else "") + ("_trim" if a.trim else "")
+                            + ("" if a.screws == "none" else "_" + a.screws),
+                            STOCK, piece_outline().bounds[3] if a.trim else Y_HI, "x").rsplit("_", 1)[0]
     screw_pts = screw_points(B["cut"], [h for h, _ in B["holes"]]) if a.screws != "none" else []
     sheet_holes = [h for h, _ in B["holes"]] + (screw_cuts(screw_pts, a.screws) if screw_pts else [])
     if screw_pts:
@@ -506,7 +511,7 @@ def main():
                               [f"pitch {a.pitch:g}, {B['laps']:.2f} laps; {B['length'] / 1000:.2f} m of cut; the cut stops, the centre is solid",
                                "X0 Y0 = the stock's corner, the MOUNT edge toward the front (Y0); in use that edge is the top",
                                "centre: exit bore 23.1 (enclosed) + the centre guide's M5 holes (they also hold the exit flange underneath)"],
-                              a.out)
+                              a.out, outline=piece_outline() if a.trim else None)
             print(f"{p.name}: {n} cuts, ~{mins:.0f} min")
         if "centre" in a.parts:
             g = B["guide"]
