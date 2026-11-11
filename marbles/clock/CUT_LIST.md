@@ -25,9 +25,9 @@ the new batch).
 
 - [ ] **Lantern wheel faces**: `esc_pin_ring_220x220_ply3`, cut 2. 30 × M3 holes on r100, 608 seat, M5 along the spokes, 8 mm rim outside the pins.
 - [ ] **Lantern hub spacer** (optional, instead of stacking 3 × 608): `esc_pin_hub_spacer_51x51_mdf3`, cut 7.
-- [ ] **Rocker (anchor) face plates**: `esc_pin_anchor_plate_86x80_ply3`, cut 2. 608 seat, M5 for the 3 beams.
-- [ ] **Pallets (entry)**: `esc_pin_pallet_entry_60x55_acrylic3`, cut 2 (2 layers = 6 mm, M3 through the stem).
-- [ ] **Pallets (exit)**: `esc_pin_pallet_exit_57x58_acrylic3`, cut 2.
+- [ ] **Rocker (anchor) face plates**: `esc_pin_anchor_plate_81x83_ply3`, cut 2. 608 seat, M5 for the 3 beams.
+- [ ] **Pallets (entry)**: `esc_pin_pallet_entry_49x40_acrylic3`, cut 2 (2 layers = 6 mm, M3 through the stem).
+- [ ] **Pallets (exit)**: `esc_pin_pallet_exit_47x43_acrylic3`, cut 2.
 - [ ] **Pallet clamps (mount plates)**: `esc_pin_pallet_clamp_55x21_ply3`, cut 2.
 - Hardware, not cut:
   - 2020 wheel spokes, 4 × 38 mm (optionally 4 more at 45°).
