@@ -492,6 +492,7 @@ def main():
     sheet_name = gcode.name("spiral_run" + ("_round" if a.round else "") + ("_trim" if a.trim else "")
                             + ("" if a.screws == "none" else "_" + a.screws),
                             STOCK, piece_outline().bounds[3] if a.trim else Y_HI, "x").rsplit("_", 1)[0]
+    pre = "spiral_round_" if a.round else "spiral_"          # the round spiral's parts differ: keep their files apart
     screw_pts = screw_points(B["cut"], [h for h, _ in B["holes"]]) if a.screws != "none" else []
     sheet_holes = [h for h, _ in B["holes"]] + (screw_cuts(screw_pts, a.screws) if screw_pts else [])
     if screw_pts:
@@ -517,7 +518,7 @@ def main():
             g = B["guide"]
             x0, y0, x1, y1 = g.bounds
             cuts = [list(r.coords) for r in g.interiors] + [list(Point(b).buffer(M5 / 2, 48).exterior.coords) for b in B["bolts"]]
-            p, n, mins = emit(gcode.name("spiral_centre_guide", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
+            p, n, mins = emit(gcode.name(pre + "centre_guide", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
                               cuts, [], mat,
                               "spiral_centre_guide -- marbles/clock/spiral_run.py: the separate centre piece (cut 1 per layer)",
                               [f"lies on the sheet's solid centre, inside the last lap; its channel takes the ball off the last shelf "
@@ -529,7 +530,7 @@ def main():
         if "entry_guide" in a.parts:
             eg = B["entry_guide"]
             x0, y0, x1, y1 = eg.bounds
-            p, n, mins = emit(gcode.name("spiral_entry_guide", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
+            p, n, mins = emit(gcode.name(pre + "entry_guide", x1 - x0 + 0.1, y1 - y0 + 0.1, mat).rsplit("_", 1)[0],
                               [list(r.coords) for r in eg.interiors], [], mat,
                               "spiral_entry_guide -- marbles/clock/spiral_run.py: wall over the first lap until it has dropped",
                               [f"lies ~10 above the sheet (spacers, e.g. 2 M5 nuts = 8) on the sheet's {len(B['entry_m5'])} entry-guide M5;"
@@ -551,7 +552,7 @@ def main():
         if "entry_flange" in a.parts:
             g2 = fl.buffer(0)
             x0, y0 = g2.bounds[0], g2.bounds[1]
-            p, n, mins = emit(gcode.name("spiral_entry_flange", g2.bounds[2] - x0 + 0.1, g2.bounds[3] - y0 + 0.1, mat).rsplit("_", 1)[0],
+            p, n, mins = emit(gcode.name(pre + "entry_flange", g2.bounds[2] - x0 + 0.1, g2.bounds[3] - y0 + 0.1, mat).rsplit("_", 1)[0],
                               [list(r.coords) for r in g2.interiors], [], mat,
                               "spiral_entry_flange -- marbles/clock/spiral_run.py: cropped wire-track flange, bottom edge on the sheet",
                               [f"bore centre {v0:.2f} above the bottom edge; lower wires at +-{alpha:g} deg below horizontal: a ball on them is at shelf level",
@@ -560,7 +561,7 @@ def main():
             print(f"{p.name}: {n} cuts, ~{mins:.1f} min")
         if "exit_flange" in a.parts:
             ex = B["exit"]
-            p, n, mins = emit(gcode.name("spiral_exit_flange", 2 * FLANGE_HALF + 0.1, 2 * FLANGE_HALF + 0.1, mat).rsplit("_", 1)[0],
+            p, n, mins = emit(gcode.name(pre + "exit_flange", 2 * FLANGE_HALF + 0.1, 2 * FLANGE_HALF + 0.1, mat).rsplit("_", 1)[0],
                               [list(r.coords) for r in ex.interiors], [], mat,
                               "spiral_exit_flange -- marbles/clock/spiral_run.py: wire-track flange under the exit bore",
                               ["bore / notches / stitch holes as the standard flange; M5 = the centre guide bolts that land on it"],

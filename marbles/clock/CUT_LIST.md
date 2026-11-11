@@ -13,9 +13,10 @@ the new batch).
         X0 Y0 = its bottom-left (the mount edge). 6.9 laps, 37 × M3 tap holes centred on the shelves, outline trimmed
         at the far corners. With the ring-test corner at the sheet's far corner, it stays clear.
     - Ply3 layers under it: `spiral_run_round_trim_slot_287x291_ply3`, × 1 or 2 (slots at the same 37 spots).
-  - [ ] Spiral centre guide: `spiral_centre_guide_102x108_acrylic3` (× 1, or × 2 for a taller wall).
-  - [ ] Spiral exit flange: `spiral_exit_flange_54x54_acrylic3`.
-  - [ ] Spiral entry guide: `spiral_entry_guide_145x276_acrylic3` (or in ply3).
+  - Spiral extras: ply3 is fine (acrylic versions are there too, `..._acrylic3`):
+    - [ ] centre guide `spiral_round_centre_guide_102x108_ply3` (× 1, or × 2 for a taller wall), ~1.5 min;
+    - [ ] entry guide `spiral_round_entry_guide_145x276_ply3`, ~2.5 min;
+    - [ ] exit flange `spiral_round_exit_flange_54x54_ply3`, ~1 min.
   - [ ] Escapement pallets: `esc_pin_pallet_entry_49x40_acrylic3` × 2 and `esc_pin_pallet_exit_47x43_acrylic3` × 2.
   - [ ] Pallet keepers in acrylic: `esc_pin_pallet_keeper_55x21_acrylic3` × 2.
   - [ ] Ring D-jig acrylic layer: `ring_jig_d_rail_83x57_acrylic3`.
