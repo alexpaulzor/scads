@@ -16,7 +16,7 @@ the new batch).
   - [ ] **Base plate for standoffs** `spiral_base_300x300_ply3` (ply3, the whole 300 × 300 sheet, no outline; about 3 min
         plus etching).
     - The spiral's 37 slots, its M5 holes and the exit bore, plus the 13 M5 holes of the new 20 mm-rim layout.
-    - Riser height etched beside each hole for 15 mm per lap: 15 at the centre up to 119 at the frame.
+    - Riser height etched beside each hole for 15 mm per lap: 0 at the centre (it sits on the plate) up to 104 at the frame.
     - The etch runs at 60 % F3000 (the ply3 recipe's F5000 is over the machine's 3000 cap). That's an estimate; check the
       first label.
   - Spiral extras: ply3 is fine (acrylic versions are there too, `..._acrylic3`):

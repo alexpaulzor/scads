@@ -12,7 +12,7 @@ projected onto a 300 x 300 sheet, for M3 hex standoffs (risers) between the plat
 Same origin as the spiral: X0 Y0 = the bottom-left corner, the mount edge along Y0.
 
     python3 marbles/clock/spiral_base.py                 # -> marbles/gcode/spiral_base_300x300_ply3.gcode + preview
-    python3 marbles/clock/spiral_base.py --rise 15 --centre 15
+    python3 marbles/clock/spiral_base.py --rise 15 --centre 0
 """
 import argparse
 import bisect
@@ -58,7 +58,7 @@ def lap_param(cut, cut_t, p):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--rise", type=float, default=15.0, help="shelf top to shelf top per lap, mm")
-    ap.add_argument("--centre", type=float, default=15.0, help="riser under the solid centre, mm")
+    ap.add_argument("--centre", type=float, default=0.0, help="riser under the solid centre, mm (0: the centre sits on the plate)")
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
     B = current_spiral()
