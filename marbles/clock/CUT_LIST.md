@@ -7,24 +7,23 @@ the new batch).
 
 ## Combined plates (cut these instead of the separate files)
 
-- [ ] **Acrylic plate** `acrylic_plate_379x291_acrylic3` (about 51 min; X0 Y0 = plate bottom-left; turn the sheet 180°
+- [ ] **Acrylic plate** `acrylic_plate_379x291_acrylic3` (about 53 min; X0 Y0 = plate bottom-left; turn the sheet 180°
       so the ring-test corner is the far one, kept clear at x 345–379, y 258–291; preview `views/acrylic_plate_379x291_acrylic3.png`):
   - round spiral (layered top with M3 tap holes), 287 × 291 mm, 6.9 laps, outline trimmed at the far corners;
   - spiral centre guide;
   - ring D-jig acrylic layer;
   - pallets: 2 × entry, 2 × exit;
+  - 2 × acrylic pallet keepers (the clamp);
   - spiral exit flange.
   - Not on it: the entry guide (150 × 285 mm). Cut it from a second sheet, or in ply3.
   - The ply3 layers under this spiral: `spiral_run_round_trim_slot_287x291_ply3`, × 1 or 2. It's the same
     trimmed 287 × 291 piece with slots instead of tap holes.
-- [ ] **Escapement side plate** `esc_side_plate_290x290_ply3`, cut 2 (one per side): lantern ring + 1 pallet clamp
-      (about 9 min each).
-  - The rocker hub plate (86 × 80) doesn't fit beside the ring on 300 mm stock: cut `esc_pin_anchor_plate` × 2 from an
-    offcut.
+- [ ] **Escapement side plate** `esc_side_plate_296x220_ply3`, cut 2 (one per side): lantern ring (219 mm across, narrow
+      rim), rocker hub plate and 1 pallet clamp. Everything for one side; about 9 min each.
 
 ## Escapement: pin-wheel deadbeat (`escapement_pin.py`, drawings `escapement_pin.png`, `views/esc_pin_tpallet_*.png`)
 
-- [ ] **Lantern wheel faces**: `esc_pin_ring_290x290_ply3`, cut 2. 30 × M3 holes on r100, 608 seat, M5 along the spokes.
+- [ ] **Lantern wheel faces**: `esc_pin_ring_220x220_ply3`, cut 2. 30 × M3 holes on r100, 608 seat, M5 along the spokes, 8 mm rim outside the pins.
 - [ ] **Lantern hub spacer** (optional, instead of stacking 3 × 608): `esc_pin_hub_spacer_51x51_mdf3`, cut 7.
 - [ ] **Rocker (anchor) face plates**: `esc_pin_anchor_plate_86x80_ply3`, cut 2. 608 seat, M5 for the 3 beams.
 - [ ] **Pallets (entry)**: `esc_pin_pallet_entry_60x55_acrylic3`, cut 2 (2 layers = 6 mm, M3 through the stem).
@@ -32,7 +31,7 @@ the new batch).
 - [ ] **Pallet clamps (mount plates)**: `esc_pin_pallet_clamp_55x21_ply3`, cut 2.
 - Hardware, not cut:
   - 2020 wheel spokes, 4 × 38 mm (optionally 4 more at 45°).
-  - 2020 rocker arms, 2 × 169 mm.
+  - 2020 rocker arms, 2 × 171 mm.
   - Rocker tail (the pendulum, or a stub to it).
   - 30 × M3 × 30–35 screws with nuts and washers (the pins).
   - 608 bearings: 3 stacked in each hub.

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""One ply3 plate per side of the pin-wheel escapement: a lantern-wheel ring with one pallet clamp nested in a corner.
-Cut it twice for the two sides (identical rings for the two faces of the 2020 spokes, and the two clamps, one per
-rocker arm). The rocker hub plate (86 x 80) does not fit beside a 289 ring on 300 mm stock: cut esc_pin_anchor_plate
-x2 from an offcut. Through quickcut (frame pass, park, checks).
+"""One ply3 plate per side of the pin-wheel escapement: a lantern-wheel ring, one rocker hub plate and one pallet
+clamp. Cut it twice for the two sides: identical rings and hub plates for the two faces of the 2020 beams, and the
+two clamps (one per rocker arm). Through quickcut (frame pass, park, checks).
 
     python3 marbles/clock/esc_side_plate.py          # -> marbles/gcode/esc_side_plate_<W>x<H>_ply3.gcode + preview
 """
@@ -32,8 +31,15 @@ def main():
     windows = [Polygon(r) for r in ring.interiors if Polygon(r).area > 500]
     free = box(0, 0, *SHEET).difference(Polygon(ring.exterior).buffer(P.GAP)).union(
         unary_union([w.buffer(-P.GAP) for w in windows]))
-    r = P.place(free, [E.clamp_part()], step=1.0, angles=range(0, 360, 15))
-    parts = [("ring", ring)] + ([("pallet clamp", r[3][0])] if r else [])
+    hub = E.anchor()[0]
+    parts, missing = [("ring", ring)], []
+    for name, poly in (("rocker hub plate", hub), ("pallet clamp", E.clamp_part())):
+        r = P.place(free, [poly], step=1.0, angles=range(0, 360, 15))
+        if r:
+            parts.append((name, r[3][0]))
+            free = free.difference(r[4])
+        else:
+            missing.append(name)
     T, kerf, _ = gcode.fit(MAT)
     job = gcode.job(MAT)
     cuts = []
@@ -47,14 +53,14 @@ def main():
     stem = gcode.name("esc_side_plate", W, H, MAT)
     lines = gcode.preamble(job, title=f"{stem} -- marbles/clock/esc_side_plate.py: one escapement side (cut it twice)",
                            notes=[f"lantern ring ({E.N} M3 holes on r {E.R:g}, 608 seat, M5 on the spokes)"
-                                  + (" + 1 pallet clamp" if r else ""),
-                                  "the rocker hub plate (86 x 80) is not on this plate: cut esc_pin_anchor_plate x2 from an offcut",
+                                  + "".join(f" + 1 {n}" for n, _ in parts[1:]),
+                                  ("not on this plate: " + ", ".join(missing)) if missing else "everything for one side",
                                   f"{MAT}: T {T}, kerf {kerf}; X0 Y0 = bottom-left"])
     for i, c in enumerate(cuts, 1):
         lines += gcode.cut(c, job, i, len(cuts))
     p = gcode.write(HERE.parent / "gcode" / f"{stem}.gcode", lines)
     mins = sum(LineString(c.points).length * job.passes for c in cuts) / job.feed_mm_per_min
-    print(f"{p.name}: {len(cuts)} cuts, ~{mins:.0f} min; clamp {'at (%.0f, %.0f)' % (r[1], r[0]) if r else 'did NOT fit'}")
+    print(f"{p.name}: {len(cuts)} cuts, ~{mins:.0f} min; on it: {[n for n, _ in parts]}; missing: {missing}")
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

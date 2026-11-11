@@ -54,7 +54,8 @@ def items():
            ("ring D-jig acrylic layer", ring_jig_parts(), 1),
            ("pallet entry", [ie["t"]], 2),
            ("pallet exit", [ix["t"]], 2),
-           ("spiral exit flange", [ex], 1)]
+           ("spiral exit flange", [ex], 1),
+           ("pallet keeper", [E.clamp_part()], 2)]
     return out, B
 
 

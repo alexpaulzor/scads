@@ -49,8 +49,8 @@ ARM_IN = 13.0          # arm beams start this far from the anchor axle (clear of
 HUB_PLATE_R = 22.0     # anchor hub plate radius round the axle (11 of wood round the 608)
 HUB_ARM = 35.0         # the hub plates run this far along each beam (M5 at 19 and 29): short, to clear the rings
 TAIL_A = 270.0         # the third beam (the pendulum, or a stub to it) points straight down
-RING_R = 144.5         # ring outer radius: 289 across, the most a 292 sheet takes in one piece
-RIM = RING_R - R - 1.5  # ring wood outside the pin circle (for a 3 mm pin)
+RIM = 8.0              # ring wood outside the pin holes (alignment, not the rings, keeps the rocker in plane)
+RING_R = R + 1.5 + RIM  # ring outer radius
 RIM_IN = 12.0          # rim band inside the pin circle
 SPOKES = 8            # wood spokes over the 2020 beam spokes (4 at 0/90/180/270; the 45s are optional beams)
 SPOKE_W = 20.0         # = the 2020
@@ -378,8 +378,8 @@ def main():
     hub, eb, xb, _ = anchor()
     reach = beam_reach()
     ie, ix = eb, xb
-    print(f"rings {2 * RING_R:g} across: the pallets' working tips stay {tip_margin():.1f} inside the rings' edge over a +-12 deg swing; "
-          f"ring band outside the pin circle {RING_R - R:.1f}")
+    print(f"rings {2 * RING_R:g} across ({RIM:g} of wood outside the pin holes); the pallet tips reach {-tip_margin():.1f} past the "
+          f"rings' edge at a +-12 deg swing (fine: the rocker is held in plane by its own axle, not by the rings)")
     print(f"wheel spokes (2020): {HUB_A:g} to {reach - 3:.1f} from the centre (the anchor comes to {reach:.1f} at +-12 deg): "
           f"length {reach - 3 - HUB_A:.0f}; M3 x 30-35 screws as the pins (nuts flare the rings a little at the pins)")
     print(f"anchor: axle {D:.1f} below the wheel centre; hub plates clear the rings by {hub_ring_clearance():.1f} at +-12 deg; arms (2020) at "
