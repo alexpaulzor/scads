@@ -7,14 +7,14 @@ the new batch).
 
 ## Combined plates (cut these instead of the separate files)
 
-- [ ] **Acrylic plate** `acrylic_plate_379x291_acrylic3` (about 48 min; X0 Y0 = plate bottom-left; the 56 × 44 mm
-      ring-test corner is kept clear; preview `views/acrylic_plate_379x291_acrylic3.png`):
+- [ ] **Acrylic plate** `acrylic_plate_379x291_acrylic3` (about 51 min; X0 Y0 = plate bottom-left; turn the sheet 180°
+      so the ring-test corner is the far one, kept clear at x 345–379, y 258–291; preview `views/acrylic_plate_379x291_acrylic3.png`):
   - round spiral (layered top with M3 tap holes), 287 × 291 mm, 6.9 laps, outline trimmed at the far corners;
   - spiral centre guide;
   - ring D-jig acrylic layer;
-  - pallets: 2 × entry, 2 × exit.
-  - Not on it: the spiral exit flange (no room) and the entry guide (150 × 285 mm). Cut those from a second sheet,
-    or in ply3.
+  - pallets: 2 × entry, 2 × exit;
+  - spiral exit flange.
+  - Not on it: the entry guide (150 × 285 mm). Cut it from a second sheet, or in ply3.
   - The ply3 layers under this spiral: `spiral_run_round_trim_slot_287x291_ply3`, × 1 or 2. It's the same
     trimmed 287 × 291 piece with slots instead of tap holes.
 - [ ] **Escapement side plate** `esc_side_plate_290x290_ply3`, cut 2 (one per side): lantern ring + 1 pallet clamp

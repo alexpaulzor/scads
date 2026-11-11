@@ -95,8 +95,9 @@ def place(free, polys, step=2.0, angles=range(0, 360, 45)):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--keepout", type=float, nargs=2, default=[56.0, 44.0], help="used corner (the ring test), W H")
-    ap.add_argument("--corner", choices=["bl", "br", "tl", "tr"], default="bl", help="which plate corner is used")
+    ap.add_argument("--keepout", type=float, nargs=2, default=[34.0, 33.0], help="used corner (the ring test), W H inside the plate")
+    ap.add_argument("--corner", choices=["bl", "br", "tl", "tr"], default="tr",
+                    help="which plate corner is used (tr: the sheet turned 180 deg, so the ring-test corner is the far one)")
     ap.add_argument("-o", "--out", type=Path, default=HERE / "gcode")
     a = ap.parse_args()
     S.configure(True, 20.0, PLATE[1])
