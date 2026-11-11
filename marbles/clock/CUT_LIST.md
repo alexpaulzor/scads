@@ -5,19 +5,20 @@ Point me at this file when you want it updated or read back. G-code files are in
 Recipes: black acrylic `acrylic3` 100 % F150 x1 (calibrated 2026-11-10); ply3 F350 x1; mdf3 F700 x3 (unverified on
 the new batch).
 
-## Combined plates (cut these instead of the separate files)
+## Cut next
 
-- [ ] **Acrylic plate** `acrylic_plate_379x291_acrylic3` (about 53 min; X0 Y0 = plate bottom-left; turn the sheet 180°
-      so the ring-test corner is the far one, kept clear at x 345–379, y 258–291; preview `views/acrylic_plate_379x291_acrylic3.png`):
-  - round spiral (layered top with M3 tap holes), 287 × 291 mm, 6.9 laps, outline trimmed at the far corners;
-  - spiral centre guide;
-  - ring D-jig acrylic layer;
-  - pallets: 2 × entry, 2 × exit;
-  - 2 × acrylic pallet keepers (the clamp);
-  - spiral exit flange.
-  - Not on it: the entry guide (150 × 285 mm). Cut it from a second sheet, or in ply3.
-  - The ply3 layers under this spiral: `spiral_run_round_trim_slot_287x291_ply3`, × 1 or 2. It's the same
-    trimmed 287 × 291 piece with slots instead of tap holes.
+- **Acrylic: cut the spiral first, then the small parts à la carte from the offcuts.** All `acrylic3`, F150 × 1.
+  (`acrylic_plate_379x291_acrylic3` packs them all into one 53 min job, if you ever want that.)
+  - [ ] **Spiral**, layered top: `spiral_run_round_trim_pilot_287x291_acrylic3`. About 37 min; the outline is cut last.
+        X0 Y0 = its bottom-left (the mount edge). 6.9 laps, 37 × M3 tap holes centred on the shelves, outline trimmed
+        at the far corners. With the ring-test corner at the sheet's far corner, it stays clear.
+    - Ply3 layers under it: `spiral_run_round_trim_slot_287x291_ply3`, × 1 or 2 (slots at the same 37 spots).
+  - [ ] Spiral centre guide: `spiral_centre_guide_102x108_acrylic3` (× 1, or × 2 for a taller wall).
+  - [ ] Spiral exit flange: `spiral_exit_flange_54x54_acrylic3`.
+  - [ ] Spiral entry guide: `spiral_entry_guide_145x276_acrylic3` (or in ply3).
+  - [ ] Escapement pallets: `esc_pin_pallet_entry_49x40_acrylic3` × 2 and `esc_pin_pallet_exit_47x43_acrylic3` × 2.
+  - [ ] Pallet keepers in acrylic: `esc_pin_pallet_keeper_55x21_acrylic3` × 2.
+  - [ ] Ring D-jig acrylic layer: `ring_jig_d_rail_83x57_acrylic3`.
 - [ ] **Escapement side plate** `esc_side_plate_296x220_ply3`, cut 2 (one per side): lantern ring (219 mm across, narrow
       rim), rocker hub plate and 1 pallet clamp. Everything for one side; about 9 min each.
 
@@ -60,18 +61,8 @@ the new batch).
       top rail.
 - Not planned: the stair arms and the glue-up form (`spiral_stair_*`, `spiral_form_*`). You're making your own
   supports.
-- [ ] **Acrylic spiral, round**, with a 20 mm entry run on its left (from a 400 × 300 black sheet). All `acrylic3`, F150 × 1;
-      drawing `spiral_run_round.png`:
-  - Layered and screwed version (the ball rolls on the acrylic top; 41 M3 spots centred on the shelf (6.35 mm in from each step), every 100 mm: 8 per outer lap down to 3 on the inner):
-    - `spiral_run_round_pilot_296x290_acrylic3` × 1 (top): 2.5 mm pilot holes, tap M3 by hand. About 32 min.
-    - `spiral_run_round_slot_296x290_ply3` × 1 or 2 (below): 3.3 × 6.3 mm slots along the lap. About 15 min each.
-    - Screws go in from underneath. Length = ply layers + 2–2.7 mm into the acrylic:
-      1 ply → M3 × 5, 2 ply → M3 × 8.
-  - Plain single-sheet version: `spiral_run_round_296x290_acrylic3` × 1 (about 30 min),
-  - `spiral_centre_guide_99x105_acrylic3` × 1 (or × 2),
-  - `spiral_entry_guide_150x285_acrylic3` × 1,
-  - `spiral_exit_flange_54x54_acrylic3` × 1.
-
+- The round acrylic spiral: see the acrylic list at the top. The earlier 296 mm version is replaced by the
+  287 × 291 trimmed one.
 ## Jigs
 
 - [ ] **Ring D-jig sandwich**, rail mount (centre 30 mm up, M5 10 mm up):
