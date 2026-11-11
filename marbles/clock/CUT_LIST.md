@@ -5,6 +5,22 @@ Point me at this file when you want it updated or read back. G-code files are in
 Recipes: black acrylic `acrylic3` 100 % F150 x1 (calibrated 2026-11-10); ply3 F350 x1; mdf3 F700 x3 (unverified on
 the new batch).
 
+## Combined plates (cut these instead of the separate files)
+
+- [ ] **Acrylic plate** `acrylic_plate_379x291_acrylic3` (about 48 min; X0 Y0 = plate bottom-left; the 56 × 44 mm
+      ring-test corner is kept clear; preview `views/acrylic_plate_379x291_acrylic3.png`):
+  - round spiral (layered top with M3 tap holes), 287 × 291 mm, 6.9 laps, outline trimmed at the far corners;
+  - spiral centre guide;
+  - ring D-jig acrylic layer;
+  - pallets: 2 × entry, 2 × exit.
+  - Not on it: the spiral exit flange (no room) and the entry guide (150 × 285 mm). Cut those from a second sheet,
+    or in ply3.
+  - The ply3 layers under this spiral need the matching 287 × 291 slot sheet. **Not generated yet.**
+- [ ] **Escapement side plate** `esc_side_plate_290x290_ply3`, cut 2 (one per side): lantern ring + 1 pallet clamp
+      (about 9 min each).
+  - The rocker hub plate (86 × 80) doesn't fit beside the ring on 300 mm stock: cut `esc_pin_anchor_plate` × 2 from an
+    offcut.
+
 ## Escapement: pin-wheel deadbeat (`escapement_pin.py`, drawings `escapement_pin.png`, `views/esc_pin_tpallet_*.png`)
 
 - [ ] **Lantern wheel faces**: `esc_pin_ring_290x290_ply3`, cut 2. 30 × M3 holes on r100, 608 seat, M5 along the spokes.

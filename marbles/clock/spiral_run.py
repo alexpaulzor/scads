@@ -62,11 +62,12 @@ CX = SIDE + A0 - 0.75 * PITCH                           # x centre
 CY = Y_LO + B0
 
 
-def configure(round_=False, entry_run=0.0):
+def configure(round_=False, entry_run=0.0, stock_h=300.0):
     """round_: a circular spiral sized by the height (290 across), with entry_run of extra flat sheet to its left (the
     ball's run along the top rail before the ramp starts); the stock width follows. Otherwise the original 300 x 300
     elliptical fill."""
-    global STOCK, ENTRY_RUN, A0, B0, CX, CY
+    global STOCK, STOCK_H, Y_HI, ENTRY_RUN, A0, B0, CX, CY
+    STOCK_H, Y_HI = stock_h, stock_h - 10.0
     B0 = (Y_HI - Y_LO + PITCH / 2) / 2
     if round_:
         A0 = B0
@@ -275,6 +276,25 @@ def stair_arm(cut, cut_t, phi_deg, z_floor):
     return poly.difference(unary_union([Point(m).buffer(M5 / 2, 32) for m in m5])), steps, m5
 
 
+TRIM_MARGIN = 9.0       # trimmed outline: frame kept outside the first lap's cut
+
+
+def piece_outline(trim=None):
+    """the spiral piece's outline. Untrimmed: the full stock rectangle. Trimmed (TRIM set): the mount-edge half
+    stays rectangular, the far half follows the first lap TRIM_MARGIN outside its cut, freeing the far corners"""
+    rect = box(0, 0, STOCK, STOCK_H)
+    trim = TRIM if trim is None else trim
+    if not trim:
+        return rect
+    k = PITCH / (2 * math.pi)
+    lap = [ellipse_pt(A0 - k * t + TRIM_MARGIN, B0 - k * t + TRIM_MARGIN, t) for t in [i * 2 * math.pi / 360 for i in range(361)]]
+    g = unary_union([box(0, 0, STOCK, CY), Polygon(lap)]).intersection(rect)
+    return g.buffer(4).buffer(-4)
+
+
+TRIM = False
+
+
 def entry_guide(cut, cut_t):
     """the entry guide: a flat piece held ~10 above the sheet on spacers, its inner edge over the first lap's cut, so
     the incoming ball is kept on the first strip while that strip has not yet dropped far enough below the frame to
@@ -285,7 +305,7 @@ def entry_guide(cut, cut_t):
     arc = [p for p, t in zip(cut, cut_t) if t <= span]
     band = LineString(arc).buffer(ENTRY_W + 0.5, cap_style=2, join_style=1).difference(first.buffer(0.5))
     band = band.difference(box(-10, -10, 400, BEAM_Y + 0.5))
-    stock = box(0, 0, STOCK, STOCK_H)
+    stock = piece_outline()
     frame = stock.difference(first)
     ok = frame.buffer(-(M5 / 2 + 4)).difference(box(-10, -10, 400, BEAM_Y + 6))   # spacers clear the beam
     near = LineString(arc).buffer(40)
