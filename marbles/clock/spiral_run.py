@@ -62,18 +62,27 @@ CX = SIDE + A0 - 0.75 * PITCH                           # x centre
 CY = Y_LO + B0
 
 
-def configure(round_=False, entry_run=0.0, stock_h=300.0):
+RIM = 0.0               # outer rim width: 0 = the old thin frame (6 at the sides, 10 at the top); 20 = the new rim with
+                        # M5 every <= RIM_STEP round it, and the entry guide bolted along its whole curve
+RIM_STEP = 100.0
+GUIDE_STEP = 50.0       # entry guide bolts along its curve (rim layout)
+GUIDE_OFF = 10.0        # ... this far outside the first lap's cut (the middle of a 20 mm rim)
+
+
+def configure(round_=False, entry_run=0.0, stock_h=300.0, rim=0.0):
     """round_: a circular spiral sized by the height (290 across), with entry_run of extra flat sheet to its left (the
     ball's run along the top rail before the ramp starts); the stock width follows. Otherwise the original 300 x 300
     elliptical fill."""
-    global STOCK, STOCK_H, Y_HI, ENTRY_RUN, A0, B0, CX, CY
-    STOCK_H, Y_HI = stock_h, stock_h - 10.0
+    global STOCK, STOCK_H, Y_HI, ENTRY_RUN, A0, B0, CX, CY, RIM
+    RIM = rim
+    STOCK_H, Y_HI = stock_h, stock_h - (rim if rim else 10.0)
     B0 = (Y_HI - Y_LO + PITCH / 2) / 2
     if round_:
         A0 = B0
         ENTRY_RUN = entry_run
-        CX = SIDE + entry_run + A0 - 0.75 * PITCH            # the lap's left extreme (3/4 turn) lands entry_run in
-        STOCK = math.ceil(CX + A0 - 0.25 * PITCH + SIDE)     # its right extreme (1/4 turn) + SIDE
+        left = max(rim, SIDE + entry_run)
+        CX = left + A0 - 0.75 * PITCH                        # the lap's left extreme (3/4 turn) lands entry_run in
+        STOCK = math.ceil(CX + A0 - 0.25 * PITCH + (rim if rim else SIDE))   # its right extreme (1/4 turn) + the rim
     else:
         STOCK, ENTRY_RUN = 300.0, 0.0
         A0 = (STOCK - 2 * SIDE + PITCH) / 2
@@ -276,6 +285,28 @@ def stair_arm(cut, cut_t, phi_deg, z_floor):
     return poly.difference(unary_union([Point(m).buffer(M5 / 2, 32) for m in m5])), steps, m5
 
 
+def entry_guide_rim(cut, cut_t, first, arc):
+    """rim layout: the guide band reaches GUIDE_OFF + 7.5 outside the cut, bolted to the rim every GUIDE_STEP along
+    its whole curve on the line GUIDE_OFF outside the cut (where that stays 6.5 inside the piece and off the beam)"""
+    al = LineString(arc)
+    band = al.buffer(GUIDE_OFF + M5 / 2 + 5, cap_style=2, join_style=1).difference(first.buffer(0.5))
+    band = band.difference(box(-10, -10, 400, BEAM_Y + 0.5)).intersection(piece_outline().buffer(-0.5))
+    if band.geom_type == "MultiPolygon":
+        band = max(band.geoms, key=lambda q: q.area)
+    inner = piece_outline().buffer(-(M5 / 2 + 4)).difference(box(-10, -10, 400, BEAM_Y + 6))
+    pts, s_ = [], 8.0
+    while s_ < al.length:
+        p0, p1 = al.interpolate(max(s_ - 0.5, 0)), al.interpolate(min(s_ + 0.5, al.length))
+        tx, ty = p1.x - p0.x, p1.y - p0.y
+        d = math.hypot(tx, ty)
+        q = Point(al.interpolate(s_).x + ty / d * GUIDE_OFF, al.interpolate(s_).y - tx / d * GUIDE_OFF)   # outward (right of CCW)
+        if inner.contains(q) and band.buffer(-(M5 / 2 + 3)).contains(q) and all(q.distance(o) > 20 for o in pts):
+            pts.append(q)
+        s_ += GUIDE_STEP / 4 if not pts else GUIDE_STEP
+    g = band.buffer(1, join_style=1).buffer(-1, join_style=1).difference(unary_union([q.buffer(M5 / 2, 32) for q in pts]))
+    return g, [(q.x, q.y) for q in pts]
+
+
 TRIM_MARGIN = 9.0       # trimmed outline: frame kept outside the first lap's cut
 
 
@@ -303,6 +334,8 @@ def entry_guide(cut, cut_t):
     span = math.radians(ENTRY_SPAN)
     first = Polygon([p for p, t in zip(cut, cut_t) if t <= 2 * math.pi])
     arc = [p for p, t in zip(cut, cut_t) if t <= span]
+    if RIM:
+        return entry_guide_rim(cut, cut_t, first, arc)
     band = LineString(arc).buffer(ENTRY_W + 0.5, cap_style=2, join_style=1).difference(first.buffer(0.5))
     band = band.difference(box(-10, -10, 400, BEAM_Y + 0.5))
     stock = piece_outline()
@@ -347,7 +380,28 @@ def holes(cut, bolts, extra=()):
     mount = [(10 + MOUNT_STEP * i, MOUNT_Y) for i in range(int((STOCK - 20) // MOUNT_STEP) + 1)]
     out += [(list(Point(p).buffer(M5 / 2, 48).exterior.coords), "mount M5") for p in mount]
     out += [(list(Point(p).buffer(M5 / 2, 48).exterior.coords), "entry guide M5") for p in extra]
+    for p in rim_holes(mount + list(extra)):
+        out.append((list(Point(p).buffer(M5 / 2, 48).exterior.coords), "rim M5"))
     return out, mount
+
+
+def rim_holes(existing=()):
+    """M5 round the rim (RIM set): on the line RIM/2 in from the left, top and right edges, evenly at most RIM_STEP
+    apart, corners included (the bottom edge has the mount row); skips spots within RIM of an existing hole"""
+    if not RIM:
+        return []
+    h = RIM / 2
+    corners = [(h, MOUNT_Y), (h, STOCK_H - h), (STOCK - h, STOCK_H - h), (STOCK - h, MOUNT_Y)]
+    pts = []
+    for (x0, y0), (x1, y1) in zip(corners, corners[1:]):
+        L = math.dist((x0, y0), (x1, y1))
+        n = max(1, math.ceil(L / RIM_STEP))
+        pts += [(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n) for i in range(n + 1)]
+    out = []
+    for p in pts:
+        if all(math.dist(p, q) > RIM for q in list(existing) + out):
+            out.append(p)
+    return out
 
 
 def screw_points(cut, avoid):
@@ -479,17 +533,18 @@ def main():
     ap.add_argument("--round", action="store_true", help="circular spiral (290 across) + an entry run beside it")
     ap.add_argument("--entry-run", type=float, default=20.0, help="with --round: extra flat sheet left of the spiral, mm")
     ap.add_argument("--stock-h", type=float, default=300.0, help="stock height (291 = inside the 292 mm Y reach)")
+    ap.add_argument("--rim", type=float, default=0.0, help="outer rim width (20 = the new rim layout with rim + guide bolts)")
     ap.add_argument("--trim", action="store_true", help="cut an outline, trimmed to follow the spiral away from the mount edge")
     ap.add_argument("--screws", choices=["none", "pilot", "slot"], default="none",
                     help="layer screws on the sheet: pilot = M3 tap holes (tapped top layer), slot = clearance slots (layers below)")
     ap.add_argument("--parts", nargs="+", default=["sheet", "centre", "entry_guide", "stairs", "entry_flange", "exit_flange"])
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
-    configure(a.round, a.entry_run, a.stock_h)
+    configure(a.round, a.entry_run, a.stock_h, a.rim)
     global TRIM
     TRIM = a.trim
     B = build(a.pitch)
-    sheet_name = gcode.name("spiral_run" + ("_round" if a.round else "") + ("_trim" if a.trim else "")
+    sheet_name = gcode.name("spiral_run" + ("_round" if a.round else "") + ("_trim" if a.trim else "") + (f"_rim{a.rim:g}" if a.rim else "")
                             + ("" if a.screws == "none" else "_" + a.screws),
                             STOCK, piece_outline().bounds[3] if a.trim else Y_HI, "x").rsplit("_", 1)[0]
     pre = "spiral_round_" if a.round else "spiral_"          # the round spiral's parts differ: keep their files apart
