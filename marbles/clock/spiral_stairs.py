@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Stair supports under the round spiral (the 287 x 291 trimmed one, acrylic + ply layers): WIP, preview stage.
+"""Stair supports under the round spiral (the 287 x 291 trimmed one, acrylic + ply layers): SHELVED (a smooth beam under
+the outside edge is enough), preview only, no G-code.
 
   - BASE: 4 short 2020 beams in a pinwheel round the exit hole (each beam's end butts the long face of the next),
     corner brackets in the outside corners, turned 45 deg so two opposite beams run under the spiral's two inner

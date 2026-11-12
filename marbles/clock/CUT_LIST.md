@@ -68,6 +68,8 @@ the new batch).
       top rail.
 - Not planned: the stair arms and the glue-up form (`spiral_stair_*`, `spiral_form_*`). You're making your own
   supports.
+- Shelved: the pinwheel + zig-zag stair supports (`spiral_stairs.py`, 3D preview only). The screwed acrylic + ply
+  spiral holds its shape with a smooth beam under the outside edge.
 - The round acrylic spiral: see the acrylic list at the top. The earlier 296 mm version is replaced by the
   287 × 291 trimmed one.
 ## Jigs
