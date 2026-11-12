@@ -90,6 +90,8 @@ the new batch).
 
 ## Not designed yet (blocking a full build)
 
-- Escapement frame: what holds the wheel axle and the rocker axle (183.6 mm apart, wheel above).
-- Marble drive for the escape wheel: big ball wheel + lantern pinion, about 6:1.
-- Seconds hand / disc on the escape wheel axle.
+- Escapement frame: what holds the wheel axle and the rocker axle (183.6 mm apart, wheel above). You're making it
+  from metal parts you have.
+- In preview, no G-code yet (`marble_drive.py`, `marble_drive.png`, `views/marble_drive_*.png`): the marble drive
+  (a 30-tooth ball wheel meshing the escape wheel's own pins 1:1, 12 balls/min) and the seconds hand + dial ring.
+  Its own axle sits 200 from the escape wheel's, at the upper left.
