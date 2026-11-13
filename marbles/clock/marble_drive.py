@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""MARBLE DRIVE for the pin-wheel escapement + SECONDS HAND (WIP, preview stage: renders, no G-code yet unless --gcode).
+"""MARBLE DRIVE (SHELVED 2026-11-13: replaced by escapement_ball.py, balls in the escape wheel's own pin gaps).
+Originally: a separate ball wheel for the pin-wheel escapement + SECONDS HAND (preview, no G-code unless --gcode).
 
 The pendulum is motor-driven, so the escape wheel only needs enough torque to step 6 deg per second and beat friction.
   - BALL WHEEL: one disc (2 x ply3, screwed) on its own fixed 8 mm axle beside the escape wheel, in the escape

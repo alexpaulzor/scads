@@ -92,6 +92,8 @@ the new batch).
 
 - Escapement frame: what holds the wheel axle and the rocker axle (183.6 mm apart, wheel above). You're making it
   from metal parts you have.
-- In preview, no G-code yet (`marble_drive.py`, `marble_drive.png`, `views/marble_drive_*.png`): the marble drive
-  (a 30-tooth ball wheel meshing the escape wheel's own pins 1:1, 12 balls/min) and the seconds hand + dial ring.
-  Its own axle sits 200 from the escape wheel's, at the upper left.
+- In preview, no G-code yet (`escapement_ball.py`, `escapement_ball.png`, `views/escapement_ball_*.png`): the
+  ball-driven pin wheel. 30 M3 pins on r 110 (20 clear between), through both rings and out the front; a ball
+  pocket at every pin gap (ledge rings); the rocker above the wheel on the top pivot, working on the front pin ends;
+  seconds hand + dial in front. It replaces the separate ball wheel in `marble_drive.py` (shelved) and the
+  r 100 parts of `escapement_pin.py` listed above.
