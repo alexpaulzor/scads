@@ -9,6 +9,10 @@ Alex's layout (2026-11-13):
     pins, so a ball sits on the two ledge edges between two pins. Fed at the top just right of 12, it rides the
     descending side pushing on the pin below it, and once past 3 o'clock (gravity now outward) rolls out between the
     pins on its own.
+  - RATE: the lift brings 2 balls per 2 s swing and a pocket reaches the top every 2 s, so the wheel takes one of
+    them (30 pockets, one ball each) and the other runs on to an OVERFLOW track: the feed chute crosses the top of the
+    wheel, a ball drops into the pocket under it if that pocket is empty, otherwise it rolls over the occupied pocket
+    and off the far end of the chute.
   - The pendulum pivots at the top, so the ROCKER sits ABOVE the wheel on the pivot (escapement_pin.py's layout turned
     180 deg: same pallet geometry, the wheel still turns clockwise). Its 2020 arms are in front of the pin ends; each
     PALLET is a flat 2 x 3 mm acrylic plate bolted to the back face of its arm (M5 + T-nut in the arm's slot, slotted
