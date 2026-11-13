@@ -5,8 +5,10 @@ Alex's layout (2026-11-13):
   - 30 M3 PINS through BOTH rings, 20 mm clear between neighbouring shanks (so a 3/4" ball passes between them), and
     sticking out past the FRONT ring: the ROCKER works on those front ends, in front of the wheel. The gap between the
     rings is left to the balls; nothing of the rocker is in it.
-  - POCKETS: one per pin gap. A LEDGE ring screwed to the inside face of each ring narrows the gap just inside the
-    pins, so a ball sits on the two ledge edges between two pins. Fed at the top just right of 12, it rides the
+  - POCKETS: one per pin gap. Their bottoms are a FLOOR WALL of 30 flat ply3 segments standing between the rings
+    (boxes.py style, no glue): each segment has a 10 mm tab through a slot in each ring, and 5 mm finger tabs that
+    interlock with its neighbours end to end, bending 12 deg at each joint (the joints sit under the pins). A ball
+    sits on its segment between two pins. Fed at the top just right of 12, it rides the
     descending side pushing on the pin below it, and once past 3 o'clock (gravity now outward) rolls out between the
     pins on its own.
   - RATE: the lift brings 2 balls per 2 s swing and a pocket reaches the top every 2 s, so the wheel takes one of
@@ -48,12 +50,12 @@ PLY = 2.63
 GAP = 20.0                                       # between the rings (the 2020 spokes)
 BALL_D = 19.05
 BALL_M = 4 / 3 * math.pi * (BALL_D / 20) ** 3 * 7.83 / 1000
-LEDGE_Z = GAP / 2 - PLY                          # ledge faces this far either side of the centre plane
-LEDGE_OFF = math.sqrt((BALL_D / 2) ** 2 - LEDGE_Z ** 2)      # ball centre sits this far outside the ledge edges
 BALL_R = R - 1.0                                 # ball centre radius in its pocket (just inside the pin circle)
-LEDGE_EDGE = BALL_R - LEDGE_OFF
-LEDGE_W = 12.0
-RING_IN = LEDGE_EDGE - LEDGE_W - 2.0             # ring band reaches in under the ledge
+FLOOR_A = BALL_R - BALL_D / 2                    # floor segments' outer (ball) face: this far from the centre at mid-segment
+SIDE_TAB = 10.0                                  # tab through each ring, along the segment
+FINGER = 5.0                                     # end-to-end finger tabs: 5 wide (across the gap), 5 long
+SLOT_CLR = 0.1                                   # slot over the tab, each way
+RING_IN = FLOOR_A - PLY - 7.0                    # ring band reaches in round the floor slots
 RIM = 8.0
 SPOKE_END = RING_IN - 2.0                        # the 2020 spokes now run out to the ring band (no rocker in the gap)
 FEED, OUT = 4.0, 95.0                            # a ball is in its pocket from FEED to about OUT deg clockwise from 12
@@ -120,7 +122,7 @@ def pallet_plates(amp_max=12.0):
 
 def ring(front):
     """one wheel ring (escapement_pin's frame): rim with the 30 pin holes, band under the ledge, 8 wood spokes over
-    the 2020s, octagon hub with the 608 seat, M5 along the spokes, M3 for the ledge"""
+    the 2020s, octagon hub with the 608 seat, M5 along the spokes, the floor segments' tab slots"""
     W = E.W
     rim = Point(W).buffer(E.RING_R, 256).difference(Point(W).buffer(RING_IN, 256))
     spokes = [LineString([W, E.polar(RING_IN + 2, i * 45, W)]).buffer(10, cap_style=2) for i in range(8)]
@@ -129,7 +131,7 @@ def ring(front):
     holes = [Point(p).buffer(E.PIN_HOLE / 2, 32) for p in pin_centres(0)]
     holes.append(Point(W).buffer(E.BRG_D / 2, 64))
     holes += [Point(E.polar(r, i * 45, W)).buffer(2.65, 32) for i in range(8) for r in spoke_m5()]
-    holes += ledge_screws()
+    holes += floor_slots()
     return g.difference(unary_union(holes))
 
 
@@ -138,14 +140,38 @@ def spoke_m5():
     return (round(a, 1), round((a + b) / 2, 1), round(b, 1))
 
 
-def ledge_screws():
-    return [Point(E.polar(LEDGE_EDGE - LEDGE_W / 2, 90 - (k + 0.5) * E.PITCH, E.W)).buffer(1.65, 24) for k in range(0, N, 3)]
+def gap_angles():
+    """pocket (pin gap) centre angles in escapement_pin's frame, wheel at 0"""
+    return [90 - (k + 0.5) * E.PITCH for k in range(N)]
 
 
-def ledge():
-    W = E.W
-    g = Point(W).buffer(LEDGE_EDGE, 256).difference(Point(W).buffer(LEDGE_EDGE - LEDGE_W, 256))
-    return g.difference(unary_union(ledge_screws()))
+def floor_slots():
+    """one slot per segment in each ring: tangential, over the segment's side tab"""
+    out = []
+    for a in gap_angles():
+        c = E.polar(FLOOR_A - PLY / 2, a, E.W)
+        r = box(-SIDE_TAB / 2 - SLOT_CLR, -PLY / 2 - SLOT_CLR, SIDE_TAB / 2 + SLOT_CLR, PLY / 2 + SLOT_CLR)
+        out.append(affinity.translate(affinity.rotate(r, a - 90, origin=(0, 0)), *c))
+    return out
+
+
+def seg_len():
+    """joint to joint, measured on the segment's mid-thickness"""
+    return 2 * (FLOOR_A - PLY / 2) * math.tan(math.radians(E.PITCH / 2))
+
+
+def floor_segment():
+    """flat pattern of one floor segment (cut 30): u along the segment (joint to joint = seg_len), v across the gap
+    (0..GAP); side tabs through the rings; at each end a square-wave edge: 5 mm fingers past the joint line where the
+    neighbour has notches, and the other way round, so all 30 are identical"""
+    L, t = seg_len(), PLY
+    body = box(-L / 2, 0, L / 2, GAP)
+    lanes_a = [(0, FINGER), (2 * FINGER, 3 * FINGER)]          # left-end fingers / right-end notches
+    lanes_b = [(FINGER, 2 * FINGER), (3 * FINGER, 4 * FINGER)] # right-end fingers / left-end notches
+    cut = [box(-L / 2, v0, -L / 2 + FINGER, v1) for v0, v1 in lanes_b] + [box(L / 2 - FINGER, v0, L / 2, v1) for v0, v1 in lanes_a]
+    add = [box(-L / 2 - FINGER, v0, -L / 2, v1) for v0, v1 in lanes_a] + [box(L / 2, v0, L / 2 + FINGER, v1) for v0, v1 in lanes_b]
+    tabs = [box(-SIDE_TAB / 2, -t, SIDE_TAB / 2, 0), box(-SIDE_TAB / 2, GAP, SIDE_TAB / 2, GAP + t)]
+    return unary_union([body.difference(unary_union(cut))] + add + tabs)
 
 
 def pin_centres(phi):
@@ -216,8 +242,6 @@ def build(phi=0.0, th=0.0):
     rot = lambda g: affinity.rotate(flip(g), -phi, origin=Wd)                   # noqa: E731
     add(rot(ring(False)), -GAP / 2 - PLY, PLY, "burlywood")
     add(rot(ring(True)), GAP / 2, PLY, "burlywood")
-    add(rot(ledge()), -GAP / 2, PLY, "peru")
-    add(rot(ledge()), GAP / 2 - PLY, PLY, "peru")
     for i in range(4):
         sp = LineString([E.polar(E.HUB_A, 90 * i, E.W), E.polar(SPOKE_END, 90 * i, E.W)]).buffer(10, cap_style=2)
         add(rot(sp), -GAP / 2, GAP, "silver")
@@ -253,6 +277,15 @@ def scad(out, phi=0.0):
     L = ["$fn=32;", "rotate([90,0,0]) {"]
     for g, z0, t, col in parts:
         L.append(f'color("{col}") translate([0,0,{z0:.2f}]) linear_extrude({t:.2f}) {scad_poly(g)}')
+    seg = floor_segment()
+    Wd = (0.0, -E.D)
+    for a in gap_angles():
+        ang = math.radians(a + 180 - phi)                         # this frame (flipped), wheel turned by phi
+        n = (math.cos(ang), math.sin(ang))
+        tt = (-n[1], n[0])
+        o = (Wd[0] + n[0] * (FLOOR_A - PLY), Wd[1] + n[1] * (FLOOR_A - PLY))
+        L.append(f'color("peru") multmatrix([[{tt[0]:.4f},0,{n[0]:.4f},{o[0]:.3f}],[{tt[1]:.4f},0,{n[1]:.4f},{o[1]:.3f}],'
+                 f'[0,1,0,{-GAP / 2:.3f}],[0,0,0,1]]) linear_extrude({PLY}) {scad_poly(seg)}')
     z_head = -GAP / 2 - PLY - 2
     for p in pins:
         L.append(f'color("silver") translate([{p.x:.2f},{p.y:.2f},{z_head:.2f}]) cylinder(d={PIN_D},h={PIN_TIP - z_head:.2f});')
@@ -288,13 +321,17 @@ def drawing(path, phi=0.0):
                 ax.fill(*p.exterior.xy, color=c, alpha=.55 if c in ("silver", "wheat") else .8, lw=0)
                 for r in p.interiors:
                     ax.fill(*r.xy, color="w")
+    Wd = (0.0, -E.D)
+    for r_ap, ls in ((FLOOR_A, "-"), (FLOOR_A - PLY, "-")):
+        vr = r_ap / math.cos(math.radians(E.PITCH / 2))
+        vs = [E.polar(vr, a + 180 - phi + E.PITCH / 2, Wd) for a in gap_angles()]
+        ax.plot(*zip(*(vs + vs[:1])), ls, color="saddlebrown", lw=1)
     for p in pins:
         ax.add_patch(plt.Circle((p.x, p.y), PIN_D / 2, color="k"))
     for c in pockets(phi):
         ax.add_patch(plt.Circle(c, BALL_D / 2, color="gray", alpha=.9))
     ax.plot([0], [0], "k+", ms=14)
     ax.annotate("pendulum pivot = rocker axle", (0, 0), (40, 40), arrowprops=dict(arrowstyle="->"), fontsize=8)
-    Wd = (0.0, -E.D)
     ax.annotate("feed: one ball per pin gap", E.polar(BALL_R, 90 - FEED - 6, Wd), (120, -60),
                 arrowprops=dict(arrowstyle="->"), fontsize=8)
     ax.annotate("rolls out past 3 o'clock", E.polar(BALL_R + 14, 90 - OUT - 6, Wd), (150, -E.D - 120),
@@ -314,8 +351,10 @@ def main():
     pitch = 2 * math.pi * R / N
     print(f"pin wheel: {N} M3 pins on r {R:g}: pitch {pitch:.2f}, {pitch - PIN_D:.2f} clear between shanks; rings "
           f"{2 * E.RING_R:g} across; rocker axle (pivot) {E.D:.1f} above the wheel centre, wheel top {E.D - E.RING_R:.1f} below it")
-    print(f"pockets: ledge edges at r {LEDGE_EDGE:.1f} (faces {LEDGE_Z:.2f} off centre), ball centre {LEDGE_OFF:.2f} outside "
-          f"them = r {BALL_R:g}; a ball rides from {FEED:g} to ~{OUT:g} deg past 12, then rolls out")
+    L = seg_len()
+    print(f"pockets: floor of {N} segments, ball face {FLOOR_A:.2f} from the centre, ball centre r {BALL_R:g}; segment "
+          f"{L:.2f} joint to joint ({L + 2 * FINGER:.1f} over the fingers) x {GAP:g} (+{PLY:g} tabs), {E.PITCH:g} deg bend at each joint; "
+          f"a ball rides from {FEED:g} to ~{OUT:g} deg past 12, then rolls out")
     for n, lab in ((1, "every pocket"), (2, "every 2nd"), (4, "every 4th")):
         lo, hi, mean = torque_every(n)
         print(f"  torque with a ball in {lab} ({N / n:g} balls/min): {lo:.3f}..{hi:.3f} N m, mean {mean:.3f}")
