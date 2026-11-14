@@ -92,8 +92,15 @@ the new batch).
 
 - Escapement frame: what holds the wheel axle and the rocker axle (183.6 mm apart, wheel above). You're making it
   from metal parts you have.
-- In preview, no G-code yet (`escapement_ball.py`, `escapement_ball.png`, `views/escapement_ball_*.png`): the
-  ball-driven pin wheel. 30 M3 pins on r 110 (20 clear between), through both rings and out the front; a ball
-  pocket at every pin gap (ledge rings); the rocker above the wheel on the top pivot, working on the front pin ends;
-  seconds hand + dial in front. It replaces the separate ball wheel in `marble_drive.py` (shelved) and the
-  r 100 parts of `escapement_pin.py` listed above.
+- Ball-driven pin wheel (`escapement_ball.py`, `views/escapement_ball_*.png`, parts preview `views/esc_ball_ply3_parts.png`).
+  30 M3 pins on r 110 (20 clear between them), through both rings and out the front. A floor of 30 tabbed segments
+  under the pockets. The rocker sits above the wheel and works on the front pin ends. All ply3, F350 x 1:
+  - [ ] Rings `esc_ball_ring_240x240_ply3`, cut 2 (front and back are the same), ~10 min each.
+  - [ ] Floor segments `esc_ball_floor_seg6_99x54_ply3`: 6 per run, run 5 times for all 30. ~3 min a run; cut one
+        run first and check the tab and finger fit.
+  - [ ] Rocker hub plates `esc_ball_rocker_hub_81x84_ply3`, cut 2, ~1 min each.
+  - [ ] Pallet plates in wood, to test before using acrylic: `esc_ball_pallet_entry_65x57_ply3` and
+        `esc_ball_pallet_exit_62x60_ply3`, cut 2 of each (2 layers = 6 mm), ~1 min each. The working tip is a thin
+        curved strip, so it's fragile in ply.
+  - This replaces the separate ball wheel in `marble_drive.py` (shelved) and the r 100 parts of `escapement_pin.py`
+    listed above. Don't cut those.

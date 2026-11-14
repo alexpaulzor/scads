@@ -233,6 +233,60 @@ def scad_poly(g):
     return f"polygon(points={allp}, paths={paths});"
 
 
+def rocker_hub(plates=None):
+    """one of the 2 rocker hub plates (escapement_pin's frame, the pivot at the origin): 608 seat, an arm stub along
+    each 2020 (the 2 pallet arms + the tail), M5 at 19 and 29 along each into T-nuts"""
+    plates = plates or pallet_plates()
+    angs = [pp[1] for pp in plates] + [E.TAIL_A]
+    hub = unary_union([Point(0, 0).buffer(E.HUB_PLATE_R, 64)] +
+                      [LineString([(0, 0), E.polar(E.HUB_ARM, a)]).buffer(13, cap_style=1) for a in angs])
+    holes = [Point(0, 0).buffer(E.BRG_D / 2, 64)] + [Point(E.polar(r, a)).buffer(2.65, 32) for a in angs for r in (19, 29)]
+    return hub.buffer(4).buffer(-4).difference(unary_union(holes))
+
+
+def emit_gcode(out_dir, seg_batch=6, wood="ply3"):
+    """cut files through quickcut: rings, a batch of floor segments, rocker hub plate, pallet plates (wood test)"""
+    from laser_parts import gcode
+    T, kerf, _ = gcode.fit(wood)
+    job = gcode.job(wood)
+
+    def one(name, polys, copies, note):
+        gk = [g.buffer(kerf / 2, join_style=2) for g in polys]
+        x0 = min(g.bounds[0] for g in gk); y0 = min(g.bounds[1] for g in gk)
+        x1 = max(g.bounds[2] for g in gk); y1 = max(g.bounds[3] for g in gk)
+        cuts = []
+        for g in gk:
+            for pg in getattr(g, "geoms", [g]):
+                cuts += [gcode.Polyline([(x - x0, y - y0) for x, y in r.coords], True) for r in pg.interiors]
+                cuts.append(gcode.Polyline([(x - x0, y - y0) for x, y in pg.exterior.coords], True))
+        cuts = gcode.order(cuts)
+        stem = gcode.name(name, x1 - x0, y1 - y0, wood)
+        lines = gcode.preamble(job, title=f"{stem} -- marbles/clock/escapement_ball.py: {copies}",
+                               notes=[note, f"{wood}: T {T}, kerf {kerf}; X0 Y0 = bottom-left"])
+        for i, c in enumerate(cuts, 1):
+            lines += gcode.cut(c, job, i, len(cuts))
+        pth = gcode.write(out_dir / f"{stem}.gcode", lines)
+        mins = sum(LineString(c.points).length * job.passes for c in cuts) / job.feed_mm_per_min
+        print(f"  {pth.name}: {copies}, ~{mins:.0f} min each")
+
+    one("esc_ball_ring", [ring(True)], "cut 2",
+        f"escape wheel ring (front and back are the same): {N} M3 pin holes on r {R:g}, 608 seat, M5 on the spokes, "
+        f"{N} floor-segment tab slots")
+    seg = floor_segment()
+    sx0, sy0, sx1, sy1 = seg.bounds
+    w, h = sx1 - sx0 + 3, sy1 - sy0 + 3
+    cols = 3
+    batch = [affinity.translate(seg, -sx0 + (i % cols) * w, -sy0 + (i // cols) * h) for i in range(seg_batch)]
+    one(f"esc_ball_floor_seg{seg_batch}", batch, f"{seg_batch} segments per run ({N} needed in all)",
+        f"pocket floor segments: 10 mm tabs into the ring slots, 5 mm finger joints, 12 deg bend at each joint")
+    plates = pallet_plates()
+    one("esc_ball_rocker_hub", [rocker_hub(plates)], "cut 2",
+        "rocker hub plate, one each side of the 2020 arms: 608 seat, M5 at 19 / 29 along each arm and the tail")
+    for (plate, a_b, r_pad), nm in zip(plates, ("entry", "exit")):
+        one(f"esc_ball_pallet_{nm}", [plate], "cut 2 (2 layers = the 6 mm plate)",
+            f"{nm} pallet plate, WOOD TEST of the acrylic part: bolts flat to the arm's back face, M5 slots +-{ADJ:g} for the lock depth")
+
+
 def build(phi=0.0, th=0.0):
     """everything in this frame: dict name -> list of (geometry, z0, thickness, colour)"""
     Wd = (0.0, -E.D)
@@ -251,9 +305,7 @@ def build(phi=0.0, th=0.0):
     for plate, a_b, r_pad in plates:
         arms.append(LineString([E.polar(E.ARM_IN, a_b), E.polar(r_pad + PAD_L / 2 + 8, a_b)]).buffer(10, cap_style=2))
     tail = LineString([E.polar(E.ARM_IN, E.TAIL_A), E.polar(90, E.TAIL_A)]).buffer(10, cap_style=2)
-    hub = unary_union([Point(0, 0).buffer(hub_r, 64)] +
-                      [LineString([(0, 0), E.polar(E.HUB_ARM, a)]).buffer(13, cap_style=1) for a in [p[1] for p in plates] + [E.TAIL_A]])
-    hub = hub.buffer(4).buffer(-4).difference(Point(0, 0).buffer(E.BRG_D / 2, 64))
+    hub = rocker_hub(plates)
     sw = lambda g: affinity.rotate(flip(g), th, origin=(0, 0))                   # noqa: E731
     for plate, _, _ in plates:
         add(sw(plate), PAL_Z0, PAL_T, "#222")
@@ -346,6 +398,9 @@ def drawing(path, phi=0.0):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--no-render", action="store_true")
+    ap.add_argument("--gcode", action="store_true", help="write the ply3 cut files to marbles/gcode/")
+    ap.add_argument("--seg-batch", type=int, default=6, help="floor segments per cut file")
+    ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
     configure()
     pitch = 2 * math.pi * R / N
@@ -365,6 +420,11 @@ def main():
         x0, y0, x1, y1 = plate.bounds
         print(f"  {nm} pallet plate {x1 - x0:.0f} x {y1 - y0:.0f}, 2 x acrylic3; arm (2020) at {a_b:.1f} deg in "
               f"escapement_pin's frame ({(a_b + 180) % 360:.1f} here), pad at r {r_pad:.1f} from the pivot, z {PAL_Z0:.1f}..{ARM_Z0:.1f}")
+    if a.gcode:
+        print("cut files:")
+        emit_gcode(a.out, a.seg_batch)
+        if a.no_render:
+            return
     print("kinematic check (escapement_pin's simulator, this pin circle):")
     for amp in (E.LIFT / 2 + E.KAPPA / 2 + 1.0, 8.0, E.AMP):
         E.simulate(amp)
