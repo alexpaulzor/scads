@@ -62,7 +62,7 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
 
 <div class="wrap">
   <h1>Lift Link Tuner</h1>
-  <p class="sub">The rig hangs from the pivot and rocks. M slides along the spine, and a rigid link from the fixed frame holds an 8 mm axle clamped in an SK8 on M's double keeper (the face opposite the entry/exit flanges), so rocking slides M against the spine: that slide is the lift. Move the sliders until the stroke and the centring both go green, then copy the numbers.</p>
+  <p class="sub">F, the spine with the entry and exit flanges, hangs from the pivot (its SK8, off-centre on its side) and only rocks. M, the sliding frame with a sieve on each side, slides along F. A rigid link from the fixed frame holds an 8 mm axle clamped in an SK8 on M's double keeper, on M's side away from F's flanges, so rocking slides M against F: that slide is the lift. Move the sliders until the stroke and the centring both go green, then copy the numbers.</p>
 
   <div class="grid">
     <div class="panel">
@@ -77,7 +77,7 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
       </div>
       <div class="legend">
         <span style="--c: var(--back)">back extreme</span><span style="--c: var(--fwd)">forward extreme</span>
-        <span style="--c: var(--accent)">link, now</span><span style="--c: var(--wood)">M + arm</span><span style="--c: var(--spine)">spine</span>
+        <span style="--c: var(--accent)">link, now</span><span style="--c: var(--wood)">M (slides)</span><span style="--c: var(--spine)">F, spine (pivots)</span>
       </div>
       <div class="read" id="read"></div>
       <canvas id="plot" width="900" height="360" aria-label="M slide against tilt"></canvas>
@@ -92,8 +92,8 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
       </div>
       <div class="group">
         <h2>M's link pin: 8 mm axle in an SK8 on the double keeper</h2>
-        <div class="row"><label for="pv">Pivot shaft forward of the spine's centre, mm <small>SK8 on the spine's front face: 10 + 20 = 30</small></label><input type="number" id="pvN" step="0.5"><input type="range" id="pv" min="-60" max="60" step="0.5"></div>
-        <div class="row"><label for="mf">M's back face behind the spine's centre, mm <small>the face opposite the entry/exit flanges</small></label><input type="number" id="mfN" step="0.5"><input type="range" id="mf" min="0" max="60" step="0.5"></div>
+        <div class="row"><label for="pv">Pivot shaft forward of F's centre, mm <small>F's SK8 is off-centre on its side: the fore/aft offset of its shaft (+ = toward the flanges)</small></label><input type="number" id="pvN" step="0.5"><input type="range" id="pv" min="-60" max="60" step="0.5"></div>
+        <div class="row"><label for="mf">M's link face behind F's centre, mm <small>M's face on the side away from F's flanges, where the double keeper sits</small></label><input type="number" id="mfN" step="0.5"><input type="range" id="mf" min="0" max="60" step="0.5"></div>
         <div class="row"><label for="kt">Double keeper thickness, mm</label><input type="number" id="ktN" step="0.01"><input type="range" id="kt" min="0" max="12" step="0.01"></div>
         <div class="row"><label for="sp">Spacer under the SK8, mm <small>sets the stroke: pin = pivot + face + keeper + spacer + 20</small></label><input type="number" id="spN" step="0.5"><input type="range" id="sp" min="0" max="60" step="0.5"></div>
         <div class="row"><label for="kz">Keeper's top end below the pivot, mm <small>the SK8 sits flush with it; its axle is 21 lower</small></label><input type="number" id="kzN" step="0.5"><input type="range" id="kz" min="-60" max="300" step="0.5"></div>
@@ -125,7 +125,7 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
 <script>
 (() => {
   const SK8_H = 20, SK8_HALF = 21, SK8_T = 14;            // SK8: shaft 20 off its base, 42 long base (shaft at the middle)
-  const START = { amp: 12, pitch: 30, drop: 2, pv: 30, mf: 10, kt: 2.63, sp: 18, kz: 25, L: 100, e: 0, trim: 0 };
+  const START = { amp: 12, pitch: 30, drop: 2, pv: 0, mf: 10, kt: 2.63, sp: 48, kz: 25, L: 100, e: 0, trim: 0 };
   const P = { ...START };
   Object.defineProperties(P, {
     d: { get: () => P.pv + P.mf + P.kt + P.sp + SK8_H },       // pin behind the pivot axis
@@ -192,14 +192,22 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
     { const q = X([26, 26]); ctx.fillText("pillow block", q[0], q[1]); }
     const drawRig = (t, s, col, alpha, linkCol, lw) => {
       if (s === null) return;
-      poly(box(t, -P.pv - 10, -P.pv + 10, -rigLen, -8), css("--spine"), col, alpha);
       const top = -P.kz + s, face = -P.pv - P.mf;               // M's back face, in the pivot's frame
       poly(box(t, face, face + 20, -rigLen + s, top + 40), css("--wood"), col, alpha);                       // M's beam
       poly(box(t, face - P.kt, face, -rigLen + s, top), css("--wood-edge"), col, alpha);                      // double keeper
       if (P.sp > 0) poly(box(t, face - P.kt - P.sp, face - P.kt, top - 2 * SK8_HALF, top), css("--steel"), col, alpha * .8);  // spacer
       const b = face - P.kt - P.sp;                                                                            // SK8 base plane
       poly(box(t, b - SK8_H - 9, b, top - 2 * SK8_HALF, top), css("--steel"), col, alpha);                    // SK8 (side view)
+      poly(box(t, -P.pv - 10, -P.pv + 10, -rigLen, -8), css("--spine"), col, alpha * .85);                         // F
+      poly(box(t, -P.pv + 10, -P.pv + 16, -rigLen * .55, -rigLen * .55 + 40), css("--spine"), col, alpha * .85);  // entry flange (hint)
+      poly(box(t, -P.pv + 10, -P.pv + 16, -rigLen + 20, -rigLen + 60), css("--spine"), col, alpha * .85);         // exit flange (hint)
+
       const p = pinAt(t, s); line(A, p, linkCol, lw); dot(p, 4, css("--ink"));
+      if (alpha > .5) { ctx.fillStyle = css("--ink"); ctx.textAlign = "left";
+        let q = X(rot([-P.pv + 18, -rigLen * .55 + 20], t)); ctx.fillText("F: spine + flanges (pivots only)", q[0], q[1]);
+        q = X(rot([face - P.kt - 6, -rigLen * .75 + s], t)); ctx.textAlign = "right"; ctx.fillText("M: slides (sieves both sides)", q[0], q[1]);
+        q = X(rot([face - P.kt - P.sp - SK8_H - 12, top - SK8_HALF], t)); ctx.fillText("SK8 on M's double keeper", q[0], q[1] - 14);
+        ctx.textAlign = "left"; }
     };
     if (m) { drawRig(-P.amp, m.sb, css("--back"), .28, css("--back"), 3); drawRig(P.amp, m.sf, css("--fwd"), .28, css("--fwd"), 3); }
     const sNow = slide(tiltNow); drawRig(tiltNow, sNow, css("--ink"), .95, css("--accent"), 7);
@@ -254,7 +262,9 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
     out.textContent =
 `swing          +-${P.amp.toFixed(1)} deg   target stroke ${m.target.toFixed(1)} mm
 pivot -> pin    ${P.d.toFixed(1)} back, ${P.h.toFixed(1)} below (holes lined up)
-SK8 on keeper   spacer ${P.sp.toFixed(1)} under it, its top flush with the keeper's top, ${P.kz.toFixed(1)} below the pivot
+F's pivot       shaft ${P.pv.toFixed(1)} ${P.pv >= 0 ? "forward of" : "behind"} F's centre
+M's SK8         on the double keeper (M's side away from F's flanges), spacer ${P.sp.toFixed(1)} under it,
+                its top flush with the keeper's top, ${P.kz.toFixed(1)} below the pivot
 lower pivot     8 mm axle clamped in the SK8; link end turns on it (M8 rod end or a 608)
 link            ${(P.L + P.trim).toFixed(1)} pin to pin (nominal ${P.L.toFixed(1)}, trim ${P.trim >= 0 ? "+" : ""}${P.trim.toFixed(1)})
 anchor pin      ${(-m.A[0]).toFixed(1)} back, ${m.A[1].toFixed(1)} above the pivot centre
