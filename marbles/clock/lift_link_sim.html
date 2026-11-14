@@ -1,0 +1,296 @@
+<title>Lift Link Tuner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a workbench. Drawing on the left (the rig as it moves), knobs on the right, readouts under the drawing. */
+:root {
+  --bg: #eef0f2; --panel: #f9fafb; --ink: #1c242d; --muted: #5e6b78; --line: #c9d0d7;
+  --steel: #9aa5b1; --spine: #b9c2cc; --wood: #d8b67f; --wood-edge: #9c7440;
+  --accent: #d9622b; --back: #2f6fb5; --fwd: #c23a3a; --ok: #23824f; --warn: #b7791f; --bad: #c0392b;
+  --frame: #2b333c;
+  --f-ui: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15191e; --panel: #1d232a; --ink: #e4e8ec; --muted: #9aa6b2; --line: #333c46;
+  --steel: #6d7884; --spine: #56616d; --wood: #a8844e; --wood-edge: #d4ad6d;
+  --accent: #f08046; --back: #6aa5ea; --fwd: #ef6b6b; --ok: #4cc283; --warn: #e2a84a; --bad: #ef6b5f;
+  --frame: #8b96a2; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15191e; --panel: #1d232a; --ink: #e4e8ec; --muted: #9aa6b2; --line: #333c46;
+  --steel: #6d7884; --spine: #56616d; --wood: #a8844e; --wood-edge: #d4ad6d;
+  --accent: #f08046; --back: #6aa5ea; --fwd: #ef6b6b; --ok: #4cc283; --warn: #e2a84a; --bad: #ef6b5f;
+  --frame: #8b96a2; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 18px 28px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 2px; letter-spacing: .01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0 0 14px; max-width: 75ch; line-height: 1.45; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
+canvas { width: 100%; height: auto; display: block; aspect-ratio: 4 / 3.4; max-width: 100%; }
+.play { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+button { font-family: var(--f-ui); font-weight: 600; font-size: .9rem; border: 1px solid var(--line); background: var(--bg);
+  color: var(--ink); border-radius: 6px; padding: 6px 11px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.knobs { display: flex; flex-direction: column; gap: 14px; }
+.group h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 78px; gap: 4px 10px; align-items: center; padding: 3px 0; }
+.row label { font-size: .92rem; }
+.row label small { color: var(--muted); display: block; font-size: .78rem; line-height: 1.3; }
+.row input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+.row input[type=number] { width: 78px; font-family: var(--f-num); font-size: .85rem; padding: 3px 4px; border: 1px solid var(--line);
+  border-radius: 4px; background: var(--bg); color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.read { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; }
+.chip { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; border-left-width: 4px; }
+.chip .k { font-size: .76rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+.chip .v { font-family: var(--f-num); font-size: 1.1rem; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.chip .n { font-size: .8rem; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+.chip.ok { border-left-color: var(--ok); } .chip.warn { border-left-color: var(--warn); } .chip.bad { border-left-color: var(--bad); }
+.chip.info { border-left-color: var(--steel); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px; overflow-x: auto; margin: 8px 0 0; white-space: pre; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .82rem; color: var(--muted); margin-top: 6px; }
+.legend span::before { content: ""; display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-right: 5px; vertical-align: middle; background: var(--c); }
+#plot { aspect-ratio: 4 / 1.6; margin-top: 10px; }
+</style>
+
+<div class="wrap">
+  <h1>Lift Link Tuner</h1>
+  <p class="sub">The rig hangs from the pivot and rocks. M slides along the spine, and a rigid link from the fixed frame holds M's top pin, so rocking slides M against the spine: that slide is the lift. Move the sliders until the stroke and the centring both go green, then copy the numbers.</p>
+
+  <div class="grid">
+    <div class="panel">
+      <canvas id="cv" width="900" height="765" aria-label="Side view of the rig, link and frame"></canvas>
+      <div class="play">
+        <button id="playBtn" class="primary" type="button">Pause</button>
+        <div class="row" style="flex:1; min-width: 220px; grid-template-columns: minmax(0,1fr) 78px;">
+          <label for="tilt">Tilt now <small>+ = top toward the front</small></label>
+          <input type="number" id="tiltN" step="0.1" aria-label="tilt now, degrees">
+          <input type="range" id="tilt" min="-20" max="20" step="0.1" value="0">
+        </div>
+      </div>
+      <div class="legend">
+        <span style="--c: var(--back)">back extreme</span><span style="--c: var(--fwd)">forward extreme</span>
+        <span style="--c: var(--accent)">link, now</span><span style="--c: var(--wood)">M + arm</span><span style="--c: var(--spine)">spine</span>
+      </div>
+      <div class="read" id="read"></div>
+      <canvas id="plot" width="900" height="360" aria-label="M slide against tilt"></canvas>
+    </div>
+
+    <div class="panel knobs">
+      <div class="group">
+        <h2>Swing and target</h2>
+        <div class="row"><label for="amp">Swing amplitude, deg <small>each side, symmetric</small></label><input type="number" id="ampN" step="0.1"><input type="range" id="amp" min="2" max="20" step="0.1"></div>
+        <div class="row"><label for="pitch">Sieve hole pitch, mm</label><input type="number" id="pitchN" step="0.5"><input type="range" id="pitch" min="20" max="40" step="0.5"></div>
+        <div class="row"><label for="drop">Hand-off drop, mm <small>each way: stroke = pitch + 2 &times; drop</small></label><input type="number" id="dropN" step="0.1"><input type="range" id="drop" min="0" max="6" step="0.1"></div>
+      </div>
+      <div class="group">
+        <h2>M's link pin (on the arm off M's top)</h2>
+        <div class="row"><label for="d">Pin behind the pivot, mm <small>sets the stroke (about d &times; 2 sin swing)</small></label><input type="number" id="dN" step="0.5"><input type="range" id="d" min="-160" max="200" step="0.5"></div>
+        <div class="row"><label for="h">Pin below the pivot, mm <small>at the centred position</small></label><input type="number" id="hN" step="0.5"><input type="range" id="h" min="-120" max="200" step="0.5"></div>
+        <div class="row"><label for="my">M's beam behind the spine, mm <small>centre to centre; arm = d minus this</small></label><input type="number" id="myN" step="0.5"><input type="range" id="my" min="0" max="80" step="0.5"></div>
+      </div>
+      <div class="group">
+        <h2>Link and frame anchor</h2>
+        <div class="row"><label for="L">Link length, pin to pin, mm <small>the anchor is this far above the pin</small></label><input type="number" id="LN" step="0.5"><input type="range" id="L" min="30" max="400" step="0.5"></div>
+        <div class="row"><label for="e">Anchor forward of the pin, mm <small>0 = link vertical at rest</small></label><input type="number" id="eN" step="0.5"><input type="range" id="e" min="-80" max="80" step="0.5"></div>
+        <div class="row"><label for="trim">Turnbuckle trim, mm <small>rod ends screwed in / out after it's built</small></label><input type="number" id="trimN" step="0.1"><input type="range" id="trim" min="-15" max="15" step="0.1"></div>
+      </div>
+      <div class="group">
+        <h2>Solve</h2>
+        <div class="actions">
+          <button type="button" id="solveD">Set pin distance for the target stroke</button>
+          <button type="button" id="solveTrim">Trim the turnbuckle to centre it</button>
+          <button type="button" id="reset">Start values</button>
+        </div>
+      </div>
+      <div class="group">
+        <h2>Numbers to build</h2>
+        <pre id="out"></pre>
+        <div class="actions" style="margin-top:8px"><button type="button" id="copy">Copy numbers</button><span id="copied" class="sub" style="margin:0"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const START = { amp: 12, pitch: 30, drop: 2, d: 80.8, h: 45, my: 26, L: 100, e: 0, trim: 0 };
+  const P = { ...START };
+  const ids = Object.keys(START);
+  const rad = a => a * Math.PI / 180;
+
+  // rig turned by tilt t (deg, + = top toward the front): rotate by -t about the pivot (0,0); y = swing (+ front), z = up
+  function rot([y, z], t) { const a = rad(-t), c = Math.cos(a), s = Math.sin(a); return [y * c - z * s, y * s + z * c]; }
+  function anchor() { return [-P.d + P.e, -P.h + P.L]; }
+  // M's slide along the rig (+ = up the rig, against the spine) that keeps the link length at tilt t; null if it can't reach
+  function slide(t) {
+    const L = P.L + P.trim, A = anchor(), b0 = rot([-P.d, -P.h], t), u = rot([0, 1], t);
+    const w = [b0[0] - A[0], b0[1] - A[1]], b = w[0] * u[0] + w[1] * u[1], c = w[0] * w[0] + w[1] * w[1] - L * L;
+    const disc = b * b - c; if (disc < 0) return null;
+    return -b - Math.sqrt(disc);                                   // the pin hangs below the anchor
+  }
+  function pinAt(t, s) { return rot([-P.d, -P.h + s], t); }
+  function metrics() {
+    const sb = slide(-P.amp), sf = slide(P.amp), s0 = slide(0);
+    if (sb === null || sf === null || s0 === null) return null;
+    const stroke = sb - sf, target = P.pitch + 2 * P.drop, mid = (sb + sf) / 2;
+    const A = anchor(), ang = t => { const s = slide(t), p = pinAt(t, s), u = rot([0, 1], t);
+      const v = [A[0] - p[0], A[1] - p[1]], n = Math.hypot(v[0], v[1]);
+      return Math.acos(Math.max(-1, Math.min(1, (v[0] * u[0] + v[1] * u[1]) / n))) * 180 / Math.PI; };
+    const side = Math.max(ang(-P.amp), ang(P.amp), ang(0));
+    let lin = 0; const N = 40;                                     // worst departure from a straight line slide vs sin(tilt)
+    for (let i = 0; i <= N; i++) { const t = -P.amp + 2 * P.amp * i / N, s = slide(t);
+      const ideal = mid - (stroke / 2) * Math.sin(rad(t)) / Math.sin(rad(P.amp)); lin = Math.max(lin, Math.abs(s - ideal)); }
+    return { sb, sf, s0, stroke, target, mid, side, lin, A };
+  }
+
+  // ---------- drawing
+  const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+  const pl = document.getElementById("plot"), px = pl.getContext("2d");
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let tiltNow = 0, playing = true, t0 = performance.now();
+
+  function draw() {
+    const m = metrics(), W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+    const A = anchor(), rigLen = 300;
+    const pts = [[0, 0], A, [-P.d - 30, -P.h - 20], [40, 40], [-P.d + 30, A[1] + 30]];
+    for (const t of [-P.amp, P.amp]) pts.push(rot([0, -rigLen], t), rot([-P.my, -rigLen], t));
+    let y0 = Math.min(...pts.map(p => p[0])) - 60, y1 = Math.max(...pts.map(p => p[0])) + 60;
+    let z0 = Math.min(...pts.map(p => p[1])) - 20, z1 = Math.max(...pts.map(p => p[1])) + 50;
+    const sc = Math.min(W / (y1 - y0), H / (z1 - z0));
+    const ox = (W - (y1 - y0) * sc) / 2 - y0 * sc, oy = (H - (z1 - z0) * sc) / 2 + z1 * sc;
+    const X = p => [ox + p[0] * sc, oy - p[1] * sc];
+    const poly = (ps, fill, stroke, alpha = 1, lw = 1.5) => { ctx.globalAlpha = alpha; ctx.beginPath();
+      ps.forEach((p, i) => { const q = X(p); i ? ctx.lineTo(...q) : ctx.moveTo(...q); }); ctx.closePath();
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); } ctx.globalAlpha = 1; };
+    const box = (t, ya, yb, za, zb) => [[ya, za], [yb, za], [yb, zb], [ya, zb]].map(p => rot(p, t));
+    const dot = (p, r, col) => { const q = X(p); ctx.beginPath(); ctx.arc(q[0], q[1], r, 0, 7); ctx.fillStyle = col; ctx.fill(); };
+    const line = (a, b, col, lw) => { const p = X(a), q = X(b); ctx.beginPath(); ctx.moveTo(...p); ctx.lineTo(...q);
+      ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = "round"; ctx.stroke(); };
+    ctx.font = `${Math.round(13 * W / 900)}px Barlow, system-ui, sans-serif`;
+    // fixed frame beam over the anchor, pillow block over the pivot
+    poly([[A[0] - 70, A[1] + 8], [A[0] + 70, A[1] + 8], [A[0] + 70, A[1] + 28], [A[0] - 70, A[1] + 28]], css("--frame"), null, .9);
+    poly([[A[0] - 8, A[1]], [A[0] + 8, A[1]], [A[0] + 8, A[1] + 8], [A[0] - 8, A[1] + 8]], css("--steel"), css("--ink"), 1, 1);
+    poly([[-22, 7], [22, 7], [22, 34], [-22, 34]], css("--steel"), css("--ink"), .8, 1);
+    ctx.fillStyle = css("--muted"); { const q = X([A[0] + 74, A[1] + 14]); ctx.fillText("fixed frame", q[0], q[1]); }
+    { const q = X([26, 26]); ctx.fillText("pillow block", q[0], q[1]); }
+    const drawRig = (t, s, col, alpha, linkCol, lw) => {
+      if (s === null) return;
+      poly(box(t, -10, 10, -rigLen, -8), css("--spine"), col, alpha);
+      poly(box(t, -P.my - 10, -P.my + 10, -rigLen + s, -P.h + s - 6), css("--wood"), col, alpha);
+      const ya = Math.min(-P.d - 8, -P.my - 10), yb = Math.max(-P.d + 8, -P.my + 10);
+      poly(box(t, ya, yb, -P.h + s - 6, -P.h + s + 7), css("--wood-edge"), col, alpha);
+      const p = pinAt(t, s); line(A, p, linkCol, lw); dot(p, 4, css("--ink"));
+    };
+    if (m) { drawRig(-P.amp, m.sb, css("--back"), .28, css("--back"), 3); drawRig(P.amp, m.sf, css("--fwd"), .28, css("--fwd"), 3); }
+    const sNow = slide(tiltNow); drawRig(tiltNow, sNow, css("--ink"), .95, css("--accent"), 7);
+    dot(A, 5, css("--ink")); dot([0, 0], 6, css("--bg")); const q0 = X([0, 0]);
+    ctx.beginPath(); ctx.arc(q0[0], q0[1], 6, 0, 7); ctx.strokeStyle = css("--ink"); ctx.lineWidth = 2; ctx.stroke();
+    // dimension callouts: pin offsets from the pivot at rest
+    ctx.fillStyle = css("--muted");
+    { const q = X([-P.d / 2, 4]); ctx.textAlign = "center"; ctx.fillText(`d ${P.d.toFixed(1)}`, q[0], q[1]); }
+    { const q = X([-P.d - 14, -P.h / 2]); ctx.textAlign = "right"; ctx.fillText(`h ${P.h.toFixed(1)}`, q[0], q[1]); }
+    { const q = X([A[0] - 10, (A[1] - P.h) / 2]); ctx.fillText(`link ${(P.L + P.trim).toFixed(1)}`, q[0], q[1]); }
+    ctx.textAlign = "left";
+    { const q = X([y0 + 8, z0 + 10]); ctx.fillText("front →", W - 80, q[1]); }
+    if (sNow === null) { ctx.fillStyle = css("--bad"); ctx.fillText("the link can't reach M at this tilt", 12, 22); }
+  }
+
+  function drawPlot(m) {
+    const W = pl.width, H = pl.height; px.clearRect(0, 0, W, H);
+    if (!m) return;
+    const pad = { l: 58, r: 14, t: 14, b: 34 }, tm = Math.max(P.amp, 1) * 1.25, half = m.target / 2 + 6;
+    const sMin = Math.min(m.mid - half, m.sf - 3, -m.target / 2 - 4), sMax = Math.max(m.mid + half, m.sb + 3, m.target / 2 + 4);
+    const X = t => pad.l + (t + tm) / (2 * tm) * (W - pad.l - pad.r), Y = s => pad.t + (sMax - s) / (sMax - sMin) * (H - pad.t - pad.b);
+    px.font = "22px JetBrains Mono, monospace"; px.fillStyle = css("--muted"); px.strokeStyle = css("--line"); px.lineWidth = 1;
+    for (let s = Math.ceil(sMin / 10) * 10; s <= sMax; s += 10) { px.beginPath(); px.moveTo(pad.l, Y(s)); px.lineTo(W - pad.r, Y(s)); px.stroke();
+      px.textAlign = "right"; px.fillText(s, pad.l - 6, Y(s) + 7); }
+    for (const t of [-P.amp, 0, P.amp]) { px.textAlign = "center"; px.fillText(t.toFixed(t % 1 ? 1 : 0) + "°", X(t), H - 8); }
+    px.setLineDash([8, 6]); px.strokeStyle = css("--ok"); px.lineWidth = 2;
+    for (const s of [m.target / 2, -m.target / 2]) { px.beginPath(); px.moveTo(pad.l, Y(s)); px.lineTo(W - pad.r, Y(s)); px.stroke(); }
+    px.setLineDash([]); px.strokeStyle = css("--accent"); px.lineWidth = 4; px.beginPath();
+    for (let i = 0; i <= 80; i++) { const t = -P.amp + 2 * P.amp * i / 80, s = slide(t); if (s === null) continue; i ? px.lineTo(X(t), Y(s)) : px.moveTo(X(t), Y(s)); }
+    px.stroke();
+    const sn = slide(tiltNow); if (sn !== null) { px.beginPath(); px.arc(X(tiltNow), Y(sn), 8, 0, 7); px.fillStyle = css("--ink"); px.fill(); }
+    px.textAlign = "left"; px.fillStyle = css("--muted");
+    px.fillText("M slide vs the spine, mm (dashed: ± target/2)", pad.l + 6, pad.t + 20);
+  }
+
+  // ---------- readouts
+  const read = document.getElementById("read"), out = document.getElementById("out");
+  function chip(cls, k, v, n) { return `<div class="chip ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="n">${n}</div></div>`; }
+  function update() {
+    const m = metrics();
+    if (!m) { read.innerHTML = chip("bad", "Link", "can't reach", "M's pin is out of the link's reach at a swing extreme: lengthen the link or move the anchor."); out.textContent = ""; drawPlot(null); return; }
+    const err = m.stroke - m.target, cls = Math.abs(err) <= 0.5 ? "ok" : Math.abs(err) <= 1.5 ? "warn" : "bad";
+    const cc = Math.abs(m.mid) <= 0.5 ? "ok" : Math.abs(m.mid) <= 1.5 ? "warn" : "bad";
+    const sc = m.side <= 8 ? "ok" : m.side <= 15 ? "warn" : "bad";
+    read.innerHTML =
+      chip(cls, "Stroke", `${m.stroke.toFixed(2)} mm`, `target ${m.target.toFixed(1)} (${P.pitch} pitch + 2 × ${P.drop} drop): ${err >= 0 ? "+" : ""}${err.toFixed(2)}`) +
+      chip(cc, "Centring", `${m.mid >= 0 ? "+" : ""}${m.mid.toFixed(2)} mm`, `middle of the stroke vs the holes lined up. Turnbuckle fixes it.`) +
+      chip("info", "M at the extremes", `${m.sb >= 0 ? "+" : ""}${m.sb.toFixed(1)} / ${m.sf >= 0 ? "+" : ""}${m.sf.toFixed(1)}`, `back / forward, mm up the spine; want +${(m.target / 2).toFixed(1)} / −${(m.target / 2).toFixed(1)}`) +
+      chip(sc, "Link off M's slide line", `${m.side.toFixed(1)}° max`, `side load on M's wheels = ${(Math.tan(rad(m.side)) * 100).toFixed(0)}% of the link force. Longer link = smaller.`) +
+      chip("info", "Anchor position", `${(-m.A[0]).toFixed(1)} back, ${m.A[1] >= 0 ? m.A[1].toFixed(1) + " above" : (-m.A[1]).toFixed(1) + " below"}`, `from the pivot centre, mm: where the frame bracket's pin goes`) +
+      chip(m.lin <= 0.5 ? "ok" : "warn", "Slide shape", `${m.lin.toFixed(2)} mm`, `largest departure from a clean sine over the swing (hand-off timing)`);
+    const arm = P.d - P.my;
+    out.textContent =
+`swing          +-${P.amp.toFixed(1)} deg   target stroke ${m.target.toFixed(1)} mm
+pivot -> pin    ${P.d.toFixed(1)} back, ${P.h.toFixed(1)} below (holes lined up)
+arm on M        ${arm.toFixed(1)} from M's beam centre to the pin
+link            ${(P.L + P.trim).toFixed(1)} pin to pin (nominal ${P.L.toFixed(1)}, trim ${P.trim >= 0 ? "+" : ""}${P.trim.toFixed(1)})
+anchor pin      ${(-m.A[0]).toFixed(1)} back, ${m.A[1].toFixed(1)} above the pivot centre
+result          stroke ${m.stroke.toFixed(2)}, centre ${m.mid >= 0 ? "+" : ""}${m.mid.toFixed(2)}, M ${m.sb.toFixed(2)} / ${m.sf.toFixed(2)}, link max ${m.side.toFixed(1)} deg off`;
+    drawPlot(m);
+  }
+
+  // ---------- controls
+  function bind(id) {
+    const r = document.getElementById(id), n = document.getElementById(id + "N");
+    const set = v => { P[id] = +v; r.value = P[id]; n.value = P[id]; update(); if (!playing) draw(); };
+    r.addEventListener("input", () => set(r.value)); n.addEventListener("change", () => set(n.value));
+    r.value = P[id]; n.value = P[id];
+  }
+  ids.forEach(bind);
+  const sync = () => ids.forEach(id => { document.getElementById(id).value = P[id]; document.getElementById(id + "N").value = +P[id].toFixed(2); });
+  const tr = document.getElementById("tilt"), tn = document.getElementById("tiltN");
+  const setTilt = v => { tiltNow = +v; tr.value = tiltNow; tn.value = tiltNow.toFixed(1); };
+  tr.addEventListener("input", () => { playing = false; playBtn.textContent = "Play"; setTilt(tr.value); draw(); drawPlot(metrics()); });
+  tn.addEventListener("change", () => { playing = false; playBtn.textContent = "Play"; setTilt(tn.value); draw(); drawPlot(metrics()); });
+  const playBtn = document.getElementById("playBtn");
+  playBtn.addEventListener("click", () => { playing = !playing; playBtn.textContent = playing ? "Pause" : "Play"; t0 = performance.now(); });
+  // bisection helpers for the two solve buttons
+  function bisect(f, lo, hi) { let flo = f(lo); for (let i = 0; i < 80; i++) { const mid = (lo + hi) / 2, fm = f(mid);
+    if (fm === null || flo === null) return null; if ((fm < 0) === (flo < 0)) { lo = mid; flo = fm; } else hi = mid; } return (lo + hi) / 2; }
+  document.getElementById("solveD").addEventListener("click", () => {
+    const keep = P.d; const target = P.pitch + 2 * P.drop;
+    const f = d => { P.d = d; const m = metrics(); return m ? m.stroke - target : null; };
+    const r = bisect(f, 5, 200); P.d = r === null ? keep : Math.round(r * 10) / 10; sync(); update();
+  });
+  document.getElementById("solveTrim").addEventListener("click", () => {
+    const keep = P.trim; const f = tr_ => { P.trim = tr_; const m = metrics(); return m ? m.mid : null; };
+    const r = bisect(f, -15, 15); P.trim = r === null ? keep : Math.round(r * 10) / 10; sync(); update();
+  });
+  document.getElementById("reset").addEventListener("click", () => { Object.assign(P, START); sync(); update(); });
+  document.getElementById("copy").addEventListener("click", () => {
+    const msg = document.getElementById("copied");
+    navigator.clipboard.writeText(out.textContent).then(() => { msg.textContent = "Copied"; }, () => {
+      const r = document.createRange(); r.selectNodeContents(out); const s = getSelection(); s.removeAllRanges(); s.addRange(r); msg.textContent = "Selected: press copy"; });
+  });
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce) { playing = false; playBtn.textContent = "Play"; }
+  function frame(now) {
+    if (playing) { setTilt(P.amp * Math.sin(Math.PI * (now - t0) / 1000)); drawPlot(metrics()); }   // 2 s full swing
+    draw(); requestAnimationFrame(frame);
+  }
+  setTilt(0); update(); requestAnimationFrame(frame);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", update);
+})();
+</script>
