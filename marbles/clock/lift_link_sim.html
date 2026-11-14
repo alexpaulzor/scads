@@ -62,7 +62,7 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
 
 <div class="wrap">
   <h1>Lift Link Tuner</h1>
-  <p class="sub">The rig hangs from the pivot and rocks. M slides along the spine, and a rigid link from the fixed frame holds M's top pin, so rocking slides M against the spine: that slide is the lift. Move the sliders until the stroke and the centring both go green, then copy the numbers.</p>
+  <p class="sub">The rig hangs from the pivot and rocks. M slides along the spine, and a rigid link from the fixed frame holds an 8 mm axle clamped in an SK8 on M's double keeper (the face opposite the entry/exit flanges), so rocking slides M against the spine: that slide is the lift. Move the sliders until the stroke and the centring both go green, then copy the numbers.</p>
 
   <div class="grid">
     <div class="panel">
@@ -91,10 +91,12 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
         <div class="row"><label for="drop">Hand-off drop, mm <small>each way: stroke = pitch + 2 &times; drop</small></label><input type="number" id="dropN" step="0.1"><input type="range" id="drop" min="0" max="6" step="0.1"></div>
       </div>
       <div class="group">
-        <h2>M's link pin (on the arm off M's top)</h2>
-        <div class="row"><label for="d">Pin behind the pivot, mm <small>sets the stroke (about d &times; 2 sin swing)</small></label><input type="number" id="dN" step="0.5"><input type="range" id="d" min="-160" max="200" step="0.5"></div>
-        <div class="row"><label for="h">Pin below the pivot, mm <small>at the centred position</small></label><input type="number" id="hN" step="0.5"><input type="range" id="h" min="-120" max="200" step="0.5"></div>
-        <div class="row"><label for="my">M's beam behind the spine, mm <small>centre to centre; arm = d minus this</small></label><input type="number" id="myN" step="0.5"><input type="range" id="my" min="0" max="80" step="0.5"></div>
+        <h2>M's link pin: 8 mm axle in an SK8 on the double keeper</h2>
+        <div class="row"><label for="pv">Pivot shaft forward of the spine's centre, mm <small>SK8 on the spine's front face: 10 + 20 = 30</small></label><input type="number" id="pvN" step="0.5"><input type="range" id="pv" min="-60" max="60" step="0.5"></div>
+        <div class="row"><label for="mf">M's back face behind the spine's centre, mm <small>the face opposite the entry/exit flanges</small></label><input type="number" id="mfN" step="0.5"><input type="range" id="mf" min="0" max="60" step="0.5"></div>
+        <div class="row"><label for="kt">Double keeper thickness, mm</label><input type="number" id="ktN" step="0.01"><input type="range" id="kt" min="0" max="12" step="0.01"></div>
+        <div class="row"><label for="sp">Spacer under the SK8, mm <small>sets the stroke: pin = pivot + face + keeper + spacer + 20</small></label><input type="number" id="spN" step="0.5"><input type="range" id="sp" min="0" max="60" step="0.5"></div>
+        <div class="row"><label for="kz">Keeper's top end below the pivot, mm <small>the SK8 sits flush with it; its axle is 21 lower</small></label><input type="number" id="kzN" step="0.5"><input type="range" id="kz" min="-60" max="300" step="0.5"></div>
       </div>
       <div class="group">
         <h2>Link and frame anchor</h2>
@@ -105,7 +107,8 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
       <div class="group">
         <h2>Solve</h2>
         <div class="actions">
-          <button type="button" id="solveD">Set pin distance for the target stroke</button>
+          <button type="button" id="solveD">Set the SK8 spacer for the target stroke</button>
+          <button type="button" id="solveAmp">Set the swing for the target stroke</button>
           <button type="button" id="solveTrim">Trim the turnbuckle to centre it</button>
           <button type="button" id="reset">Start values</button>
         </div>
@@ -121,8 +124,13 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
 
 <script>
 (() => {
-  const START = { amp: 12, pitch: 30, drop: 2, d: 80.8, h: 45, my: 26, L: 100, e: 0, trim: 0 };
+  const SK8_H = 20, SK8_HALF = 21, SK8_T = 14;            // SK8: shaft 20 off its base, 42 long base (shaft at the middle)
+  const START = { amp: 12, pitch: 30, drop: 2, pv: 30, mf: 10, kt: 2.63, sp: 18, kz: 25, L: 100, e: 0, trim: 0 };
   const P = { ...START };
+  Object.defineProperties(P, {
+    d: { get: () => P.pv + P.mf + P.kt + P.sp + SK8_H },       // pin behind the pivot axis
+    h: { get: () => P.kz + SK8_HALF },                          // pin below the pivot axis
+    my: { get: () => P.mf - 10 } });                            // M's beam centre behind the spine's centre (2020)
   const ids = Object.keys(START);
   const rad = a => a * Math.PI / 180;
 
@@ -162,7 +170,7 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
     ctx.clearRect(0, 0, W, H);
     const A = anchor(), rigLen = 300;
     const pts = [[0, 0], A, [-P.d - 30, -P.h - 20], [40, 40], [-P.d + 30, A[1] + 30]];
-    for (const t of [-P.amp, P.amp]) pts.push(rot([0, -rigLen], t), rot([-P.my, -rigLen], t));
+    for (const t of [-P.amp, P.amp]) pts.push(rot([-P.pv, -rigLen], t), rot([-P.d - 12, -P.h], t));
     let y0 = Math.min(...pts.map(p => p[0])) - 60, y1 = Math.max(...pts.map(p => p[0])) + 60;
     let z0 = Math.min(...pts.map(p => p[1])) - 20, z1 = Math.max(...pts.map(p => p[1])) + 50;
     const sc = Math.min(W / (y1 - y0), H / (z1 - z0));
@@ -184,10 +192,13 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
     { const q = X([26, 26]); ctx.fillText("pillow block", q[0], q[1]); }
     const drawRig = (t, s, col, alpha, linkCol, lw) => {
       if (s === null) return;
-      poly(box(t, -10, 10, -rigLen, -8), css("--spine"), col, alpha);
-      poly(box(t, -P.my - 10, -P.my + 10, -rigLen + s, -P.h + s - 6), css("--wood"), col, alpha);
-      const ya = Math.min(-P.d - 8, -P.my - 10), yb = Math.max(-P.d + 8, -P.my + 10);
-      poly(box(t, ya, yb, -P.h + s - 6, -P.h + s + 7), css("--wood-edge"), col, alpha);
+      poly(box(t, -P.pv - 10, -P.pv + 10, -rigLen, -8), css("--spine"), col, alpha);
+      const top = -P.kz + s, face = -P.pv - P.mf;               // M's back face, in the pivot's frame
+      poly(box(t, face, face + 20, -rigLen + s, top + 40), css("--wood"), col, alpha);                       // M's beam
+      poly(box(t, face - P.kt, face, -rigLen + s, top), css("--wood-edge"), col, alpha);                      // double keeper
+      if (P.sp > 0) poly(box(t, face - P.kt - P.sp, face - P.kt, top - 2 * SK8_HALF, top), css("--steel"), col, alpha * .8);  // spacer
+      const b = face - P.kt - P.sp;                                                                            // SK8 base plane
+      poly(box(t, b - SK8_H - 9, b, top - 2 * SK8_HALF, top), css("--steel"), col, alpha);                    // SK8 (side view)
       const p = pinAt(t, s); line(A, p, linkCol, lw); dot(p, 4, css("--ink"));
     };
     if (m) { drawRig(-P.amp, m.sb, css("--back"), .28, css("--back"), 3); drawRig(P.amp, m.sf, css("--fwd"), .28, css("--fwd"), 3); }
@@ -196,8 +207,8 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
     ctx.beginPath(); ctx.arc(q0[0], q0[1], 6, 0, 7); ctx.strokeStyle = css("--ink"); ctx.lineWidth = 2; ctx.stroke();
     // dimension callouts: pin offsets from the pivot at rest
     ctx.fillStyle = css("--muted");
-    { const q = X([-P.d / 2, 4]); ctx.textAlign = "center"; ctx.fillText(`d ${P.d.toFixed(1)}`, q[0], q[1]); }
-    { const q = X([-P.d - 14, -P.h / 2]); ctx.textAlign = "right"; ctx.fillText(`h ${P.h.toFixed(1)}`, q[0], q[1]); }
+    { const q = X([-P.d / 2, 4]); ctx.textAlign = "center"; ctx.fillText(`pin ${P.d.toFixed(1)} back`, q[0], q[1]); }
+    { const q = X([-P.d - 14, -P.h / 2]); ctx.textAlign = "right"; ctx.fillText(`${P.h.toFixed(1)} down`, q[0], q[1]); }
     { const q = X([A[0] - 10, (A[1] - P.h) / 2]); ctx.fillText(`link ${(P.L + P.trim).toFixed(1)}`, q[0], q[1]); }
     ctx.textAlign = "left";
     { const q = X([y0 + 8, z0 + 10]); ctx.fillText("front →", W - 80, q[1]); }
@@ -240,11 +251,11 @@ pre { font-family: var(--f-num); font-size: .78rem; background: var(--bg); borde
       chip(sc, "Link off M's slide line", `${m.side.toFixed(1)}° max`, `side load on M's wheels = ${(Math.tan(rad(m.side)) * 100).toFixed(0)}% of the link force. Longer link = smaller.`) +
       chip("info", "Anchor position", `${(-m.A[0]).toFixed(1)} back, ${m.A[1] >= 0 ? m.A[1].toFixed(1) + " above" : (-m.A[1]).toFixed(1) + " below"}`, `from the pivot centre, mm: where the frame bracket's pin goes`) +
       chip(m.lin <= 0.5 ? "ok" : "warn", "Slide shape", `${m.lin.toFixed(2)} mm`, `largest departure from a clean sine over the swing (hand-off timing)`);
-    const arm = P.d - P.my;
     out.textContent =
 `swing          +-${P.amp.toFixed(1)} deg   target stroke ${m.target.toFixed(1)} mm
 pivot -> pin    ${P.d.toFixed(1)} back, ${P.h.toFixed(1)} below (holes lined up)
-arm on M        ${arm.toFixed(1)} from M's beam centre to the pin
+SK8 on keeper   spacer ${P.sp.toFixed(1)} under it, its top flush with the keeper's top, ${P.kz.toFixed(1)} below the pivot
+lower pivot     8 mm axle clamped in the SK8; link end turns on it (M8 rod end or a 608)
 link            ${(P.L + P.trim).toFixed(1)} pin to pin (nominal ${P.L.toFixed(1)}, trim ${P.trim >= 0 ? "+" : ""}${P.trim.toFixed(1)})
 anchor pin      ${(-m.A[0]).toFixed(1)} back, ${m.A[1].toFixed(1)} above the pivot centre
 result          stroke ${m.stroke.toFixed(2)}, centre ${m.mid >= 0 ? "+" : ""}${m.mid.toFixed(2)}, M ${m.sb.toFixed(2)} / ${m.sf.toFixed(2)}, link max ${m.side.toFixed(1)} deg off`;
@@ -270,9 +281,14 @@ result          stroke ${m.stroke.toFixed(2)}, centre ${m.mid >= 0 ? "+" : ""}${
   function bisect(f, lo, hi) { let flo = f(lo); for (let i = 0; i < 80; i++) { const mid = (lo + hi) / 2, fm = f(mid);
     if (fm === null || flo === null) return null; if ((fm < 0) === (flo < 0)) { lo = mid; flo = fm; } else hi = mid; } return (lo + hi) / 2; }
   document.getElementById("solveD").addEventListener("click", () => {
-    const keep = P.d; const target = P.pitch + 2 * P.drop;
-    const f = d => { P.d = d; const m = metrics(); return m ? m.stroke - target : null; };
-    const r = bisect(f, 5, 200); P.d = r === null ? keep : Math.round(r * 10) / 10; sync(); update();
+    const keep = P.sp; const target = P.pitch + 2 * P.drop;
+    const f = v => { P.sp = v; const m = metrics(); return m ? m.stroke - target : null; };
+    const r = bisect(f, 0, 60); P.sp = r === null ? keep : Math.round(r * 10) / 10; sync(); update();
+  });
+  document.getElementById("solveAmp").addEventListener("click", () => {
+    const keep = P.amp; const target = P.pitch + 2 * P.drop;
+    const f = v => { P.amp = v; const m = metrics(); return m ? m.stroke - target : null; };
+    const r = bisect(f, 2, 20); P.amp = r === null ? keep : Math.round(r * 10) / 10; sync(); update();
   });
   document.getElementById("solveTrim").addEventListener("click", () => {
     const keep = P.trim; const f = tr_ => { P.trim = tr_; const m = metrics(); return m ? m.mid : null; };
