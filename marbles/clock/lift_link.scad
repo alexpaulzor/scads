@@ -11,10 +11,9 @@ tilt_fixed = 999;      // set to an angle (deg) to freeze; 999 = animate. + = th
 show_ends = true;      // ghost the rig at both ends of the swing
 
 /* [Rig: your measurements] */
-keeper_t = 2.82;       // the mdf3 layer under F's SK8
-sk8_h = 20;            // SK8: shaft centre to its base
+f_x = -32.82;          // F's centre, right (+) / left (-) of the pivot shaft. Old SK8-on-keeper pivot: -(10 + 2.82 + 20)
 m_offset = 10;         // M's centre is this far left of F's centre
-cross_top = 75;        // top of M's crossbar above the shaft, M on its bottom stop
+cross_top = 75;        // top of M's crossbar above (+) / below (-) the pivot shaft, M on its bottom stop
 travel = 36;           // M's travel, stop to stop
 lane = 20;             // ball lane between F and each M side beam (front / back)
 
@@ -29,7 +28,7 @@ arm_z = 199.2;         // manual arm pin: above the shaft
 link = 110;            // link, pin to pin (your turnbuckle: 100 minimum)
 
 /* [Hidden] */
-F_X = -(10 + keeper_t + sk8_h);   // F's centre
+F_X = f_x;                        // F's centre
 M_X = F_X - m_offset;             // M's centre
 PX = M_X - pin_dx;                // pin, rig frame (x)
 PZ0 = cross_top + pin_up;         // pin, rig frame (z) with M on its bottom stop
@@ -70,11 +69,12 @@ module on_rig(t) multmatrix([[cos(t), 0, -sin(t), 0], [0, 1, 0, 0], [sin(t), 0, 
 module rig(t, s, a = 1) {
     on_rig(t) {
         // F: 1 m 2020, its top a little above the shaft; keeper on its right face, spine sieve on its left
-        color("silver", a) beam(F_X - 10, F_X + 10, -10, 10, -300, 60);
-        color("burlywood", a) beam(F_X + 10, F_X + 10 + keeper_t, -30, 30, -300, 30);
+        color("silver", a) beam(F_X - 10, F_X + 10, -10, 10, -300, max(60, cross_top + 40));
+        color("burlywood", a) beam(F_X + 10, F_X + 12.82, -30, 30, -300, 30);
         color("tan", a * .8) beam(F_X - 13.2, F_X - 10, -38, 38, -300, 50);
         // SK8 on the keeper, clamping the shaft
-        color("gray", a) beam(F_X + 10 + keeper_t, F_X + 10 + keeper_t + sk8_h + 7, -7, 7, -21, 21);
+        // the hanger from F up to the pivot (the old SK8 on the keeper, or your new extension)
+        color("gray", a * .6) beam(min(F_X, 0) - 3, max(F_X, 0) + 3, -7, 7, -12, 12);
         // M: front and back side beams (toward you / toward the wall), crossbar across their tops
         for (y = [-(10 + lane + 10), 10 + lane + 10])
             color("gainsboro", a * .8) beam(M_X - 10, M_X + 10, y - 10, y + 10, -320 + s, cross_top + s - 20);
