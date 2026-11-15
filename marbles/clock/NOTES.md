@@ -491,3 +491,18 @@ On the first feeder the back keeper rubbed and bound on the keeper on the other 
 - [ ] **M10 Materials pass:** convert everything to 2.6 plywood (single/double layers), finish (sanding, sealing, colour), aluminium cleanup.
 - [ ] **M11 Tuning:** run in, timekeeping test over a day and a week, adjust, reduce noise.
 - [ ] **M12 Docs:** README / build notes, cut list, BOM, assembly order, photos.
+
+## Pendulum v2 in ply3: change list (Alex, 2026-11-15, collecting; more to come)
+
+- **Bigger sieve holes:** a ball riding in a 2020 T-slot dips about 0.52 mm below the rail top (6.2 mm slot opening:
+  9.525 - sqrt(9.525^2 - 3.1^2) = 0.52). Grow the hole radius by that much, plus a little: about 21-21.5 mm (was 20).
+  Open: round or a short vertical slot (taller than wide)?
+- **Jams must give way, not crack parts:** stuck balls need somewhere to go. Ideas:
+  - sieves open at the top so they flex;
+  - keepers (maybe sieves) held by breakaway clips: long springy 14ga wire clips, or magnets, so a panel pops off
+    before anything breaks.
+  - Any safe "abort" (a panel ejecting) is better than a crack.
+  - This may also cover the earlier nudge idea (fingers/ramps pushing balls across at the end of the stroke).
+  - Open: open the top of the whole strip or each hole as a U-slot? Which panels may pop off? Wire clips or magnets?
+- Wire on hand: 14ga galvanized (2.05 mm). Fine for clips; too soft for travel springs. Music wire (0.8-1.0 mm) for
+  springy fingers if that idea comes back.
