@@ -110,9 +110,9 @@ def pallet_plates(amp_max=12.0):
                 plate = unary_union([pal, unary_union([shank, pad]).convex_hull]).buffer(2).buffer(-2)
                 nonwork = plate.difference(pal.buffer(0.3))
                 if all(affinity.rotate(nonwork, th, origin=(0, 0)).intersection(ring).area < 1e-3 for th in sweep):
-                    slots = [LineString([E.polar(r_pad + s - ADJ, a_b), E.polar(r_pad + s + ADJ, a_b)]).buffer(2.65)
-                             for s in (-PAD_L / 4, PAD_L / 4)]
-                    out.append((plate.difference(unary_union(slots)), a_b, r_pad))
+                    # round M5 holes (both layers stay lined up); the lock depth is set by sliding on the arm's slot
+                    holes = [Point(E.polar(r_pad + s, a_b)).buffer(2.65, 32) for s in (-PAD_L / 4, PAD_L / 4)]
+                    out.append((plate.difference(unary_union(holes)), a_b, r_pad))
                     break
             else:
                 continue
@@ -284,7 +284,7 @@ def emit_gcode(out_dir, seg_batch=6, wood="ply3"):
         "rocker hub plate, one each side of the 2020 arms: 608 seat, M5 at 19 / 29 along each arm and the tail")
     for (plate, a_b, r_pad), nm in zip(plates, ("entry", "exit")):
         one(f"esc_ball_pallet_{nm}", [plate], "cut 2 (2 layers = the 6 mm plate)",
-            f"{nm} pallet plate, WOOD TEST of the acrylic part: bolts flat to the arm's back face, M5 slots +-{ADJ:g} for the lock depth")
+            f"{nm} pallet plate, WOOD TEST of the acrylic part: bolts flat to the arm's back face, 2 x M5 (slide on the arm's slot for the lock depth)")
 
 
 def build(phi=0.0, th=0.0):
