@@ -39,7 +39,8 @@ ap.add_argument("--bore", type=float, default=20.0, help="clear bore for the bal
 ap.add_argument("--groove-clr", type=float, default=0.3)
 ap.add_argument("--iron", type=float, default=15.0)
 ap.add_argument("--wall", type=float, default=10.0, help="wood round the ring hole")
-ap.add_argument("--angles", type=float, nargs="+", default=[45, 135, 225, 315])
+ap.add_argument("--angles", type=float, nargs="+", default=[45, 135, 225, 315, 0, 90, 180, 270],
+                help="straight-wire angles: default the 8-notch flange interface (short_parts.FLANGE_ANGLES)")
 ap.add_argument("--spiders", type=int, default=1, help="mandrel discs in the mandrel file")
 ap.add_argument("--backplates", type=int, default=1, help="mandrel backplates (ring-OD discs) in the backplate file")
 ap.add_argument("--rod", type=float, default=6.0, help="threaded rod through the mandrel, backplate, jig core and base (mm)")

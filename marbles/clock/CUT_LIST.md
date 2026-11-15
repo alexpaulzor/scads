@@ -75,7 +75,7 @@ the new batch).
 ## Jigs
 
 - [ ] **Ring mandrel + backplate** for soldering, ply3, both on an M6 threaded rod (2026-11-15: rod hole now M6, was M5):
-  - `ring_mandrel_25x25_ply3`: ring-ID disc with the 4 straight-wire notches.
+  - `ring_mandrel_25x25_ply3`: ring-ID disc with 8 straight-wire notches (the flange interface pattern).
   - `ring_mandrel_back_29x29_ply3`: ring-OD disc with the same rod hole and wire slots, open to the rim and flared,
     so it comes off past the soldered joints. Put it behind a mandrel so the ring sits against its face, square and
     in place. Preview: `views/ring_mandrel_backplate.png`.
