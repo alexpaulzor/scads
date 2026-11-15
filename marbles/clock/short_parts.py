@@ -29,6 +29,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 
 PITCH, HOLE_D, M5 = 30.0, 20.0, 5.0
+HOLE_CUT = HOLE_D        # the ball hole actually cut (--hole): the layout (lanes, widths) stays on HOLE_D = 20
 P34 = 19.05                        # 3/4"
 SLOT_W = 5.0
 SLOT_L = P34 + SLOT_W              # 24.05
@@ -60,7 +61,7 @@ def view_slots(L, y, x0=0.0):
 def sieve(n):
     L = n * PITCH
     g = box(0, 0, L, 46.0)
-    holes = [Point(PITCH / 2 + PITCH * i, 30.0).buffer(HOLE_D / 2, 128) for i in range(n)]
+    holes = [Point(PITCH / 2 + PITCH * i, 30.0).buffer(HOLE_CUT / 2, 128) for i in range(n)]
     holes += [Point(x, 10.0).buffer(M5 / 2, 48) for x in rail_m5_x(n)]
     return g.difference(unary_union(holes))
 
@@ -101,7 +102,7 @@ def double_sieve(n, kinds=None, m5_x=None):
         x = PITCH / 2 + PITCH * i
         if k in ("hole", "flange"):
             balls += [(x, y) for y in DBL_HOLE_Y]
-    ball_cuts = [Point(p).buffer(HOLE_D / 2, 128) for p in balls]
+    ball_cuts = [Point(p).buffer(HOLE_CUT / 2, 128) for p in balls]
     for i, k in enumerate(kinds):
         if k != "flange":
             continue
@@ -262,8 +263,21 @@ def front_keeper(n, gap):
     x0 = SIDE_BEAM + (gap - DBL_W) / 2                     # the sieve's edge
     lanes = (x0 + DBL_HOLE_Y[0], x0 + DBL_HOLE_Y[1])
     cuts = keeper_slots(L, lanes[0], -1) + keeper_slots(L, lanes[1], +1)
+    cuts += centre_slots(L, W / 2)
     cuts += [Point(x, y).buffer(M5 / 2, 48) for x in rail_m5_x(n) for y in (SIDE_BEAM / 2, W - SIDE_BEAM / 2)]
     return box(0, 0, L, W).difference(unary_union(cuts))
+
+
+def centre_slots(L, y):
+    """view slots down the centre band (between the lanes' inner slot rows), so it isn't a blind strip: one KS_W
+    slot per position, PITCH - KS_WOOD long, centred on the position, END_MIN of wood kept at the piece's ends"""
+    out = []
+    for i in range(int(round(L / PITCH))):
+        c = PITCH / 2 + PITCH * i
+        a = max(c - (PITCH - KS_WOOD) / 2, END_MIN) + KS_W / 2
+        b = min(c + (PITCH - KS_WOOD) / 2, L - END_MIN) - KS_W / 2
+        out.append(LineString([(a, y), (b, y)]).buffer(KS_W / 2, 24))
+    return out
 
 
 def double_parts(keys=()):
@@ -292,7 +306,7 @@ def double_parts(keys=()):
             else:
                 L = n * PITCH
                 g = box(0, 0, L, 46.0).difference(unary_union(
-                    [Point(PITCH / 2 + PITCH * i, 30.0).buffer(HOLE_D / 2, 128) for i in range(n - 1)]
+                    [Point(PITCH / 2 + PITCH * i, 30.0).buffer(HOLE_CUT / 2, 128) for i in range(n - 1)]
                     + [Point(x, 10.0).buffer(M5 / 2, 48) for x in bolts]))
             out[k] = (g, f"{m.group(1)} sieve, {n} positions, the last one solid, M5 between every pair of holes (x {bolts})")
     for k in keys:   # front keepers across both side beams: front_keeper_<n>h, _r = turned 90 deg on the sheet
@@ -369,6 +383,7 @@ def main():
     from laser_parts import emit_cut, load_profile, material_fit, preamble, gcode
     ap = argparse.ArgumentParser()
     ap.add_argument("--material", default="mdf3")
+    ap.add_argument("--hole", type=float, default=HOLE_D, help="ball hole cut diameter (layout stays on 20)")
     ap.add_argument("--sizes", type=int, nargs="+", default=list(range(3, 11)), help="ball holes per piece")
     ap.add_argument("--double-flange", action="store_true", help="only the two-lane wire-track flange")
     ap.add_argument("--part", nargs="+", help="one G-code per named part (e.g. double_keeper_5h front_keeper_3h)")
@@ -380,6 +395,7 @@ def main():
     ap.add_argument("--xgap", type=float, default=0.0, help="gap between parts in a row (x): 0 = kerf lines butt")
     ap.add_argument("--tag", default="", help="file name tag: double_sheet<tag>_<W>x<H>_<material>")
     args = ap.parse_args()
+    globals()['HOLE_CUT'] = args.hole
     T, KERF, _ = material_fit(args.material)
     s2g, motion, mat, job = load_profile(args.material, 1000, None)
     out_dir = HERE.parent / "gcode"
@@ -434,9 +450,17 @@ def main():
         ext_x = max(max(x for x, y in (c.points if hasattr(c, "points") else [])) for c in cuts)
         ext_y = max(max(y for x, y in c.points) for c in cuts)
         name = f"double_sheet{args.tag}_{math.ceil(W)}x{math.ceil(H)}_{args.material}"
-        lines = [f"; {name} -- marbles/clock/short_parts.py --double-sheet: {len(placed)} parts, priority order {' '.join(order)}",
-                 *[f"; {n}" for n in notes],
-                 *([f"; NOT placed (no room): {' '.join(skipped)}"] if skipped else []),
+        def wrap(prefix, words, width=200):           # quickcut refuses lines of 255+ characters
+            out, cur = [], prefix
+            for w in words:
+                if len(cur) + len(w) + 1 > width:
+                    out.append(cur); cur = ";   "
+                cur += " " + w
+            return out + [cur]
+        lines = [f"; {name} -- marbles/clock/short_parts.py --double-sheet: {len(placed)} parts",
+                 *wrap("; priority order:", order),
+                 *[ln for n in notes for ln in wrap(";", n.split())],
+                 *(wrap("; NOT placed (no room):", skipped) if skipped else []),
                  f"; T = {T} mm on the {mat['id']} recipe ({job.power_percent:g}% F{job.feed_mm_per_min} x{job.passes}); "
                  f"kerf {KERF}; X0 Y0 = the sheet's bottom-left corner; parts reach x {ext_x:.2f} y {ext_y:.2f}",
                  f"; common-line rows: parts in a row share one cut where they meet ({n_shared} shared lines); "

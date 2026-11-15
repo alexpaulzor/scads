@@ -506,3 +506,9 @@ On the first feeder the back keeper rubbed and bound on the keeper on the other 
   - Open: open the top of the whole strip or each hole as a U-slot? Which panels may pop off? Wire clips or magnets?
 - Wire on hand: 14ga galvanized (2.05 mm). Fine for clips; too soft for travel springs. Music wire (0.8-1.0 mm) for
   springy fingers if that idea comes back.
+- **Cut list for the ply3 rebuild (2026-11-15):** `short_parts.py --material ply3 --hole 21.2 --double-sheet ...`,
+  5 sheets `double_sheet_pend_{a..e}_300x292_ply3` (e is a 300 x 93 strip). 32 positions of each strip:
+  front keeper 10+10+10+2; F spine keeper 10+10+10+2; F spine sieve 10+10+6 + 2 interfaces (3 each, entry and
+  exit); M single sieves 6 x 10 + 2 x 2 (both sides). Holes 21.2 round on the same lane centres; the front keeper
+  now has a slot row down its centre band. Still to design: entry and exit tracks (short rail + side keepers),
+  the slanted exit keeper plate, the flanges in ply3.
