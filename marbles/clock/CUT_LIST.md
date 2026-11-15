@@ -74,7 +74,11 @@ the new batch).
   287 × 291 trimmed one.
 ## Jigs
 
-- [ ] **Ring D-jig sandwich**, rail mount (centre 30 mm up, M5 10 mm up):
+- [ ] **Ring mandrel + backplate** for soldering, ply3, both on an M6 threaded rod (2026-11-15: rod hole now M6, was M5):
+  - `ring_mandrel_25x25_ply3`: ring-ID disc with the 4 straight-wire notches.
+  - `ring_mandrel_back_29x29_ply3`: ring-OD disc with the same rod hole and wire slots (closed). Put it behind a
+    mandrel so the ring sits against its face, square and in place. Preview: `views/ring_mandrel_backplate.png`.
+- [ ] **Ring D-jig sandwich**, rail mount (centre 30 mm up, M5 10 mm up; the core and base centre hole is now M6):
   - `ring_jig_base_rail_83x57_ply3` × 1,
   - `ring_jig_d_rail_83x57_acrylic3` × 1,
   - `ring_jig_d_rail_83x57_ply3` × 1.

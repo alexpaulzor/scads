@@ -5,14 +5,18 @@ JIG (veneer plywood by default): one D-shaped plate stuck to scrap backing.
   - The FLAT EDGE is exactly one ring's wire length (pi x wire centreline diameter): lay the
     wire along it and snip at the corner.
   - A round hole = ring outside diameter + clearance; the CORE (= ring inside diameter) is cut
-    in place inside it, already centred: a spider shape (notches, M5 centre) with the iron hole
-    carved out of it too. Stick the plate and the core down together, or pin the core with M5.
+    in place inside it, already centred: a spider shape (notches, rod hole) with the iron hole
+    carved out of it too. Stick the plate and the core down together, or pin the core on the rod.
   - A 15 mm iron hole centred on the wire's circle, at the top of the dome.
   - At least 10 mm of wood round the ring hole, at least 4 round the iron hole.
 SPIDERS (veneer plywood by default): discs = ring inside diameter with notches one wire deep at the
-  straight-wire angles and an M5 centre hole; string them on an M5 rod as a mandrel.
+  straight-wire angles and a centre hole for the threaded rod (M6 by default); string them on the rod as a mandrel.
+BACKPLATES: discs = ring OUTSIDE diameter with the same rod hole and the same wire slots (closed, since the disc runs
+  past them). Put one on the rod behind a mandrel: the straight wires pass through its slots and the ring sits against
+  its face, so the ring stays square and in place while you set up to solder.
 
-    python3 marbles/clock/ring_jig_compact.py      # -> marbles/gcode/ring_jig_d_<W>x<H>_ply3.gcode, ring_mandrel_<W>x<H>_ply3.gcode
+    python3 marbles/clock/ring_jig_compact.py      # -> marbles/gcode/ring_jig_d_<W>x<H>_ply3.gcode, ring_mandrel_<W>x<H>_ply3.gcode,
+                                                   #    ring_mandrel_back_<W>x<H>_ply3.gcode
 """
 import argparse
 import math
@@ -37,6 +41,8 @@ ap.add_argument("--iron", type=float, default=15.0)
 ap.add_argument("--wall", type=float, default=10.0, help="wood round the ring hole")
 ap.add_argument("--angles", type=float, nargs="+", default=[45, 135, 225, 315])
 ap.add_argument("--spiders", type=int, default=1, help="mandrel discs in the mandrel file")
+ap.add_argument("--backplates", type=int, default=1, help="mandrel backplates (ring-OD discs) in the backplate file")
+ap.add_argument("--rod", type=float, default=6.0, help="threaded rod through the mandrel, backplate, jig core and base (mm)")
 ap.add_argument("--centre-y", type=float, default=None,
                 help="ring centre this far above the flat edge (30 = on the upper of two stacked 2020s; default: wall)")
 ap.add_argument("--mount-y", type=float, default=None,
@@ -55,6 +61,7 @@ RING_OD = RING_ID + 2 * WD
 CUT_LEN = math.pi * RING_CL
 HOLE = RING_OD + args.groove_clr
 WEB = 4.0
+ROD_R = (args.rod + 0.3) / 2          # rod clearance hole radius
 
 
 def jig_and_core():
@@ -65,7 +72,7 @@ def jig_and_core():
     outline = unary_union([box(0, 0, CUT_LEN, 0.01), Point(c).buffer(R, 128)]).convex_hull.intersection(box(0, 0, CUT_LEN, 1000))
     iron = Point(c[0], c[1] + RING_CL / 2).buffer((args.iron + args.iron_clear) / 2, 96)
     plate = outline.difference(unary_union([Point(c).buffer(HOLE / 2, 128), iron] + [Point(m).buffer(2.5, 48) for m in mounts(outline)]))
-    # core: a spider (notches + M5 centre, so it can also be bolted/pinned to the backing) with the
+    # core: a spider (notches + rod hole, so it can also be pinned to the backing) with the
     # iron hole carved out, cut in place inside the plate's hole with the bite lined up
     core = spider().difference(Point(0, RING_CL / 2).buffer((args.iron + args.iron_clear) / 2, 96))
     core = affinity.translate(core, *c)
@@ -88,7 +95,7 @@ def mounts(outline):
 
 
 def base_layer(plate_outline, c):
-    return plate_outline.difference(unary_union([Point(m).buffer(2.5, 48) for m in mounts(plate_outline)] + [Point(c).buffer(2.5, 48)]))
+    return plate_outline.difference(unary_union([Point(m).buffer(2.5, 48) for m in mounts(plate_outline)] + [Point(c).buffer(ROD_R, 48)]))
 
 
 def spider():
@@ -96,7 +103,18 @@ def spider():
     r = RING_ID / 2
     w = WD + 0.15
     cuts = [affinity.rotate(box(r - WD, -w / 2, r + 1, w / 2), a, origin=(0, 0)) for a in args.angles]
-    cuts.append(Point(0, 0).buffer(2.5, 48))
+    cuts.append(Point(0, 0).buffer(ROD_R, 48))
+    return g.difference(unary_union(cuts))
+
+
+def backplate():
+    """ring-OD disc with the mandrel's rod hole and its wire slots (closed: the same notch, stopping just past the
+    straight wire, so the ring itself bears on the disc)"""
+    g = Point(0, 0).buffer(RING_OD / 2, 128)
+    r = RING_ID / 2
+    w = WD + 0.15
+    cuts = [affinity.rotate(box(r - WD, -w / 2, r + 0.15, w / 2), a, origin=(0, 0)) for a in args.angles]
+    cuts.append(Point(0, 0).buffer(ROD_R, 48))
     return g.difference(unary_union(cuts))
 
 
@@ -147,4 +165,8 @@ if args.base:
 sp = [] if args.spiders < 1 else [affinity.translate(spider(), RING_ID / 2 + i * (RING_ID + gap), RING_ID / 2) for i in range(args.spiders)]
 if sp:
     write("ring_mandrel" if args.spiders == 1 else f"ring_mandrel_x{args.spiders}", sp, args.spider_material,
-          f"mandrel / spacing spider x{args.spiders}, notches at {args.angles} deg, M5 centre")
+          f"mandrel / spacing spider x{args.spiders}, notches at {args.angles} deg, M{args.rod:g} rod hole")
+bp = [] if args.backplates < 1 else [affinity.translate(backplate(), RING_OD / 2 + i * (RING_OD + gap), RING_OD / 2) for i in range(args.backplates)]
+if bp:
+    write("ring_mandrel_back" if args.backplates == 1 else f"ring_mandrel_back_x{args.backplates}", bp, args.spider_material,
+          f"mandrel backplate x{args.backplates}: ring OD d{RING_OD:.2f}, wire slots at {args.angles} deg (closed), M{args.rod:g} rod hole")

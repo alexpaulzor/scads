@@ -33,7 +33,7 @@ def ring_jig_parts():
     """the acrylic layer of the rail-mount ring D-jig (core cut in place inside the plate): ring_jig_compact.py runs
     at import, so import it with the acrylic arguments (it also rewrites its own G-code file, unchanged)"""
     argv = sys.argv
-    sys.argv = ["x", "--jig-material", MAT, "--centre-y", "30", "--mount-y", "10", "--spiders", "0", "--tag", "_rail",
+    sys.argv = ["x", "--jig-material", MAT, "--centre-y", "30", "--mount-y", "10", "--spiders", "0", "--backplates", "0", "--tag", "_rail",
                 "--iron-clear", "4"]
     try:
         import ring_jig_compact as J
