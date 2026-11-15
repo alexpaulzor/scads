@@ -11,8 +11,8 @@ JIG (veneer plywood by default): one D-shaped plate stuck to scrap backing.
   - At least 10 mm of wood round the ring hole, at least 4 round the iron hole.
 SPIDERS (veneer plywood by default): discs = ring inside diameter with notches one wire deep at the
   straight-wire angles and a centre hole for the threaded rod (M6 by default); string them on the rod as a mandrel.
-BACKPLATES: discs = ring OUTSIDE diameter with the same rod hole and the same wire slots (closed, since the disc runs
-  past them). Put one on the rod behind a mandrel: the straight wires pass through its slots and the ring sits against
+BACKPLATES: discs = ring OUTSIDE diameter with the same rod hole and the same wire slots, open to the rim and flared
+  wider toward it so the plate comes off past the soldered joints. Put one on the rod behind a mandrel: the straight wires pass through its slots and the ring sits against
   its face, so the ring stays square and in place while you set up to solder.
 
     python3 marbles/clock/ring_jig_compact.py      # -> marbles/gcode/ring_jig_d_<W>x<H>_ply3.gcode, ring_mandrel_<W>x<H>_ply3.gcode,
@@ -62,6 +62,7 @@ CUT_LEN = math.pi * RING_CL
 HOLE = RING_OD + args.groove_clr
 WEB = 4.0
 ROD_R = (args.rod + 0.3) / 2          # rod clearance hole radius
+FLARE = 1.5                           # backplate slots widen by this much each side from the wire out to the rim
 
 
 def jig_and_core():
@@ -108,12 +109,14 @@ def spider():
 
 
 def backplate():
-    """ring-OD disc with the mandrel's rod hole and its wire slots (closed: the same notch, stopping just past the
-    straight wire, so the ring itself bears on the disc)"""
+    """ring-OD disc with the mandrel's rod hole and its wire slots, OPEN to the edge and flared (wider toward the
+    rim), so the plate lifts off past the soldered joints; the lands between the slots still carry the ring"""
     g = Point(0, 0).buffer(RING_OD / 2, 128)
     r = RING_ID / 2
     w = WD + 0.15
-    cuts = [affinity.rotate(box(r - WD, -w / 2, r + 0.15, w / 2), a, origin=(0, 0)) for a in args.angles]
+    R = RING_OD / 2 + 1
+    flare = Polygon([(r - WD, -w / 2), (r, -w / 2), (R, -w / 2 - FLARE), (R, w / 2 + FLARE), (r, w / 2), (r - WD, w / 2)])
+    cuts = [affinity.rotate(flare, a, origin=(0, 0)) for a in args.angles]
     cuts.append(Point(0, 0).buffer(ROD_R, 48))
     return g.difference(unary_union(cuts))
 
@@ -169,4 +172,4 @@ if sp:
 bp = [] if args.backplates < 1 else [affinity.translate(backplate(), RING_OD / 2 + i * (RING_OD + gap), RING_OD / 2) for i in range(args.backplates)]
 if bp:
     write("ring_mandrel_back" if args.backplates == 1 else f"ring_mandrel_back_x{args.backplates}", bp, args.spider_material,
-          f"mandrel backplate x{args.backplates}: ring OD d{RING_OD:.2f}, wire slots at {args.angles} deg (closed), M{args.rod:g} rod hole")
+          f"mandrel backplate x{args.backplates}: ring OD d{RING_OD:.2f}, flared open wire slots at {args.angles} deg, M{args.rod:g} rod hole")
