@@ -269,13 +269,13 @@ def front_keeper(n, gap):
 
 
 def centre_slots(L, y):
-    """view slots down the centre band (between the lanes' inner slot rows), so it isn't a blind strip: one KS_W
-    slot per position, PITCH - KS_WOOD long, centred on the position, END_MIN of wood kept at the piece's ends"""
+    """view slots down the centre band, continuing the lanes' staggered pattern: the lanes' inner rows sit at the odd
+    positions, so this row takes the even ones, with the same slot (PITCH + KS_OVERLAP long, END_MIN kept at the ends)"""
     out = []
-    for i in range(int(round(L / PITCH))):
+    for i in range(0, int(round(L / PITCH)), 2):
         c = PITCH / 2 + PITCH * i
-        a = max(c - (PITCH - KS_WOOD) / 2, END_MIN) + KS_W / 2
-        b = min(c + (PITCH - KS_WOOD) / 2, L - END_MIN) - KS_W / 2
+        a = max(c - (PITCH + KS_OVERLAP) / 2, END_MIN) + KS_W / 2
+        b = min(c + (PITCH + KS_OVERLAP) / 2, L - END_MIN) - KS_W / 2
         out.append(LineString([(a, y), (b, y)]).buffer(KS_W / 2, 24))
     return out
 
