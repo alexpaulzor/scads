@@ -103,7 +103,8 @@ the new batch).
   - [ ] Rings `esc_ball_ring_240x240_ply3`, cut 2 (front and back are the same), ~10 min each.
   - [ ] Floor segments `esc_ball_floor_seg6_99x54_ply3`: 6 per run, run 5 times for all 30. ~3 min a run; cut one
         run first and check the tab and finger fit.
-  - [ ] Rocker hub plates `esc_ball_rocker_hub_81x84_ply3`, cut 2, ~1 min each.
+  - [ ] Rocker hub DISCS `esc_ball_rocker_hub_151x151_ply3`, cut 2, ~3 min each (v2 2026-11-16: 75 mm radius, 3 M5 per
+        arm at 18 / 42 / 66, three rows of rail M5 for a see-saw track; replaces the 81 x 84 plate).
   - [ ] Pallet plates in wood, to test before using acrylic: `esc_ball_pallet_entry_65x57_ply3` and
         `esc_ball_pallet_exit_62x60_ply3`, cut 2 of each (2 layers = 6 mm), ~1 min each. The working tip is a thin
         curved strip, so it's fragile in ply.
