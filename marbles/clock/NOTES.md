@@ -512,3 +512,18 @@ On the first feeder the back keeper rubbed and bound on the keeper on the other 
   exit); M single sieves 6 x 10 + 2 x 2 (both sides). Holes 21.2 round on the same lane centres; the front keeper
   now has a slot row down its centre band. Still to design: entry and exit tracks (short rail + side keepers),
   the slanted exit keeper plate, the flanges in ply3.
+- **Open issues before cutting the flanges (2026-11-16):**
+  - Entry rail's top T-slot traps balls: rolling out sideways needs asin(3.1/9.525) = 19 deg of tilt (> the 12 deg
+    swing). Fill the slot with a 6 mm ply strip, or tilt the rail 8-10 deg toward the flange?
+  - One track feeding both lanes: queued balls are 19.05 apart, bores 40 apart; ball 3 is 1.9 off bore 2 (about
+    2 of clearance). Stretch the entry holes ~3 mm along the track, or one track per lane?
+  - Entry flange as two parts (bore plate on F + bottom strip with the 3 rail bolts) or one?
+  - Exit plate: slope (3 deg proposed), length, direction. End stop at the entry: cut one or Alex makes it?
+  - Side plates for the tracks: 40 wide (20 over the rail + 20 above), like the 3-hole single keeper.
+  - The existing flange's bottom bolt row is 20 below the bores: a ball on the rail's flat top is then 0.5 below the
+    bore centre and the bore's lower rim is 1.55 below the rail top, so it rolls in.
+- **Rocker hub v2 (queued):** the arms wobble (their two M5 are only 10 apart, at 19 / 29). Make it a disc with the
+  arm bolts far apart (e.g. 20 / 60, maybe a third) and a row of 5 mm holes across it for a see-saw rail. Limits:
+  about 80 mm radius before the pin ends (the back plate is at the pins' depth); the dial ring passes 1.6 mm in front
+  of the front plate where it overlaps (about 58 mm radius). Open: rail row above the axle or on standoffs over it,
+  hole pitch, disc size, 2 or 3 bolts per arm.
