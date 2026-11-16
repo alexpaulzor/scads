@@ -19,7 +19,7 @@ Alex's layout (2026-11-13):
     180 deg: same pallet geometry, the wheel still turns clockwise). Its 2020 arms are in front of the pin ends; each
     PALLET is a flat 2 x 3 mm acrylic plate bolted to the back face of its arm (M5 + T-nut in the arm's slot, slotted
     for the lock depth), so only the pallet plates share the plane of the pin ends.
-  - SECONDS HAND + DIAL in front of the rocker (on long standoffs off two spokes).
+  - SECONDS HAND in front of the rocker (on long standoffs off two spokes). No dial (dropped 2026-11-16).
 
 Pallet geometry, pin pattern and the kinematic check come from escapement_pin.py with R set from the pin gap.
 Drawing frame: x right, y up, origin = the pendulum pivot (anchor axle), the wheel below it; z toward the viewer,
@@ -233,15 +233,32 @@ def scad_poly(g):
     return f"polygon(points={allp}, paths={paths});"
 
 
+HUB_R = 75.0                 # rocker hub disc radius (Alex: 75; the pins are 92 away at their nearest)
+ARM_BOLTS = (18.0, 42.0, 66.0)   # 3 M5 along each 2020 arm (and the tail), far apart so the arms can't rock
+RAIL_ROWS = (-20.0, 0.0, 20.0)   # see-saw rail rows: across the axle and 20 above / below (the rocker is at the axle's end)
+RAIL_X = (-50.0, -25.0, 25.0, 50.0)
+HUB_WEB = 4.0                # a rail hole is dropped if it leaves less wood than this to another hole or the bore
+
+
 def rocker_hub(plates=None):
-    """one of the 2 rocker hub plates (escapement_pin's frame, the pivot at the origin): 608 seat, an arm stub along
-    each 2020 (the 2 pallet arms + the tail), M5 at 19 and 29 along each into T-nuts"""
+    """rocker hub DISC (cut 2, one each side of the arms), escapement_pin's frame (the pivot at the origin): 608 seat,
+    3 M5 along each arm and the tail, and 3 rows of M5 across it for a see-saw rail (rows at RAIL_ROWS in the
+    assembled view, wheel below; a hole on an arm's line can take a T-nut in that arm's slot)"""
     plates = plates or pallet_plates()
     angs = [pp[1] for pp in plates] + [E.TAIL_A]
-    hub = unary_union([Point(0, 0).buffer(E.HUB_PLATE_R, 64)] +
-                      [LineString([(0, 0), E.polar(E.HUB_ARM, a)]).buffer(13, cap_style=1) for a in angs])
-    holes = [Point(0, 0).buffer(E.BRG_D / 2, 64)] + [Point(E.polar(r, a)).buffer(2.65, 32) for a in angs for r in (19, 29)]
-    return hub.buffer(4).buffer(-4).difference(unary_union(holes))
+    disc = Point(0, 0).buffer(HUB_R, 128)
+    bore = Point(0, 0).buffer(E.BRG_D / 2, 64)
+    arm = [Point(E.polar(r, a)).buffer(2.65, 32) for a in angs for r in ARM_BOLTS]
+    rail, dropped = [], []
+    for y in RAIL_ROWS:
+        for x in RAIL_X:
+            h = Point(-x, -y).buffer(2.65, 32)               # assembled view is this frame turned 180 deg
+            if disc.buffer(-(2.65 + HUB_WEB)).contains(Point(-x, -y)) and all(h.distance(g) >= HUB_WEB for g in arm + rail + [bore]):
+                rail.append(h)
+            else:
+                dropped.append((x, y))
+    rocker_hub.dropped = dropped
+    return disc.difference(unary_union([bore] + arm + rail))
 
 
 def emit_gcode(out_dir, seg_batch=6, wood="ply3"):
@@ -281,7 +298,8 @@ def emit_gcode(out_dir, seg_batch=6, wood="ply3"):
         f"pocket floor segments: 10 mm tabs into the ring slots, 5 mm finger joints, 12 deg bend at each joint")
     plates = pallet_plates()
     one("esc_ball_rocker_hub", [rocker_hub(plates)], "cut 2",
-        "rocker hub plate, one each side of the 2020 arms: 608 seat, M5 at 19 / 29 along each arm and the tail")
+        f"rocker hub disc r{HUB_R:g}, one each side of the 2020 arms: 608 seat, M5 at {ARM_BOLTS} along each arm and the tail, "
+        f"see-saw rail rows at {RAIL_ROWS}")
     for (plate, a_b, r_pad), nm in zip(plates, ("entry", "exit")):
         one(f"esc_ball_pallet_{nm}", [plate], "cut 2 (2 layers = the 6 mm plate)",
             f"{nm} pallet plate, WOOD TEST of the acrylic part: bolts flat to the arm's back face, 2 x M5 (slide on the arm's slot for the lock depth)")
@@ -315,10 +333,6 @@ def build(phi=0.0, th=0.0):
     add(sw(hub), ARM_Z0 + 20, PLY, "peru")
     h, _ = hand()
     add(affinity.translate(affinity.rotate(h, -phi, origin=(0, 0)), *Wd), HAND_Z, PLY, "#8b1a1a")
-    dg, ticks, nums = dial()
-    add(affinity.translate(dg, *Wd), DIAL_Z, PLY, "wheat")
-    for t in ticks:
-        add(affinity.translate(LineString(t).buffer(0.6, cap_style=2), *Wd), DIAL_Z + PLY, 0.3, "#333")
     pins = [flip(Point(p)) for p in pin_centres(0)]
     pins = [affinity.rotate(p, -phi, origin=Wd) for p in pins]
     return parts, pins, plates
@@ -432,7 +446,7 @@ def main():
         E.simulate(E.AMP, cycles=1, grow_w=gw, grow_a=ga)
     h, tail_r = hand()
     print(f"seconds hand: tip r {HAND_TIP:g}, tail disc r {tail_r:.1f} at {HAND_TAIL:g}, at z {HAND_Z:.1f} on standoffs "
-          f"off the spokes' outer M5 (r {spoke_m5()[1]:g}, {spoke_m5()[2]:g}); dial {2 * DIAL_IN:g}..{2 * DIAL_OUT:g} across at z {DIAL_Z:.1f}")
+          f"off the spokes' outer M5 (r {spoke_m5()[1]:g}, {spoke_m5()[2]:g})")
     drawing(HERE / "escapement_ball.png")
     out = HERE / "escapement_ball.scad"
     scad(out)
