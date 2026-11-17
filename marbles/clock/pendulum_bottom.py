@@ -31,15 +31,18 @@ Y_MSIEVE = -T                  # M's single sieves, on M's -y face (y 0)
 Y_FSIEVE = 10.0                # F's spine sieve + the interface, on F's +y face
 Y_MKEEP = 20.0                 # M's double outside keeper, on M's +y face (y 20)
 FLANGE_GAP = 0.9               # today: the flange stands off past M's keeper so M can slide under it
-TOOTH_P = S.DBL_W / 3          # finger pitch across the flange width (3 fingers)
-TOOTH_H = 35.0                 # finger height: still interleaved when opened by the full stroke
+TOOTH_P = 80.0 / 3            # finger pitch: puts a finger edge gap on each lane centre (x = +-20 = 3 x pitch / 4)
+TOOTH_H = 45.0                 # finger length: still overlapping by ~7 when opened by the full stroke
 TOOTH_R = 1.5                  # rounded tips / valleys
-TOOTH_CLR = 1.5                # closed (M at the bottom): fully meshed, each tip 1.5 from the opposite edge
+TOOTH_CLR = 1.5                # closed (M at the bottom): each tip 1.5 from the opposite edge
 
 
-TIP_R = 2.5                    # finger tips: 5 mm round
+TIP_R = 5.0                    # round ends, 10 mm (the full finger width)
 FILLET_R = 3.0                 # where the fingers meet the face: blended in
-TOOTH_B = 16.8                 # finger width at its base (70 % of the pitch), tapering to the round tip
+FL_PHASE = (S.DBL_W / 2 / TOOTH_P - 0.5) % 1                   # a flange finger on the centreline (x = 0)
+MK_X0 = S.SIDE_BEAM + (S.FRONT_GAP - S.DBL_W) / 2               # the flange's edge, in the keeper's frame
+MK_PHASE = ((S.SIDE_BEAM + S.FRONT_GAP / 2 + TOOTH_P / 2 - MK_X0) / TOOTH_P - 0.5) % 1   # M's fingers at x = +-p/2
+TOOTH_B = 10.0                 # straight 10 mm fingers
 
 
 def teeth(x0, x1, base, up, phase):
@@ -107,7 +110,7 @@ def scene(kind, m_lift):
     mk = S.front_keeper(5, S.FRONT_GAP)
     if kind == "fingers":
         x0 = S.SIDE_BEAM + (S.FRONT_GAP - S.DBL_W) / 2                      # the flange's edges in keeper coords
-        mk = unary_union([mk, affinity.affine_transform(teeth(x0, x0 + W2, 0, -1, 0.5), [0, 1, 1, 0, 0, 0])])
+        mk = unary_union([mk, affinity.affine_transform(teeth(x0, x0 + W2, 0, -1, MK_PHASE), [0, 1, 1, 0, 0, 0])])
     L.append(plate(to_world(mk, mz, W), Y_MKEEP, "peru", .9))
     # the entry flange (with its 40 mm keeper extension), on the interface
     fl = S.double_parts()["double_flange"][0]
@@ -117,7 +120,7 @@ def scene(kind, m_lift):
         spacer_h = yf - (Y_FSIEVE + T)
     else:
         top = fl.bounds[2]
-        fl = unary_union([fl, affinity.affine_transform(teeth(0, W2, top, 1, 0.0), [0, 1, 1, 0, 0, 0])])
+        fl = unary_union([fl, affinity.affine_transform(teeth(0, W2, top, 1, FL_PHASE), [0, 1, 1, 0, 0, 0])])
         yf = Y_MKEEP
         spacer_h = yf - (Y_FSIEVE + T)
     L.append(plate(to_world(fl, 0, W2), yf, "sienna", .95))
@@ -158,21 +161,28 @@ def main():
     render("pend_bottom_fingers_open", c)
     from shapely.geometry import box as _box
     W2, top = S.DBL_W, 111.5
-    x0 = S.SIDE_BEAM + (S.FRONT_GAP - S.DBL_W) / 2
-    ft = to_world(affinity.affine_transform(teeth(0, W2, top, 1, 0.0), [0, 1, 1, 0, 0, 0]), 0, W2)
-    closed, biggest = None, 0.0
-    for lift in range(0, int(STROKE) + 1, 3):
+    R = BALL / 2
+    play = (S.HOLE_CUT - BALL) / 2                      # a ball can sit this far off the lane centre in its sieve hole
+    fl = affinity.translate(S.double_parts()["double_flange"][0], 18.5, 0)
+    ft = unary_union([to_world(fl, 0, W2), to_world(affinity.affine_transform(teeth(0, W2, top, 1, FL_PHASE), [0, 1, 1, 0, 0, 0]), 0, W2)])
+    closed, worst, where = None, 0.0, None
+    for lift in range(0, int(STROKE) + 1, 2):
         mz = top + TOOTH_H + TOOTH_CLR + lift
-        kt = to_world(affinity.affine_transform(teeth(x0, x0 + W2, 0, -1, 0.5), [0, 1, 1, 0, 0, 0]), mz, 100)
+        kt = to_world(affinity.affine_transform(teeth(MK_X0, MK_X0 + W2, 0, -1, MK_PHASE), [0, 1, 1, 0, 0, 0]), mz, 100)
+        kt = unary_union([kt, _box(-W2 / 2, mz, W2 / 2, mz + 60)])          # the keeper's plain body above its fingers
         closed = ft.distance(kt) if lift == 0 else closed
-        free = _box(-W2 / 2, top, W2 / 2, mz).difference(ft.union(kt))
-        lo, hi = 0.0, 30.0
-        for _ in range(18):
-            m = (lo + hi) / 2
-            lo, hi = (m, hi) if not free.buffer(-m / 2).is_empty else (lo, m)
-        biggest = max(biggest, lo)
-    print(f"fingers: 3 across the flange, pitch {TOOTH_P:.2f}, base {TOOTH_B:g} to a {2 * TIP_R:g} round tip, height {TOOTH_H:g}; closed: edges {TOOTH_H + TOOTH_CLR:.1f} apart, "
-          f"{closed:.2f} between the flanks; the biggest ball that fits through at any point of the {STROKE:g} stroke: {biggest:.1f} (ball {BALL})")
+        solid = unary_union([ft, kt])
+        for xb in (-20 - play, -20, -20 + play, 20 - play, 20, 20 + play):
+            for zb in [top + 0.5 * i for i in range(int((mz - top) / 0.5) + 1)]:
+                d = solid.distance(Point(xb, zb)) if not solid.contains(Point(xb, zb)) else 0.0
+                # the ball rests on the nearest solid point: it sinks R - sqrt(R^2 - d^2) (falls through if d >= R)
+                sink = R if d >= R else R - math.sqrt(R * R - d * d)
+                if sink > worst:
+                    worst, where = sink, (lift, xb, zb)
+    print(f"fingers: straight {TOOTH_B:g} wide, {2 * TIP_R:g} round ends, {TOOTH_H:g} long, pitch {TOOTH_P:.2f}: flange fingers at x = 0, "
+          f"+-{TOOTH_P:.1f}; M's at +-{TOOTH_P / 2:.1f}; {TOOTH_P / 2 - TOOTH_B:.2f} between neighbours, a gap on each lane centre (x = +-20)")
+    print(f"closed: {closed:.2f} clearance; a ball at a lane (+-{play:.2f} play) sinks at most {worst:.2f} mm into any opening over the "
+          f"{STROKE:g} stroke (at lift {where[0]}, x {where[1]:.2f}, z {where[2]:.1f})")
     print(f"flange spacers: today {sp_now:.2f} (flange outside M's keeper), with fingers {sp_new:.2f} (flange in M's keeper plane)")
 
 
