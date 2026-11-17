@@ -31,22 +31,32 @@ Y_MSIEVE = -T                  # M's single sieves, on M's -y face (y 0)
 Y_FSIEVE = 10.0                # F's spine sieve + the interface, on F's +y face
 Y_MKEEP = 20.0                 # M's double outside keeper, on M's +y face (y 20)
 FLANGE_GAP = 0.9               # today: the flange stands off past M's keeper so M can slide under it
-TOOTH_P = S.DBL_W / 4          # finger pitch across the flange width (4 fingers)
-TOOTH_H = 42.0                 # finger height: still interleaved when opened by the full stroke
+TOOTH_P = S.DBL_W / 3          # finger pitch across the flange width (3 fingers)
+TOOTH_H = 50.0                 # finger height: still interleaved when opened by the full stroke
 TOOTH_R = 1.5                  # rounded tips / valleys
-TOOTH_CLR = 7.0                # tips to valleys when closed (M at the bottom of its stroke): 1.46 between the flanks
+TOOTH_CLR = 19.1               # closed (M at the bottom): the two edges H + this apart, where the flanks are 1.5 apart
+
+
+TIP_R = 5.0                    # finger tips: 10 mm round (Alex)
+FILLET_R = 3.0                 # where the fingers meet the face: blended in
+TOOTH_B = 12.0                 # finger width at its base, tapering to the 10 mm round tip
 
 
 def teeth(x0, x1, base, up, phase):
-    """a row of rounded isosceles fingers between x0..x1, bases on z = base, pointing up (+1) or down (-1);
-    phase 0 or 0.5 (half a pitch offset)"""
+    """a row of fingers between x0..x1 on the edge z = base, pointing up (+1) or down (-1), phase 0 or 0.5 (half a pitch
+    offset). Each finger = the hull of its base and a TIP_R circle at its tip (a tall isosceles shape with a round
+    end); the valleys between them and the face are blended with FILLET_R. Returned with a strip of the face under the
+    edge (so the fillets have something to blend into); union it with the plate."""
     out, n = [], int(math.ceil((x1 - x0) / TOOTH_P)) + 2
     for i in range(-1, n):
         c = x0 + (i + phase + 0.5) * TOOTH_P
-        tri = Polygon([(c - TOOTH_P / 2, base), (c + TOOTH_P / 2, base), (c, base + up * TOOTH_H)])
-        out.append(tri)
-    g = unary_union(out).intersection(box(x0, min(base, base + up * TOOTH_H) - 1, x1, max(base, base + up * TOOTH_H) + 1))
-    return g.buffer(-TOOTH_R, join_style=1).buffer(TOOTH_R, join_style=1)
+        tip = Point(c, base + up * (TOOTH_H - TIP_R)).buffer(TIP_R, 48)
+        hb = (TOOTH_B or TOOTH_P) / 2
+        out.append(unary_union([tip, Polygon([(c - hb, base), (c + hb, base), (c, base + up * (TOOTH_H - TIP_R))])]).convex_hull)
+    strip = box(x0, min(base, base - up * 8), x1, max(base, base - up * 8))
+    g = unary_union(out + [strip]).intersection(box(x0, base - 8 - TOOTH_H, x1, base + 8 + TOOTH_H))
+    g = g.buffer(FILLET_R, join_style=1).buffer(-FILLET_R, join_style=1)       # fill the sharp valleys: blended corners
+    return g.intersection(box(x0, -1e4, x1, 1e4))
 
 
 def to_world(g, u0, width):
@@ -161,7 +171,7 @@ def main():
             m = (lo + hi) / 2
             lo, hi = (m, hi) if not free.buffer(-m / 2).is_empty else (lo, m)
         biggest = max(biggest, lo)
-    print(f"fingers: 4 across the flange, pitch {TOOTH_P:.2f}, height {TOOTH_H:g}, tips r{TOOTH_R:g}; closed: {TOOTH_CLR:g} tip to valley, "
+    print(f"fingers: 3 across the flange, pitch {TOOTH_P:.2f}, base {TOOTH_B:g} to a {2 * TIP_R:g} round tip, height {TOOTH_H:g}; closed: edges {TOOTH_H + TOOTH_CLR:.1f} apart, "
           f"{closed:.2f} between the flanks; the biggest ball that fits through at any point of the {STROKE:g} stroke: {biggest:.1f} (ball {BALL})")
     print(f"flange spacers: today {sp_now:.2f} (flange outside M's keeper), with fingers {sp_new:.2f} (flange in M's keeper plane)")
 
