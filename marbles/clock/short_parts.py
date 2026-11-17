@@ -280,6 +280,63 @@ def centre_slots(L, y):
     return out
 
 
+# ---------------------------------------------------------------- interleaving FINGERS (entry / exit flange <-> M's outside keeper)
+# Straight 10 mm fingers with round ends, pitch 80/3: flange fingers centred on x = 0, +-p (x across, 0 = the spine's centre line),
+# M's keeper fingers on +-p/2, so the 3.33 gap between neighbours lands on each lane centre (x = +-20 = 3p/4): a ball facing an
+# opening always has a finger edge within ~2.7 of its centre and sinks <= 0.4 (pendulum_bottom.py checks it over the stroke).
+FING_P, FING_W, FING_L, FING_FILLET = 80.0 / 3, 10.0, 45.0, 3.0
+FING_CLR = 1.5            # closed (M at the bottom): each tip this far from the opposite edge
+
+
+def finger_row(x0, x1, centres, base, up):
+    """round-ended FING_W fingers at the given x centres (clipped to x0..x1), bases on y = base, pointing up (+1) / down (-1),
+    with a strip of the face behind the base so the valleys blend in (FING_FILLET); x across, y along"""
+    out = []
+    for c in centres:
+        tip = Point(c, base + up * (FING_L - FING_W / 2)).buffer(FING_W / 2, 48)
+        out.append(unary_union([tip, box(c - FING_W / 2, min(base, base + up * (FING_L - FING_W / 2)),
+                                         c + FING_W / 2, max(base, base + up * (FING_L - FING_W / 2)))]))
+    strip = box(x0, min(base, base - up * 8), x1, max(base, base - up * 8))
+    g = unary_union(out + [strip]).buffer(FING_FILLET, join_style=1).buffer(-FING_FILLET, join_style=1)
+    return g.intersection(box(x0, -1e4, x1, 1e4))
+
+
+def _swap(g):
+    """finger frame (x across, y along) <-> part frame (x along, y across)"""
+    from shapely import affinity
+    return affinity.affine_transform(g, [0, 1, 1, 0, 0, 0])
+
+
+def front_keeper_fingered(n, gap=FRONT_GAP):
+    """the outside keeper (both side beams), n positions long as usual, with M's fingers cut INTO its x = 0 end over the
+    flange's width: the piece stays n x 30 long and its plain end butts flush. Flip it end for end for the top (exit) end."""
+    g = front_keeper(n, gap)
+    W = 2 * SIDE_BEAM + gap
+    v0 = SIDE_BEAM + (gap - DBL_W) / 2                       # the flange's edges, across this keeper
+    mid = W / 2
+    cs = [mid + k * FING_P / 2 for k in (-3, -1, 1, 3)]     # +-p/2, +-3p/2 from the centre line
+    zone = box(0, v0, FING_L, v0 + DBL_W)                   # x along 0..FING_L, y across over the flange
+    fing = _swap(finger_row(v0, v0 + DBL_W, cs, FING_L, -1)).intersection(box(0, v0, FING_L + 8, v0 + DBL_W))
+    # keep only the view slots that end well clear of the finger zone (no stubs); rail M5 inside the zone move up past it
+    clear = FING_L + 6.0
+    keep = [Polygon(r) for r in g.interiors if Polygon(r).bounds[0] >= clear and Polygon(r).area > 25]
+    bolts = sorted({x if x >= clear else FING_L + 10.0 for x in rail_m5_x(n)})
+    keep += [Point(x, y).buffer(M5 / 2, 48) for x in bolts for y in (SIDE_BEAM / 2, W - SIDE_BEAM / 2)]
+    body = Polygon(g.exterior).difference(zone)
+    return unary_union([body, fing]).difference(unary_union(keep))
+
+
+def double_flange_fingered():
+    """the double flange (with its 40 mm keeper extension) plus the flange's fingers beyond the extension's end"""
+    from shapely import affinity
+    fl = double_flange()[0]
+    fl = affinity.translate(fl, -fl.bounds[0], 0)
+    end = fl.bounds[2]
+    cs = [DBL_W / 2 + k * FING_P for k in (-1, 0, 1)]
+    fing = _swap(finger_row(0, DBL_W, cs, end, +1))
+    return unary_union([fl, fing.intersection(box(end - 8, 0, end + FING_L, DBL_W))])
+
+
 def double_parts(keys=()):
     """{name: (shape, note)} for the two-lane parts (sieve frame: x along, y across): the interface, the flange,
     and double_sieve_<n>h / double_keeper_<n>h for any n asked for in keys (10 always)"""
@@ -290,6 +347,13 @@ def double_parts(keys=()):
         "double_interface_3h": (double_sieve(3, ["solid", "flange", "hole"])[0], "3 positions: solid / flange (T bolts) / hole"),
         "double_flange": (fl, "wire-track flange for both lanes"),
     }
+    out["double_flange_fingers"] = (double_flange_fingered(), f"double flange + {FING_L:g} mm fingers (round-ended, {FING_W:g} wide, pitch {FING_P:.2f}) "
+                                                             "past its keeper extension; cut 2 (entry + exit, flipped)")
+    for k in keys:
+        m = re.match(r"front_keeper_(\d+)h_fingers$", k)
+        if m:
+            out[k] = (front_keeper_fingered(int(m.group(1))), f"outside keeper, {m.group(1)} positions, M's fingers cut into one end "
+                                                               f"({FING_L:g} deep over the flange width); plain end flush")
     sp = double_flange(ext=0)[0]
     out["double_flange_spacer"] = (affinity.translate(sp, -sp.bounds[0], 0),
                                    "back spacer: the double flange's square part only (no keeper extension)")
