@@ -452,7 +452,7 @@ def main():
         cuts = gcode.order(cuts)
         ext_x = max(max(x for x, y in (c.points if hasattr(c, "points") else [])) for c in cuts)
         ext_y = max(max(y for x, y in c.points) for c in cuts)
-        name = f"double_sheet{args.tag}_{math.ceil(W)}x{math.ceil(H)}_{args.material}"
+        name = f"double_sheet{args.tag}_{math.ceil(ext_x - 1e-9)}x{math.ceil(ext_y - 1e-9)}_{args.material}"   # the real bounding box
         def wrap(prefix, words, width=200):           # quickcut refuses lines of 255+ characters
             out, cur = [], prefix
             for w in words:
@@ -471,7 +471,7 @@ def main():
         lines += preamble(s2g, job)
         for i, c in enumerate(cuts, 1):
             lines += emit_cut(s2g, motion, c, i, len(cuts), job)
-        gcode.write(out_dir / f"{name}.gcode", lines)
+        name = gcode.write(out_dir / f"{name}.gcode", lines).stem
         print(f"{name}.gcode: {len(placed)} placed, {len(cuts)} cuts ({n_shared} shared lines), extent {ext_x:.2f} x {ext_y:.2f}; skipped: {skipped or 'none'}")
         for n in notes:
             print("  " + n)
