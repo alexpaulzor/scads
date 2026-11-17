@@ -32,14 +32,14 @@ Y_FSIEVE = 10.0                # F's spine sieve + the interface, on F's +y face
 Y_MKEEP = 20.0                 # M's double outside keeper, on M's +y face (y 20)
 FLANGE_GAP = 0.9               # today: the flange stands off past M's keeper so M can slide under it
 TOOTH_P = S.DBL_W / 3          # finger pitch across the flange width (3 fingers)
-TOOTH_H = 50.0                 # finger height: still interleaved when opened by the full stroke
+TOOTH_H = 35.0                 # finger height: still interleaved when opened by the full stroke
 TOOTH_R = 1.5                  # rounded tips / valleys
-TOOTH_CLR = 19.1               # closed (M at the bottom): the two edges H + this apart, where the flanks are 1.5 apart
+TOOTH_CLR = 1.5                # closed (M at the bottom): fully meshed, each tip 1.5 from the opposite edge
 
 
-TIP_R = 5.0                    # finger tips: 10 mm round (Alex)
+TIP_R = 2.5                    # finger tips: 5 mm round
 FILLET_R = 3.0                 # where the fingers meet the face: blended in
-TOOTH_B = 12.0                 # finger width at its base, tapering to the 10 mm round tip
+TOOTH_B = 16.8                 # finger width at its base (70 % of the pitch), tapering to the round tip
 
 
 def teeth(x0, x1, base, up, phase):
