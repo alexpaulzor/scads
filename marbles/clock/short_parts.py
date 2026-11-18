@@ -183,11 +183,12 @@ FLANGE_EXT = 40.0        # the double flange runs on this far past the T stem, t
                          # over the lanes there (stood off on spacers, it just clears the front keeper's outer face)
 
 
+FLANGE_ADJ = 5.0         # plain flange: the top centre M5 slots run this far each way along the beam
 FLANGE_SLOT_WOOD = 6.0   # extension slots: wood kept to the flange zone and to the plate's end (more than the keepers' 5)
 FLANGE_SLOT_MIN = 14.0   # a clipped slot shorter than this is left out
 
 
-def double_flange(x_c=45.0, ext=None, width=None):
+def double_flange(x_c=45.0, ext=None, width=None, plain=False):
     """(shape, notes, m5). Same frame as double_sieve (x along, y across, flange centred on x_c), cropped to
     DBL_W. Outer stitch holes (the two toward each plate edge) come in to the radius that leaves equal wood to
     the edge and to the notch end, since the single flange's radius would leave 1.3 to the edge."""
@@ -197,14 +198,21 @@ def double_flange(x_c=45.0, ext=None, width=None):
     w = DBL_W if width is None else width                   # narrower: centred on DBL_M5_Y (the bores may break out)
     plate = box(x_c - FLANGE_HALF, DBL_M5_Y - w / 2, x_c + FLANGE_HALF + ext, DBL_M5_Y + w / 2).buffer(-2, join_style=2).buffer(2, 16)
     cuts, notes = [], []
-    for y in DBL_HOLE_Y:
+    if plain:   # no wire interface: plain ball holes (HOLE_CUT, as the sieves), the two top centre bolts slotted along the beam
+        cuts += [Point(x_c, y).buffer(HOLE_CUT / 2, 128) for y in DBL_HOLE_Y]
+        top = [b for b in m5 if b[1] == DBL_M5_Y and b[0] > x_c - 1]
+        cuts += [LineString([(bx - FLANGE_ADJ, by), (bx + FLANGE_ADJ, by)]).buffer(M5 / 2, 48) for bx, by in top]
+        cuts += [Point(b).buffer(M5 / 2, 48) for b in m5 if b not in top]
+        notes.append(f"plain ball holes {HOLE_CUT:g}; M5 at {[b[0] for b in top]} slotted +-{FLANGE_ADJ:g} along the beam")
+        m5 = [b for b in m5 if b not in top]
+    for y in (() if plain else DBL_HOLE_Y):
         cuts.append(Point(x_c, y).buffer(TUN_FBORE / 2, 128))
         wc, rep = wire_pattern((x_c, y), plate, m5)
         cuts += wc
         notes.append(f"port y {y:g}: {len(rep)} notches at {[int(a) for a, _ in rep]} deg; stitch holes "
                      + ", ".join(f"{int(a)}:{r:g}" for a, r in rep if r) + "; notch only (a bolt or the edge in the way): "
                      + (", ".join(str(int(a)) for a, r in rep if not r) or "none"))
-    cuts += [Point(p).buffer(M5 / 2, 48) for p in m5]
+    cuts += [] if plain else [Point(p).buffer(M5 / 2, 48) for p in m5]
     # keeper slots in the extension: the double keeper's staggered pattern (same hole positions as the interface
     # plate below it), clipped to the extension with FLANGE_SLOT_WOOD of wood to the flange zone and the end;
     # slots left shorter than FLANGE_SLOT_MIN are dropped (keep wood rather than cut stubs)
@@ -331,13 +339,13 @@ def front_keeper_fingered(n, gap=FRONT_GAP):
     return unary_union([body, fing]).difference(unary_union(keep))
 
 
-def double_flange_fingered(width=None):
+def double_flange_fingered(width=None, plain=False):
     """the double flange (with its 40 mm keeper extension) plus the flange's fingers beyond the extension's end.
     width: the whole piece cropped to this, centred (narrow = fits between M's side rails); fingers keep their places"""
     from shapely import affinity
     w = DBL_W if width is None else width
     y0, y1 = DBL_M5_Y - w / 2, DBL_M5_Y + w / 2
-    fl = double_flange(width=width)[0]
+    fl = double_flange(width=width, plain=plain)[0]
     fl = affinity.translate(fl, -fl.bounds[0], 0)
     end = fl.bounds[2]
     cs = [DBL_W / 2 + k * FING_P for k in (-1, 0, 1)]
@@ -357,6 +365,10 @@ def double_parts(keys=()):
     }
     out["double_flange_fingers"] = (double_flange_fingered(), f"double flange + {FING_L:g} mm fingers (round-ended, {FING_W:g} wide, pitch {FING_P:.2f}) "
                                                              "past its keeper extension; cut 2 (entry + exit, flipped)")
+    for k, w in (("double_flange_fingers_plain", None), ("double_flange_fingers_narrow_plain", FING_NARROW_W)):
+        if k in keys:
+            out[k] = (double_flange_fingered(w, plain=True), f"fingered flange{' cropped to %g wide' % w if w else ''}, no wire interface: "
+                      f"plain {HOLE_CUT:g} ball holes, top centre M5 slotted +-{FLANGE_ADJ:g} along the beam; cut 2 (entry + exit)")
     if "double_flange_fingers_narrow" in keys:
         out["double_flange_fingers_narrow"] = (double_flange_fingered(FING_NARROW_W), f"double_flange_fingers cropped to {FING_NARROW_W:g} wide "
                                                f"(fits between M's side rails, {FRONT_GAP:g} apart): bores break out at the edges")
