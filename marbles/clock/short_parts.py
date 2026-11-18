@@ -187,14 +187,15 @@ FLANGE_SLOT_WOOD = 6.0   # extension slots: wood kept to the flange zone and to 
 FLANGE_SLOT_MIN = 14.0   # a clipped slot shorter than this is left out
 
 
-def double_flange(x_c=45.0, ext=None):
+def double_flange(x_c=45.0, ext=None, width=None):
     """(shape, notes, m5). Same frame as double_sieve (x along, y across, flange centred on x_c), cropped to
     DBL_W. Outer stitch holes (the two toward each plate edge) come in to the radius that leaves equal wood to
     the edge and to the notch end, since the single flange's radius would leave 1.3 to the edge."""
     m5 = [b for b in double_sieve(3, ["solid", "flange", "hole"])[2]]          # the T pattern
     m5 = [(bx - 45.0 + x_c, by) for bx, by in m5]
     ext = FLANGE_EXT if ext is None else ext
-    plate = box(x_c - FLANGE_HALF, 0, x_c + FLANGE_HALF + ext, DBL_W).buffer(-2, join_style=2).buffer(2, 16)
+    w = DBL_W if width is None else width                   # narrower: centred on DBL_M5_Y (the bores may break out)
+    plate = box(x_c - FLANGE_HALF, DBL_M5_Y - w / 2, x_c + FLANGE_HALF + ext, DBL_M5_Y + w / 2).buffer(-2, join_style=2).buffer(2, 16)
     cuts, notes = [], []
     for y in DBL_HOLE_Y:
         cuts.append(Point(x_c, y).buffer(TUN_FBORE / 2, 128))
@@ -216,7 +217,10 @@ def double_flange(x_c=45.0, ext=None):
             continue
         for y_lane, outer in ((DBL_HOLE_Y[0], -1), (DBL_HOLE_Y[1], +1)):
             y = y_lane + (outer if i % 2 == 0 else -outer) * KS_OFF
-            cuts.append(LineString([(lo + KS_W / 2, y), (hi - KS_W / 2, y)]).buffer(KS_W / 2, 24))
+            sl = LineString([(lo + KS_W / 2, y), (hi - KS_W / 2, y)]).buffer(KS_W / 2, 24)
+            if sl.distance(plate.exterior) < FLANGE_MIN_WOOD:   # only bites on a narrowed plate
+                continue
+            cuts.append(sl)
             n_sl += 1
     notes.append(f"{n_sl} keeper slots in the {ext:g} mm extension ({FLANGE_SLOT_WOOD:g} of wood kept to the flange and the end)")
     return plate.difference(unary_union(cuts)), notes, m5
@@ -285,6 +289,7 @@ def centre_slots(L, y):
 # M's keeper fingers on +-p/2, so the 3.33 gap between neighbours lands on each lane centre (x = +-20 = 3p/4): a ball facing an
 # opening always has a finger edge within ~2.7 of its centre and sinks <= 0.4 (pendulum_bottom.py checks it over the stroke).
 FING_P, FING_W, FING_L, FING_FILLET = 80.0 / 3, 10.0, 45.0, 3.0
+FING_NARROW_W = FRONT_GAP - 1.0   # the whole flange between M's side rails, 0.5 clear each side
 FING_CLR = 1.5            # closed (M at the bottom): each tip this far from the opposite edge
 
 
@@ -326,15 +331,18 @@ def front_keeper_fingered(n, gap=FRONT_GAP):
     return unary_union([body, fing]).difference(unary_union(keep))
 
 
-def double_flange_fingered():
-    """the double flange (with its 40 mm keeper extension) plus the flange's fingers beyond the extension's end"""
+def double_flange_fingered(width=None):
+    """the double flange (with its 40 mm keeper extension) plus the flange's fingers beyond the extension's end.
+    width: the whole piece cropped to this, centred (narrow = fits between M's side rails); fingers keep their places"""
     from shapely import affinity
-    fl = double_flange()[0]
+    w = DBL_W if width is None else width
+    y0, y1 = DBL_M5_Y - w / 2, DBL_M5_Y + w / 2
+    fl = double_flange(width=width)[0]
     fl = affinity.translate(fl, -fl.bounds[0], 0)
     end = fl.bounds[2]
     cs = [DBL_W / 2 + k * FING_P for k in (-1, 0, 1)]
-    fing = _swap(finger_row(0, DBL_W, cs, end, +1))
-    return unary_union([fl, fing.intersection(box(end - 8, 0, end + FING_L, DBL_W))])
+    fing = _swap(finger_row(y0, y1, cs, end, +1))
+    return unary_union([fl, fing.intersection(box(end - 8, y0, end + FING_L, y1))])
 
 
 def double_parts(keys=()):
@@ -349,6 +357,9 @@ def double_parts(keys=()):
     }
     out["double_flange_fingers"] = (double_flange_fingered(), f"double flange + {FING_L:g} mm fingers (round-ended, {FING_W:g} wide, pitch {FING_P:.2f}) "
                                                              "past its keeper extension; cut 2 (entry + exit, flipped)")
+    if "double_flange_fingers_narrow" in keys:
+        out["double_flange_fingers_narrow"] = (double_flange_fingered(FING_NARROW_W), f"double_flange_fingers cropped to {FING_NARROW_W:g} wide "
+                                               f"(fits between M's side rails, {FRONT_GAP:g} apart): bores break out at the edges")
     for k in keys:
         m = re.match(r"front_keeper_(\d+)h_fingers$", k)
         if m:
