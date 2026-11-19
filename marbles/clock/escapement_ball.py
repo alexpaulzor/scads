@@ -369,11 +369,11 @@ def emit_gcode(out_dir, seg_batch=6, wood="ply3"):
         f"rocker hub disc r{HUB_R:g}, one each side of the 2020 arms: 608 seat, M5 at {ARM_BOLTS} along each arm and the tail, "
         f"see-saw rail rows at {RAIL_ROWS}")
     from shapely.geometry import MultiPolygon
-    pair = MultiPolygon(nest_pair(plates[0][0], plates[1][0]))       # one entry + one exit, interlocked
-    sheet = nest([pair] * PAL_LAYERS, angles=(0, 180))
-    one(f"esc_ball_pallets_{PAL_LAYERS}x", sheet, f"cut once: {PAL_LAYERS} layers of each pallet (entry + exit), nested",
-        f"{PAL_LAYERS} x entry + {PAL_LAYERS} x exit pallet plate layers, {PAL_HOLE:g} mm bolt holes; stack {PAL_LAYERS} per pallet "
-        f"(holes lined up), bolts flat to the arm's back face, 2 x M5 (slide on the arm's slot for the lock depth)")
+    pair = nest_pair(plates[0][0], plates[1][0])                    # one entry + one exit, interlocked
+    pair = [affinity.rotate(g, 90, origin=(0, 0)) for g in pair]      # turned so the pair is wide and short:
+    one("esc_ball_pallet_pair", pair, f"cut {PAL_LAYERS} times (one layer of each pallet per run)",  # least Y per run
+        f"one entry + one exit pallet layer, {PAL_HOLE:g} mm bolt holes. Repeat: set Y0 at this run's Y max. Stack "
+        f"{PAL_LAYERS} per pallet (holes lined up), bolts flat to the arm's back face, 2 x M5")
 
 
 def build(phi=0.0, th=0.0):
