@@ -409,10 +409,40 @@ def drawing(path, phi=0.0):
     plt.savefig(path, dpi=100)
 
 
+MILL_MARGIN = 20.0       # pallet parts start this far in from the plate's front-left corner (edge clamps outside)
+MILL_GAP = 12.0          # between the two pallets: room for both roughing rings' slots
+
+
+def emit_mill(out_dir, rpm=24000, chipload=None, tool_id="flat_3.175mm_1flute_alu", material_id="alu6061_6.35"):
+    """the two pallet plates milled from 1/4" 6061 with the trim router (cnc_vibes/scripts/alu_ops.py): file 1 mills
+    the M5 holes, you screw each pallet down through them, file 2 cuts both free. Plate frame: X0 Y0 = its
+    front-left corner, Z0 = its top."""
+    from laser_parts import find_quickcut
+    sys.path.insert(0, str(find_quickcut(None).parent / "cnc_vibes" / "lessons" / "mill" / "03_aluminum"))
+    import alu_ops as A
+    from cam import load_material, load_tool
+    tool, mat = load_tool(tool_id), load_material(material_id)
+    job = A.AluJob(tool, rpm, chipload or mat.chipload_for(tool.id), mat.thickness_mm,
+                   round(mat.doc_fraction * tool.diameter_mm, 3))
+    parts, x = [], MILL_MARGIN
+    for (plate, _, _), nm in zip(pallet_plates(), ("entry", "exit")):
+        g = affinity.translate(plate, x - plate.bounds[0], MILL_MARGIN - plate.bounds[1])
+        parts.append((f"pallet_{nm}", g))
+        x = g.bounds[2] + MILL_GAP
+    progs = A.holes_then_outline(job, "escapement pallets (entry + exit), 1/4in 6061, trim router", parts,
+                                 [f"{nm}: {g.bounds[2] - g.bounds[0]:.1f} x {g.bounds[3] - g.bounds[1]:.1f}" for nm, g in parts])
+    paths = [A.write(out_dir, f"esc_ball_pallets_mill_{k}", "alu6", lines) for k, lines in progs.items()]
+    for p in paths:
+        print(f"  {p.name}")
+    return paths, parts, job
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--no-render", action="store_true")
     ap.add_argument("--gcode", action="store_true", help="write the ply3 cut files to marbles/gcode/")
+    ap.add_argument("--mill", action="store_true", help="write the 1/4in aluminium pallet mill files (trim router)")
+    ap.add_argument("--chipload", type=float, help="--mill: mm/tooth (default: the material's, uncalibrated)")
     ap.add_argument("--seg-batch", type=int, default=6, help="floor segments per cut file")
     ap.add_argument("-o", "--out", type=Path, default=HERE.parent / "gcode")
     a = ap.parse_args()
@@ -434,6 +464,11 @@ def main():
         x0, y0, x1, y1 = plate.bounds
         print(f"  {nm} pallet plate {x1 - x0:.0f} x {y1 - y0:.0f}, 2 x acrylic3; arm (2020) at {a_b:.1f} deg in "
               f"escapement_pin's frame ({(a_b + 180) % 360:.1f} here), pad at r {r_pad:.1f} from the pivot, z {PAL_Z0:.1f}..{ARM_Z0:.1f}")
+    if a.mill:
+        print("mill files:")
+        emit_mill(a.out, chipload=a.chipload)
+        if a.no_render and not a.gcode:
+            return
     if a.gcode:
         print("cut files:")
         emit_gcode(a.out, a.seg_batch)
