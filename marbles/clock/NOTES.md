@@ -527,3 +527,15 @@ On the first feeder the back keeper rubbed and bound on the keeper on the other 
   about 80 mm radius before the pin ends (the back plate is at the pins' depth); the dial ring passes 1.6 mm in front
   of the front plate where it overlaps (about 58 mm radius). Open: rail row above the axle or on standoffs over it,
   hole pitch, disc size, 2 or 3 bolts per arm.
+
+## TODO: aluminium pallets on the trim router (parked 2026-11-19)
+
+Ply3 and acrylic3 pallets are brittle. Parked for now: Alex is cutting 3 layers of each ply3 pallet (5.0 holes,
+`esc_ball_pallets_3x_*`, glued) to see if that holds up. When this comes back:
+- toolchain is written but has never run: `cnc_vibes/lessons/mill/03_aluminum` (`alu_ops.py`, `alu_cal.py`) and
+  `escapement_ball.py --mill`. Plate: 8 x 8 x 1/4in 6061. Router dial 6 = 24000 rpm (relay on/off only). Air + lube.
+- calibrate first: `alu_cal.py --feeds` (pick the chipload), then `--size` (measure the square and the hole).
+- **wastes material:** the layout spreads the pallets and test pieces over the plate. Pack them tight (nest the pair the
+  way the ply3 sheet does, put the coupons next to them, keep only the clamp margin) before cutting.
+- pallet holes are now 5.0 (PAL_HOLE); the alu files need regenerating with it.
+- bit: 1/8in single-flute carbide for aluminium, cutting length >= 12 mm (Alex to check what he has).

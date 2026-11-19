@@ -92,6 +92,74 @@ def flip(g):
     return affinity.rotate(g, 180, origin=(0, 0))
 
 
+PAL_HOLE = 5.0           # pallet plate bolt holes: exactly 5 (as cut: quickcut's kerf offset keeps the hole at size)
+PAL_LAYERS = 3           # ply3 pallets: this many glued layers per pallet
+
+
+def nest(polys, gap=1.0, step=1.0, angles=(0, 90, 180, 270)):
+    """greedy nesting: each part in turn (largest first) at the angle and position that keeps the union's bounding box
+    smallest (ties: lowest, then leftmost), at least `gap` from every part placed. Returns the placed polygons."""
+    placed = []
+    for g in sorted(polys, key=lambda q: -q.area):
+        best = None
+        for a in angles:
+            r = affinity.rotate(g, a, origin="centroid")
+            r = affinity.translate(r, -r.bounds[0], -r.bounds[1])
+            if not placed:
+                best = (0, 0, 0, r)
+                break
+            U = unary_union(placed)
+            ux1, uy1 = U.bounds[2], U.bounds[3]
+            occ = U.buffer(gap, join_style=2)
+            w, h = r.bounds[2], r.bounds[3]
+            for yi in range(int((uy1 + gap) / step) + 1):
+                for xi in range(int((ux1 + gap) / step) + 1):
+                    x, y = xi * step, yi * step
+                    bx, by = max(ux1, x + w), max(uy1, y + h)
+                    key = (bx * by, y, x)
+                    if best is not None and key >= best[:3]:
+                        continue
+                    c = affinity.translate(r, x, y)
+                    if not c.intersects(occ):
+                        best = (*key, c)
+        placed.append(best[3])
+    return placed
+
+
+def nest_pair(A0, B0, gap=1.0, step=2.0):
+    """the two parts packed into the smallest bounding box: A turned 0..170 deg (10 deg steps), B turned 0..350 and
+    either face up, B slid in from the right at each height until it is `gap` from A. Returns [A, B] at the origin."""
+    from shapely import prepared
+
+    def norm(g, a, m=False):
+        if m:
+            g = affinity.scale(g, -1, 1, origin="centroid")
+        r = affinity.rotate(g, a, origin="centroid")
+        return affinity.translate(r, -r.bounds[0], -r.bounds[1])
+    best = None
+    for a1 in range(0, 180, 10):
+        A = norm(A0, a1)
+        P = prepared.prep(A.buffer(gap, join_style=2))
+        ax1, ay1 = A.bounds[2], A.bounds[3]
+        for m in (False, True):
+            for a2 in range(0, 360, 10):
+                B = norm(B0, a2, m)
+                w, h = B.bounds[2], B.bounds[3]
+                y = -h
+                while y <= ay1:
+                    x = ax1 + gap
+                    while x - step >= -w and not P.intersects(affinity.translate(B, x - step, y)):
+                        x -= step
+                    k = (max(ax1, x + w) - min(0, x)) * (max(ay1, y + h) - min(0, y))
+                    if best is None or k < best[0]:
+                        best = (k, a1, m, a2, x, y)
+                    y += step
+    _, a1, m, a2, x, y = best
+    A, B = norm(A0, a1), affinity.translate(norm(B0, a2, m), x, y)
+    U = unary_union([A, B]).bounds
+    return [affinity.translate(g, -U[0], -U[1]) for g in (A, B)]
+
+
 def pallet_plates(amp_max=12.0):
     """[(plate, arm angle, pad centre radius)] for entry and exit, in escapement_pin's frame: the working pallet plus a
     web to a pad under its arm. The arm is the nearest angle outside the pallet whose plate keeps every non-working
@@ -111,7 +179,7 @@ def pallet_plates(amp_max=12.0):
                 nonwork = plate.difference(pal.buffer(0.3))
                 if all(affinity.rotate(nonwork, th, origin=(0, 0)).intersection(ring).area < 1e-3 for th in sweep):
                     # round M5 holes (both layers stay lined up); the lock depth is set by sliding on the arm's slot
-                    holes = [Point(E.polar(r_pad + s, a_b)).buffer(2.65, 32) for s in (-PAD_L / 4, PAD_L / 4)]
+                    holes = [Point(E.polar(r_pad + s, a_b)).buffer(PAL_HOLE / 2, 32) for s in (-PAD_L / 4, PAD_L / 4)]
                     out.append((plate.difference(unary_union(holes)), a_b, r_pad))
                     break
             else:
@@ -300,9 +368,12 @@ def emit_gcode(out_dir, seg_batch=6, wood="ply3"):
     one("esc_ball_rocker_hub", [rocker_hub(plates)], "cut 2",
         f"rocker hub disc r{HUB_R:g}, one each side of the 2020 arms: 608 seat, M5 at {ARM_BOLTS} along each arm and the tail, "
         f"see-saw rail rows at {RAIL_ROWS}")
-    for (plate, a_b, r_pad), nm in zip(plates, ("entry", "exit")):
-        one(f"esc_ball_pallet_{nm}", [plate], "cut 2 (2 layers = the 6 mm plate)",
-            f"{nm} pallet plate, WOOD TEST of the acrylic part: bolts flat to the arm's back face, 2 x M5 (slide on the arm's slot for the lock depth)")
+    from shapely.geometry import MultiPolygon
+    pair = MultiPolygon(nest_pair(plates[0][0], plates[1][0]))       # one entry + one exit, interlocked
+    sheet = nest([pair] * PAL_LAYERS, angles=(0, 180))
+    one(f"esc_ball_pallets_{PAL_LAYERS}x", sheet, f"cut once: {PAL_LAYERS} layers of each pallet (entry + exit), nested",
+        f"{PAL_LAYERS} x entry + {PAL_LAYERS} x exit pallet plate layers, {PAL_HOLE:g} mm bolt holes; stack {PAL_LAYERS} per pallet "
+        f"(holes lined up), bolts flat to the arm's back face, 2 x M5 (slide on the arm's slot for the lock depth)")
 
 
 def build(phi=0.0, th=0.0):
