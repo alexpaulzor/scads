@@ -45,12 +45,12 @@ ap.add_argument("--angles", type=float, nargs="+", default=[45, 135, 225, 315, 0
 ap.add_argument("--spiders", type=int, default=1, help="mandrel discs in the mandrel file")
 ap.add_argument("--backplates", type=int, default=1, help="mandrel backplates (ring-OD discs) in the backplate file")
 ap.add_argument("--rod", type=float, default=6.0, help="threaded rod through the mandrel, backplate, jig core and base (mm)")
-ap.add_argument("--centre-y", type=float, default=None,
-                help="ring centre this far above the flat edge (30 = on the upper of two stacked 2020s; default: wall)")
-ap.add_argument("--mount-y", type=float, default=None,
-                help="M5 rail-mount holes this far above the flat edge (10 = into the lower 2020's slot)")
+ap.add_argument("--centre-y", type=float, default=30.0,
+                help="ring centre this far above the flat edge (30 = on the upper of two stacked 2020s, as the acrylic layer; 0: wall)")
+ap.add_argument("--mount-y", type=float, default=10.0,
+                help="M5 rail-mount holes this far above the flat edge (10 = into the lower 2020's slot; 0: none)")
 ap.add_argument("--base", action="store_true", help="also write the plain base layer (outline + mount M5 + centre M5)")
-ap.add_argument("--tag", default="", help="suffix for the file names")
+ap.add_argument("--tag", default="_rail", help="suffix for the file names")
 ap.add_argument("--pairs-x", type=float, default=300.0, help="mandrel + backplate pairs repeated along x out to this (mm)")
 ap.add_argument("--iron-clear", type=float, default=0.0,
                 help="extra diameter on THIS layer's iron hole (e.g. 4 for the acrylic in a ply/acrylic/ply sandwich)")
@@ -215,12 +215,13 @@ def pair_row(n_max_x):
 
 
 KERF_MAX = 0.2
-one_pair = [affinity.translate(spider(), RING_ID / 2, TW_OD / 2), affinity.translate(backplate_twist(), RING_ID + gap + TW_OD / 2, TW_OD / 2)]
-TW_NOTE = (f"twist-lock backplate d{TW_OD:g}: radial entry slots, then {TW_LEG:g} sideways legs at the wire radius "
-           f"(twist {math.degrees(TW_LEG / (RING_ID / 2 - WD / 2)):.1f} deg) past a {TW_BUMP:g} bump")
-write("ring_mandrel_twist_pair", one_pair, args.spider_material,
-      f"1 mandrel d{RING_ID:.2f} + 1 {TW_NOTE}")
-row = pair_row(args.pairs_x)
-n_sp, n_bp = (len(row) + 1) // 2, len(row) // 2
-write(f"ring_mandrel_twist_pairs_{n_sp}m{n_bp}b", row, args.spider_material,
-      f"{n_sp} mandrels + {n_bp} twist-lock backplates alternating along x (to {args.pairs_x:g})")
+if args.spiders > 0 and args.backplates > 0:
+    one_pair = [affinity.translate(spider(), RING_ID / 2, TW_OD / 2), affinity.translate(backplate_twist(), RING_ID + gap + TW_OD / 2, TW_OD / 2)]
+    TW_NOTE = (f"twist-lock backplate d{TW_OD:g}: radial entry slots, then {TW_LEG:g} sideways legs at the wire radius "
+               f"(twist {math.degrees(TW_LEG / (RING_ID / 2 - WD / 2)):.1f} deg) past a {TW_BUMP:g} bump")
+    write("ring_mandrel_twist_pair", one_pair, args.spider_material,
+          f"1 mandrel d{RING_ID:.2f} + 1 {TW_NOTE}")
+    row = pair_row(args.pairs_x)
+    n_sp, n_bp = (len(row) + 1) // 2, len(row) // 2
+    write(f"ring_mandrel_twist_pairs_{n_sp}m{n_bp}b", row, args.spider_material,
+          f"{n_sp} mandrels + {n_bp} twist-lock backplates alternating along x (to {args.pairs_x:g})")
