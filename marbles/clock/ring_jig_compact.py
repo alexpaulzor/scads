@@ -16,7 +16,8 @@ BACKPLATES: discs = ring OUTSIDE diameter with the same rod hole and the same wi
   its face, so the ring stays square and in place while you set up to solder.
 
     python3 marbles/clock/ring_jig_compact.py      # -> marbles/gcode/ring_jig_d_<W>x<H>_ply3.gcode, ring_mandrel_<W>x<H>_ply3.gcode,
-                                                   #    ring_mandrel_back_<W>x<H>_ply3.gcode
+                                                   #    ring_mandrel_back_<W>x<H>_ply3.gcode, ring_mandrel_pair_<W>x<H>_ply3.gcode,
+                                                   #    ring_mandrel_pairs_<n>m<n>b_<W>x<H>_ply3.gcode (alternating along x to --pairs-x)
 """
 import argparse
 import math
@@ -50,6 +51,7 @@ ap.add_argument("--mount-y", type=float, default=None,
                 help="M5 rail-mount holes this far above the flat edge (10 = into the lower 2020's slot)")
 ap.add_argument("--base", action="store_true", help="also write the plain base layer (outline + mount M5 + centre M5)")
 ap.add_argument("--tag", default="", help="suffix for the file names")
+ap.add_argument("--pairs-x", type=float, default=300.0, help="mandrel + backplate pairs repeated along x out to this (mm)")
 ap.add_argument("--iron-clear", type=float, default=0.0,
                 help="extra diameter on THIS layer's iron hole (e.g. 4 for the acrylic in a ply/acrylic/ply sandwich)")
 IRON_CLEAR_MAX = 4.0     # the dome is always sized for the largest iron hole, so every layer has the same outline
@@ -174,3 +176,23 @@ bp = [] if args.backplates < 1 else [affinity.translate(backplate(), RING_OD / 2
 if bp:
     write("ring_mandrel_back" if args.backplates == 1 else f"ring_mandrel_back_x{args.backplates}", bp, args.spider_material,
           f"mandrel backplate x{args.backplates}: ring OD d{RING_OD:.2f}, flared open wire slots at {args.angles} deg, M{args.rod:g} rod hole")
+
+# mandrel + backplate together: one pair, and pairs repeated along x out to --pairs-x (the length of the strip you cut from)
+def pair_row(n_max_x):
+    items, x = [], 0.0
+    while True:
+        for g, d in ((spider(), RING_ID), (backplate(), RING_OD)):
+            if x + d + KERF_MAX > n_max_x:
+                return items
+            items.append(affinity.translate(g, x + d / 2, RING_OD / 2))
+            x += d + gap
+
+
+KERF_MAX = 0.2
+one_pair = [affinity.translate(spider(), RING_ID / 2, RING_OD / 2), affinity.translate(backplate(), RING_ID + gap + RING_OD / 2, RING_OD / 2)]
+write("ring_mandrel_pair", one_pair, args.spider_material,
+      f"one mandrel (d{RING_ID:.2f}) + one backplate (d{RING_OD:.2f}, flared open slots), notches at {args.angles} deg, M{args.rod:g} rod holes")
+row = pair_row(args.pairs_x)
+n_sp, n_bp = (len(row) + 1) // 2, len(row) // 2
+write(f"ring_mandrel_pairs_{n_sp}m{n_bp}b", row, args.spider_material,
+      f"{n_sp} mandrels + {n_bp} backplates alternating along x (to {args.pairs_x:g}), notches at {args.angles} deg, M{args.rod:g} rod holes")
