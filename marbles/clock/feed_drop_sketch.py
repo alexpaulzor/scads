@@ -31,7 +31,7 @@ def geometry():
     th = math.radians(S_TH)
     a1 = [(-S_R + S_R * math.cos(th * i / 30), Y0 - S_R * math.sin(th * i / 30)) for i in range(31)]
     a2 = [(XL + S_R - S_R * math.cos(th * (1 - i / 30)), Y_HOLE + S_R * math.sin(th * (1 - i / 30))) for i in range(1, 31)]
-    path = LineString([(0, Y0 + 40)] + a1 + a2)
+    path = LineString([(0, Y0 + 200)] + a1 + a2)          # lead-in runs out through the plate's uphill edge
     # cone: straight (no curve) from under the drop hole to the circle beside the 2020
     y_c0 = Y_HOLE + 6
     p0, p1 = (XL, y_c0), (X_END, YEND)
@@ -47,11 +47,15 @@ def geometry():
     bot = bot.difference(box(-11, -40, 11, 1.0)).difference(cone)                                  # clear of the 2020 (1 all round)
     bot = bot.difference(unary_union([Point(0, y).buffer(M5 / 2, 48) for y in RAIL_M5 if y < strip_end - 10]))
     yw0, yw1 = YW0, YW1
-    slots = [box(10 - T - CL, yw0 - CL / 2, 10 + T, yw1 + CL / 2), box(-10 - T, yw0 - CL / 2, -10 + T + CL, yw1 + CL / 2)]
-    tabs = []
-    for y in (yw0 + 5, yw1 - 5 - TAB_W):
-        tabs += [box(10, y, 10 + T, y + TAB_W), box(-10 - T, y, -10, y + TAB_W)]   # tabs off the slots' OUTER edges
-    yp0, yp1 = 2.0, Y0 + 25                  # top plate stops just short of the 2020
+    # second pair uphill of the S: the same wall, placed so its M5 land on the 30 grid with room above the S
+    up0 = min(y for y in RAIL_M5 if y - (15 - YW0) >= Y0 + 6) - (15 - YW0)
+    walls = [(yw0, yw1), (up0, up0 + (yw1 - yw0))]
+    slots, tabs = [], []
+    for w0, w1 in walls:
+        slots += [box(10 - T - CL, w0 - CL / 2, 10 + T, w1 + CL / 2), box(-10 - T, w0 - CL / 2, -10 + T + CL, w1 + CL / 2)]
+        for y in (w0 + 5, w1 - 5 - TAB_W):
+            tabs += [box(10, y, 10 + T, y + TAB_W), box(-10 - T, y, -10, y + TAB_W)]   # tabs off the slots' OUTER edges
+    yp0, yp1 = 2.0, walls[1][1] + 6          # top plate stops just short of the 2020; runs past the uphill walls
     plate = (box(XL - BR - 8, yp0, 10 + T + 8, yp1).difference(path.buffer(10, 64)).difference(Point(XL, Y_HOLE).buffer(10, 64))
              .difference(unary_union(slots)).union(unary_union(tabs)))
     # wall (flat, u along the rail from its downhill end, v up from the rail's bottom face): tab holes + rail M5
@@ -60,7 +64,7 @@ def geometry():
     wall = box(0, 0, yw1 - yw0, WALL_H).difference(unary_union(
         [box(y - yw0 - 0.2, v_tab - T / 2 - 0.1, y - yw0 + TAB_W + 0.2, v_tab + T / 2 + 0.1) for y in tab_y] +
         [Point(y - yw0, 10).buffer(M5 / 2, 48) for y in RAIL_M5 if yw0 + 6 < y < yw1 - 6]))
-    return dict(path=path, cone=cone, bot=bot, plate=plate, wall=wall, yw=(yw0, yw1), yp=(yp0, yp1), y_meet=y_meet, y_c0=y_c0)
+    return dict(path=path, cone=cone, bot=bot, plate=plate, wall=wall, yw=(yw0, yw1), walls=walls, yp=(yp0, yp1), y_meet=y_meet, y_c0=y_c0)
 
 
 def emit(out_dir, wood="ply3"):
@@ -75,7 +79,7 @@ def emit(out_dir, wood="ply3"):
     for name, geo, copies, note in (
             ("feed_drop_top_s", g["plate"], "cut 1", f"top plate, {ZC:.1f} above the rail top in the walls' tabs: S (20 slot, 2 x r{S_R:g}) to a 20 drop hole, ending parallel"),
             ("feed_drop_bottom", g["bot"], "cut 1", f"bottom plate under the rail: M5 every {PITCH:g} into its bottom slot; cone 6 -> {W_TIP:g}, step into the 20 circle"),
-            ("feed_drop_wall", g["wall"], "cut 2 (left and right are the same)", f"wall: {WALL_H:g} tall, 2 tab holes at {20 + ZC:.1f} up, M5 {PITCH:g} apart at 10 up")):
+            ("feed_drop_wall", g["wall"], "cut 4 (all four walls are the same)", f"wall: {WALL_H:g} tall, 2 tab holes at {20 + ZC:.1f} up, M5 {PITCH:g} apart at 10 up")):
         if name != "feed_drop_wall":       # geometry frame is mirrored vs the top view (x left looking downhill = -x
             from shapely import affinity   # with y uphill); mirror so the part, cut face-up, matches the drawing from above
             geo = affinity.scale(geo, -1, 1, origin=(0, 0))
@@ -116,7 +120,8 @@ def main():
     a.add_patch(plt.Rectangle((-10, 0), 20, yp1 + 8, fc="#ccc", ec="k", alpha=.35)); a.text(-7, yp1 + 3, "rail", fontsize=8)
     draw(a, plate, fc="burlywood", ec="saddlebrown", alpha=.65)
     for x in (10, -10 - T):
-        a.add_patch(plt.Rectangle((x, yw0), T, yw1 - yw0, fc="peru", ec="k"))
+        for w0, w1 in g["walls"]:
+            a.add_patch(plt.Rectangle((x, w0), T, w1 - w0, fc="peru", ec="k"))
     a.plot(*path.xy, "b--", lw=.9); a.plot([XL, X_END], [y_c0, YEND], "g--", lw=.9)
     a.add_patch(plt.Circle((0, Y0 + 15), BR, fc="steelblue", alpha=.35))
     a.add_patch(plt.Circle((XL, Y_HOLE), BR, fc="steelblue", alpha=.6)); a.add_patch(plt.Circle((X_END, YEND), BR, fc="green", alpha=.6))
@@ -168,7 +173,7 @@ def main():
     # where the ball's centre crosses the rail edge (x -10): first arc if 10 < half the offset
     t = math.degrees(math.acos(1 - 10 / S_R)) if 10 <= -XL / 2 else S_TH
     print(f"{out.name}: lane x {XL:.2f}; S two r{S_R:g} arcs of {S_TH:.1f} deg, y {Y0:.1f} -> hole at {Y_HOLE:g}; cone 6 at {y_c0:g} -> {W_TIP:g} at "
-          f"({y_meet[0]:.1f}, {y_meet[1]:.1f}), circle centre ({X_END:g}, {YEND:g}); walls {yw0:g}..{yw1:.1f}; ball centre crosses the rail edge heading {t:.1f} deg off the rail line")
+          f"({y_meet[0]:.1f}, {y_meet[1]:.1f}), circle centre ({X_END:g}, {YEND:g}); walls {g["walls"]}; ball centre crosses the rail edge heading {t:.1f} deg off the rail line")
 
 
 if __name__ == "__main__":

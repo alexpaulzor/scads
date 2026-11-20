@@ -552,7 +552,7 @@ wire angle (start it further upstream).
 
 ### Feed drop parts (2026-11-20): `feed_drop_sketch.py --gcode`
 Top plate (9 above the rail top, held by tabs on the outer edges of two wall slots: drop the walls in inside the tabs,
-press them out, slide the rail in between; 90 deg elbow to a 20 drop hole), two identical walls (40 tall, M5 at 15/45
+press them out, slide the rail in between; 90 deg elbow to a 20 drop hole), four identical walls (two downhill of the S, two uphill at 128..172 with M5 at 135/165; 40 tall, M5 at 15/45
 from the 2020 = 30 apart), bottom plate under the rail (M5 at 15/45 into its bottom slot; straight ice-cream cone
 6 -> 14 then a concave step into the 20 circle beside the 2020, right edge 15 from its left face). Plates are cut so
 that face-up they match `views/feed_drop_v5.png` (2020 end at the file's bottom edge). Open: the ball leaves the rail
