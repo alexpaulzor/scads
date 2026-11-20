@@ -124,6 +124,32 @@ def backplate():
     return g.difference(unary_union(cuts))
 
 
+TW_OD = 40.0          # twist-lock backplate: larger disc (grip, and wood round the slots)
+TW_LEG = 3.6          # sideways leg: the wire travels this far (arc at the wire radius) when you twist the plate
+TW_BUMP = 0.3         # entry bump: the leg's outer wall pinches in this much just past the entry (wire snaps past it)
+
+
+def backplate_twist():
+    """bayonet backplate: each wire comes in through a radial slot from the rim (flared like the plain backplate), then
+    a sideways leg at the wire's radius; push it on, twist so the wires run into the legs past a small bump, and the
+    plate holds every wire down in the mandrel's notches. Twist back to take it off."""
+    rw = RING_ID / 2 - WD / 2                 # wire centre radius (in the mandrel's notch)
+    w = WD + 0.15
+    R = TW_OD / 2 + 1
+    g = Point(0, 0).buffer(TW_OD / 2, 128)
+    entry = Polygon([(rw - w / 2, -w / 2), (rw + w / 2, -w / 2), (R, -w / 2 - FLARE), (R, w / 2 + FLARE), (rw + w / 2, w / 2), (rw - w / 2, w / 2)])
+    entry = unary_union([entry, Point(rw, 0).buffer(w / 2, 32)])
+    lt = math.degrees(TW_LEG / rw)
+    arc = LineString([(rw * math.cos(math.radians(t * lt / 30)), rw * math.sin(math.radians(t * lt / 30))) for t in range(31)])
+    leg = arc.buffer(w / 2, 32)
+    tb = math.degrees((w / 2 + 0.8) / rw)    # bump just past the entry slot's edge, on the leg's outer wall
+    bump = Point((rw + w / 2) * math.cos(math.radians(tb)), (rw + w / 2) * math.sin(math.radians(tb))).buffer(TW_BUMP + 0.4, 32) \
+        .intersection(Point(0, 0).buffer(rw + w / 2 + 1, 64).difference(Point(0, 0).buffer(rw + w / 2 - TW_BUMP, 64)))
+    slot = unary_union([entry, leg]).difference(bump)
+    cuts = [affinity.rotate(slot, a, origin=(0, 0)) for a in args.angles] + [Point(0, 0).buffer(ROD_R, 48)]
+    return g.difference(unary_union(cuts))
+
+
 def write(name_base, polys, material, note):
     """polys are cut in list order, each one's holes before its outline (put parts that sit inside
     another part's hole first)"""
@@ -181,18 +207,20 @@ if bp:
 def pair_row(n_max_x):
     items, x = [], 0.0
     while True:
-        for g, d in ((spider(), RING_ID), (backplate(), RING_OD)):
+        for g, d in ((spider(), RING_ID), (backplate_twist(), TW_OD)):
             if x + d + KERF_MAX > n_max_x:
                 return items
-            items.append(affinity.translate(g, x + d / 2, RING_OD / 2))
+            items.append(affinity.translate(g, x + d / 2, TW_OD / 2))
             x += d + gap
 
 
 KERF_MAX = 0.2
-one_pair = [affinity.translate(spider(), RING_ID / 2, RING_OD / 2), affinity.translate(backplate(), RING_ID + gap + RING_OD / 2, RING_OD / 2)]
-write("ring_mandrel_pair", one_pair, args.spider_material,
-      f"one mandrel (d{RING_ID:.2f}) + one backplate (d{RING_OD:.2f}, flared open slots), notches at {args.angles} deg, M{args.rod:g} rod holes")
+one_pair = [affinity.translate(spider(), RING_ID / 2, TW_OD / 2), affinity.translate(backplate_twist(), RING_ID + gap + TW_OD / 2, TW_OD / 2)]
+TW_NOTE = (f"twist-lock backplate d{TW_OD:g}: radial entry slots, then {TW_LEG:g} sideways legs at the wire radius "
+           f"(twist {math.degrees(TW_LEG / (RING_ID / 2 - WD / 2)):.1f} deg) past a {TW_BUMP:g} bump")
+write("ring_mandrel_twist_pair", one_pair, args.spider_material,
+      f"1 mandrel d{RING_ID:.2f} + 1 {TW_NOTE}")
 row = pair_row(args.pairs_x)
 n_sp, n_bp = (len(row) + 1) // 2, len(row) // 2
-write(f"ring_mandrel_pairs_{n_sp}m{n_bp}b", row, args.spider_material,
-      f"{n_sp} mandrels + {n_bp} backplates alternating along x (to {args.pairs_x:g}), notches at {args.angles} deg, M{args.rod:g} rod holes")
+write(f"ring_mandrel_twist_pairs_{n_sp}m{n_bp}b", row, args.spider_material,
+      f"{n_sp} mandrels + {n_bp} twist-lock backplates alternating along x (to {args.pairs_x:g})")
