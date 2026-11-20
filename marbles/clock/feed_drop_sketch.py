@@ -14,8 +14,12 @@ XL = -(10 + T + BR + 1.5)                 # lane line: ball 1.5 clear of the lef
 RC = -XL                                  # 90 deg elbow from the rail centre out to the lane line
 GAP_BEAM = 15.0                           # drop circle's right edge this far left of the 2020's left face (wheel opening)
 X_END, YEND = -(10 + GAP_BEAM + 10), -10.0 # drop circle centre: beside the 2020, level with its centre
-Y_HOLE = 60.0
-Y0 = Y_HOLE + RC                          # elbow starts at Y0 (heading downhill), ends at the drop hole (XL, Y_HOLE)
+PITCH, M5 = 30.0, 5.0                     # rail bolt holes: 30 apart, 5.0 (as the keepers)
+YW0, YW1 = 8.0, 52.0                      # walls (both identical): M5 at 15 and 45, symmetric, so either is left or right
+Y0 = YW1 + RC + 10 + 4                    # elbow start: its slot clears the walls' uphill ends by 4
+Y_HOLE = Y0 - RC                          # elbow ends at the drop hole (XL, Y_HOLE)
+WALL_H = 40.0                             # 20 on the rail's side + 20 above its top
+RAIL_M5 = [PITCH / 2 + PITCH * i for i in range(10)]
 W_TIP = 14.0                              # cone's wide end: still holds the ball (centre 6.46 up); the circle drops it
 TAB_W = 8.0
 
@@ -33,16 +37,59 @@ def geometry():
                      (pm[0] - n[0] * W_TIP / 2, pm[1] - n[1] * W_TIP / 2), (p0[0] - n[0] * 3, p0[1] - n[1] * 3)])
     cone = unary_union([taper, Point(p1).buffer(10, 64)])
     y_meet = pm
-    bot = unary_union([box(-10, 2, 10, y_c0 + 15), cone.buffer(8, join_style=2)]).difference(cone)
-    yw1, yw0 = Y0 - (RC + 10) - 4, 5.0
-    slots = [box(10 - T - CL, yw0, 10 + T, yw1), box(-10 - T, yw0, -10 + T + CL, yw1)]
+    strip_end = max(y for y in RAIL_M5 if y <= y_c0) + 15
+    bot = unary_union([box(-10, 2, 10, strip_end), cone.buffer(8, join_style=2)]).convex_hull   # one piece: strip + cone surround
+    bot = bot.difference(box(-11, -40, 11, 1.0)).difference(cone)                                  # clear of the 2020 (1 all round)
+    bot = bot.difference(unary_union([Point(0, y).buffer(M5 / 2, 48) for y in RAIL_M5 if y < strip_end - 10]))
+    yw0, yw1 = YW0, YW1
+    slots = [box(10 - T - CL, yw0 - CL / 2, 10 + T, yw1 + CL / 2), box(-10 - T, yw0 - CL / 2, -10 + T + CL, yw1 + CL / 2)]
     tabs = []
     for y in (yw0 + 5, yw1 - 5 - TAB_W):
         tabs += [box(10, y, 10 + T, y + TAB_W), box(-10 - T, y, -10, y + TAB_W)]   # tabs off the slots' OUTER edges
     yp0, yp1 = 2.0, Y0 + 25                  # top plate stops just short of the 2020
     plate = (box(XL - BR - 8, yp0, 10 + T + 8, yp1).difference(path.buffer(10, 64)).difference(Point(XL, Y_HOLE).buffer(10, 64))
              .difference(unary_union(slots)).union(unary_union(tabs)))
-    return dict(path=path, cone=cone, bot=bot, plate=plate, yw=(yw0, yw1), yp=(yp0, yp1), y_meet=y_meet, y_c0=y_c0)
+    # wall (flat, u along the rail from its downhill end, v up from the rail's bottom face): tab holes + rail M5
+    tab_y = [yw0 + 5, yw1 - 5 - TAB_W]
+    v_tab = 20 + ZC
+    wall = box(0, 0, yw1 - yw0, WALL_H).difference(unary_union(
+        [box(y - yw0 - 0.2, v_tab - T / 2 - 0.1, y - yw0 + TAB_W + 0.2, v_tab + T / 2 + 0.1) for y in tab_y] +
+        [Point(y - yw0, 10).buffer(M5 / 2, 48) for y in RAIL_M5 if yw0 + 6 < y < yw1 - 6]))
+    return dict(path=path, cone=cone, bot=bot, plate=plate, wall=wall, yw=(yw0, yw1), yp=(yp0, yp1), y_meet=y_meet, y_c0=y_c0)
+
+
+def emit(out_dir, wood="ply3"):
+    """the three cut files through quickcut: top plate, bottom plate, wall (cut 2)"""
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from laser_parts import gcode
+    T_, kerf, _ = gcode.fit(wood)
+    job = gcode.job(wood)
+    g = geometry()
+    out = []
+    for name, geo, copies, note in (
+            ("feed_drop_top", g["plate"], "cut 1", f"top plate, {ZC:.1f} above the rail top in the walls' tabs: 90 deg elbow (20 slot) to a 20 drop hole"),
+            ("feed_drop_bottom", g["bot"], "cut 1", f"bottom plate under the rail: M5 every {PITCH:g} into its bottom slot; cone 6 -> {W_TIP:g}, step into the 20 circle"),
+            ("feed_drop_wall", g["wall"], "cut 2 (left and right are the same)", f"wall: {WALL_H:g} tall, 2 tab holes at {20 + ZC:.1f} up, M5 {PITCH:g} apart at 10 up")):
+        if name != "feed_drop_wall":       # geometry frame is mirrored vs the top view (x left looking downhill = -x
+            from shapely import affinity   # with y uphill); mirror so the part, cut face-up, matches the drawing from above
+            geo = affinity.scale(geo, -1, 1, origin=(0, 0))
+        geo = geo.buffer(kerf / 2, join_style=2)
+        x0, y0 = geo.bounds[0], geo.bounds[1]
+        cuts = []
+        for pg in getattr(geo, "geoms", [geo]):
+            cuts += [gcode.Polyline([(x - x0, y - y0) for x, y in r.coords], True) for r in pg.interiors]
+            cuts.append(gcode.Polyline([(x - x0, y - y0) for x, y in pg.exterior.coords], True))
+        cuts = gcode.order(cuts)
+        stem = gcode.name(name, geo.bounds[2] - x0, geo.bounds[3] - y0, wood)
+        lines = gcode.preamble(job, title=f"{stem} -- marbles/clock/feed_drop_sketch.py: {copies}",
+                               notes=[note, f"{wood}: T {T_}, kerf {kerf}; X0 Y0 = bottom-left"])
+        for i, c in enumerate(cuts, 1):
+            lines += gcode.cut(c, job, i, len(cuts))
+        pth = gcode.write(Path(out_dir) / f"{stem}.gcode", lines)
+        out.append(pth)
+        print(f"  {pth.name}: {copies}, {len(cuts)} cuts")
+    return out
 
 
 def main():
@@ -119,4 +166,7 @@ def main():
 
 
 if __name__ == "__main__":
+    import sys as _s
     main()
+    if "--gcode" in _s.argv:
+        emit(Path(__file__).resolve().parent.parent / "gcode")

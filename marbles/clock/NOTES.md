@@ -549,3 +549,11 @@ top). It steers each ball off the rail's left edge right at the beam (`views/fee
 the rail top can't do it alone (wire: never tips the ball; one ply3 layer: only if its edge sits exactly on the slot
 lip; two layers: works but has nowhere to bolt). If balls stay too lively: soft pad on the beam face, or a shallower
 wire angle (start it further upstream).
+
+### Feed drop parts (2026-11-20): `feed_drop_sketch.py --gcode`
+Top plate (9 above the rail top, held by tabs on the outer edges of two wall slots: drop the walls in inside the tabs,
+press them out, slide the rail in between; 90 deg elbow to a 20 drop hole), two identical walls (40 tall, M5 at 15/45
+from the 2020 = 30 apart), bottom plate under the rail (M5 at 15/45 into its bottom slot; straight ice-cream cone
+6 -> 14 then a concave step into the 20 circle beside the 2020, right edge 15 from its left face). Plates are cut so
+that face-up they match `views/feed_drop_v5.png` (2020 end at the file's bottom edge). Open: the ball leaves the rail
+mid-elbow (where its centre crosses the rail edge), about 13.7 short of the cone line; test before trusting it.
