@@ -16,8 +16,11 @@ GAP_BEAM = 15.0                           # drop circle's right edge this far le
 X_END, YEND = -(10 + GAP_BEAM + 10), -10.0 # drop circle centre: beside the 2020, level with its centre
 PITCH, M5 = 30.0, 5.0                     # rail bolt holes: 30 apart, 5.0 (as the keepers)
 YW0, YW1 = 8.0, 52.0                      # walls (both identical): M5 at 15 and 45, symmetric, so either is left or right
-Y0 = YW1 + RC + 10 + 4                    # elbow start: its slot clears the walls' uphill ends by 4
-Y_HOLE = Y0 - RC                          # elbow ends at the drop hole (XL, Y_HOLE)
+Y_HOLE = YW1 + 14                         # drop hole centre (XL, Y_HOLE): its edge 4 above the walls' uphill ends
+S_R = 30.0                                # S: two arcs of this radius, rail centre -> lane line, ending parallel to the rail
+S_TH = math.degrees(math.acos(1 - (-XL / 2) / S_R))
+S_ALONG = S_R * math.sin(math.radians(S_TH))
+Y0 = Y_HOLE + 2 * S_ALONG                 # S starts here (heading downhill)
 WALL_H = 40.0                             # 20 on the rail's side + 20 above its top
 RAIL_M5 = [PITCH / 2 + PITCH * i for i in range(10)]
 W_TIP = 14.0                              # cone's wide end: still holds the ball (centre 6.46 up); the circle drops it
@@ -25,8 +28,10 @@ TAB_W = 8.0
 
 
 def geometry():
-    el = [(-RC + RC * math.cos(math.radians(90 * i / 40)), Y0 - RC * math.sin(math.radians(90 * i / 40))) for i in range(41)]
-    path = LineString([(0, Y0 + 40)] + el)
+    th = math.radians(S_TH)
+    a1 = [(-S_R + S_R * math.cos(th * i / 30), Y0 - S_R * math.sin(th * i / 30)) for i in range(31)]
+    a2 = [(XL + S_R - S_R * math.cos(th * (1 - i / 30)), Y_HOLE + S_R * math.sin(th * (1 - i / 30))) for i in range(1, 31)]
+    path = LineString([(0, Y0 + 40)] + a1 + a2)
     # cone: straight (no curve) from under the drop hole to the circle beside the 2020
     y_c0 = Y_HOLE + 6
     p0, p1 = (XL, y_c0), (X_END, YEND)
@@ -68,7 +73,7 @@ def emit(out_dir, wood="ply3"):
     g = geometry()
     out = []
     for name, geo, copies, note in (
-            ("feed_drop_top", g["plate"], "cut 1", f"top plate, {ZC:.1f} above the rail top in the walls' tabs: 90 deg elbow (20 slot) to a 20 drop hole"),
+            ("feed_drop_top_s", g["plate"], "cut 1", f"top plate, {ZC:.1f} above the rail top in the walls' tabs: S (20 slot, 2 x r{S_R:g}) to a 20 drop hole, ending parallel"),
             ("feed_drop_bottom", g["bot"], "cut 1", f"bottom plate under the rail: M5 every {PITCH:g} into its bottom slot; cone 6 -> {W_TIP:g}, step into the 20 circle"),
             ("feed_drop_wall", g["wall"], "cut 2 (left and right are the same)", f"wall: {WALL_H:g} tall, 2 tab holes at {20 + ZC:.1f} up, M5 {PITCH:g} apart at 10 up")):
         if name != "feed_drop_wall":       # geometry frame is mirrored vs the top view (x left looking downhill = -x
@@ -116,7 +121,7 @@ def main():
     a.add_patch(plt.Circle((0, Y0 + 15), BR, fc="steelblue", alpha=.35))
     a.add_patch(plt.Circle((XL, Y_HOLE), BR, fc="steelblue", alpha=.6)); a.add_patch(plt.Circle((X_END, YEND), BR, fc="green", alpha=.6))
     A = dict(arrowprops=dict(arrowstyle="->"), fontsize=8)
-    a.annotate("TOP PLATE, 9 above the rail top:\n90 deg elbow to a 20 drop hole", (XL - 12, Y_HOLE + 18), (-86, Y0 + 20), **A)
+    a.annotate("TOP PLATE, 9 above the rail top:\nS to a 20 drop hole (ends parallel)", (XL - 12, Y_HOLE + 18), (-86, Y0 + 20), **A)
     a.annotate("drops onto the narrow\nend of the cone below", (XL, Y_HOLE), (-86, Y_HOLE - 12), **A)
     a.annotate(f"BOTTOM PLATE: taper 6 -> {W_TIP:g},\nconcave step into the 20 circle", y_meet, (-86, 25), **A)
     a.annotate("walls on the rail's faces,\ndownhill of the elbow;\nleft one between the\nlane and the rail", (-10 - T, (yw0 + yw1) / 2), (22, (yw0 + yw1) / 2 + 20), **A)
@@ -160,9 +165,10 @@ def main():
     s.set_title("SIDE (along the rail; the 2020 on the left; the lane is beside the rail)", fontsize=9)
     out = Path(__file__).resolve().parent.parent / "views" / "feed_drop_v5.png"
     plt.savefig(out, dpi=100)
-    t = math.degrees(math.acos(1 - 10 / RC))
-    print(f"{out.name}: lane x {XL:.2f}; elbow r {RC:.2f}, y {Y0:.1f} -> hole at {Y_HOLE:g}; cone 6 at {y_c0:g} -> {W_TIP:g} at "
-          f"({y_meet[0]:.1f}, {y_meet[1]:.1f}), circle centre ({X_END:g}, {YEND:g}); walls {yw0:g}..{yw1:.1f}; ball centre crosses the rail edge {t:.1f} deg into the elbow")
+    # where the ball's centre crosses the rail edge (x -10): first arc if 10 < half the offset
+    t = math.degrees(math.acos(1 - 10 / S_R)) if 10 <= -XL / 2 else S_TH
+    print(f"{out.name}: lane x {XL:.2f}; S two r{S_R:g} arcs of {S_TH:.1f} deg, y {Y0:.1f} -> hole at {Y_HOLE:g}; cone 6 at {y_c0:g} -> {W_TIP:g} at "
+          f"({y_meet[0]:.1f}, {y_meet[1]:.1f}), circle centre ({X_END:g}, {YEND:g}); walls {yw0:g}..{yw1:.1f}; ball centre crosses the rail edge heading {t:.1f} deg off the rail line")
 
 
 if __name__ == "__main__":
