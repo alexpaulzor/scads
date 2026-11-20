@@ -557,3 +557,8 @@ from the 2020 = 30 apart), bottom plate under the rail (M5 at 15/45 into its bot
 6 -> 14 then a concave step into the 20 circle beside the 2020, right edge 15 from its left face). Plates are cut so
 that face-up they match `views/feed_drop_v5.png` (2020 end at the file's bottom edge). Open: the ball leaves the rail
 mid-elbow (where its centre crosses the rail edge), about 13.7 short of the cone line; test before trusting it.
+- 2026-11-20 rev: every elbow/S that carries the ball out past the rail edge throws it (it falls as its centre crosses
+  the edge, still turning hard). Now (option 2): the S brings the ball to x -6 (still on the rail), runs parallel, then
+  a 20 deg exit rolls it off beside the rail (lands on the 20.0-left line, touching the rail's side). Cone: 12 wide where
+  it lands (catches +-6), 16 at the concave step into the 20 circle; extra wood round the landing end. Upper walls moved
+  to 158..202 (M5 165/195). Walls and bolt pitch unchanged.

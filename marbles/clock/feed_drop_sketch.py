@@ -10,45 +10,76 @@ from shapely.geometry import LineString, Point, box, Polygon  # noqa: E402
 from shapely.ops import unary_union  # noqa: E402
 
 T = 2.63; BR = 19.05 / 2; ZC = math.sqrt(BR ** 2 - 3.1 ** 2); CL = 0.3
-XL = -(10 + T + BR + 1.5)                 # lane line: ball 1.5 clear of the left wall's outer face
-RC = -XL                                  # 90 deg elbow from the rail centre out to the lane line
+XL = -(10 + BR + 0.5)                     # landing line: the ball rolls off the rail's left edge and drops beside it
+X_EDGE = -6.0                             # the S brings the ball's centre here, still over the rail top (4 in from its edge)
 GAP_BEAM = 15.0                           # drop circle's right edge this far left of the 2020's left face (wheel opening)
 X_END, YEND = -(10 + GAP_BEAM + 10), -10.0 # drop circle centre: beside the 2020, level with its centre
 PITCH, M5 = 30.0, 5.0                     # rail bolt holes: 30 apart, 5.0 (as the keepers)
-YW0, YW1 = 8.0, 52.0                      # walls (both identical): M5 at 15 and 45, symmetric, so either is left or right
-Y_HOLE = YW1 + 14                         # drop hole centre (XL, Y_HOLE): its edge 4 above the walls' uphill ends
-S_R = 30.0                                # S: two arcs of this radius, rail centre -> lane line, ending parallel to the rail
-S_TH = math.degrees(math.acos(1 - (-XL / 2) / S_R))
-S_ALONG = S_R * math.sin(math.radians(S_TH))
-Y0 = Y_HOLE + 2 * S_ALONG                 # S starts here (heading downhill)
+YW0, YW1 = 8.0, 52.0                      # walls (all identical): M5 at 15 and 45, symmetric, so either is left or right
+Y_HOLE = YW1 + 14                         # top plate's end hole centre (XL, Y_HOLE): its edge 4 above the walls' uphill ends
+S_R = 30.0                                # S: two arcs, rail centre -> X_EDGE, ending parallel to the rail
+EXIT_A, EXIT_R = 20.0, 30.0               # then a shallow exit: arc into a 20 deg diagonal, diagonal, arc back to parallel
+PAR_L = 10.0                              # parallel run between the S and the exit
 WALL_H = 40.0                             # 20 on the rail's side + 20 above its top
 RAIL_M5 = [PITCH / 2 + PITCH * i for i in range(10)]
-W_TIP = 14.0                              # cone's wide end: still holds the ball (centre 6.46 up); the circle drops it
+W_START, W_TIP = 12.0, 16.0               # cone: 12 wide where the ball lands (catches it within +-6), 16 at the step into the 20 circle
+CONE_UP = 20.0                            # cone starts this far uphill of the landing
 TAB_W = 8.0
 
 
+def turtle(start, segs):
+    """points along a path from start heading downhill (-y); segs: ('line', L) or ('arc', R, deg), + deg = toward -x"""
+    x, y = start; h = math.radians(-90.0); pts = [(x, y)]
+    for sg in segs:
+        if sg[0] == "line":
+            x += sg[1] * math.cos(h); y += sg[1] * math.sin(h); pts.append((x, y))
+        else:
+            R, d = sg[1], math.radians(sg[2])
+            sgn = -1 if d > 0 else 1                          # toward -x while heading -y = clockwise
+            cx, cy = x + R * math.cos(h + sgn * math.pi / 2), y + R * math.sin(h + sgn * math.pi / 2)
+            a0 = math.atan2(y - cy, x - cx)
+            for i in range(1, 31):
+                a = a0 + sgn * abs(d) * i / 30
+                pts.append((cx + R * math.cos(a), cy + R * math.sin(a)))
+            x, y = pts[-1]; h += sgn * abs(d)
+    return pts
+
+
+def segments():
+    s_th = math.degrees(math.acos(1 - (-X_EDGE / 2) / S_R))
+    arc_lat = EXIT_R * (1 - math.cos(math.radians(EXIT_A)))
+    diag = (X_EDGE - XL - 2 * arc_lat) / math.sin(math.radians(EXIT_A))
+    return [("arc", S_R, s_th), ("arc", S_R, -s_th), ("line", PAR_L), ("arc", EXIT_R, EXIT_A), ("line", diag), ("arc", EXIT_R, -EXIT_A)]
+
+
 def geometry():
-    th = math.radians(S_TH)
-    a1 = [(-S_R + S_R * math.cos(th * i / 30), Y0 - S_R * math.sin(th * i / 30)) for i in range(31)]
-    a2 = [(XL + S_R - S_R * math.cos(th * (1 - i / 30)), Y_HOLE + S_R * math.sin(th * (1 - i / 30))) for i in range(1, 31)]
-    path = LineString([(0, Y0 + 200)] + a1 + a2)          # lead-in runs out through the plate's uphill edge
+    pts = turtle((0.0, 0.0), segments())
+    dx, dy = XL - pts[-1][0], Y_HOLE - pts[-1][1]
+    pts = [(x + dx, y + dy) for x, y in pts]                  # path ends at the end hole
+    y0 = pts[0][1]                                            # S starts here
+    path = LineString([(0, y0 + 200)] + pts)                  # lead-in runs out through the plate's uphill edge
+    # where the ball's centre crosses the rail edge (x -10): it leaves the rail there
+    cross = next(((x, y) for x, y in LineString(pts).segmentize(0.2).coords if x <= -10), pts[-1])
+    y_land = cross[1] - 6
     # cone: straight (no curve) from under the drop hole to the circle beside the 2020
-    y_c0 = Y_HOLE + 6
+    y_c0 = y_land + CONE_UP
     p0, p1 = (XL, y_c0), (X_END, YEND)
     L = math.dist(p0, p1); u = ((p1[0] - p0[0]) / L, (p1[1] - p0[1]) / L); n = (-u[1], u[0])
     m = math.sqrt(10 ** 2 - (W_TIP / 2) ** 2)
     pm = (p1[0] - u[0] * m, p1[1] - u[1] * m)
-    taper = Polygon([(p0[0] + n[0] * 3, p0[1] + n[1] * 3), (pm[0] + n[0] * W_TIP / 2, pm[1] + n[1] * W_TIP / 2),
-                     (pm[0] - n[0] * W_TIP / 2, pm[1] - n[1] * W_TIP / 2), (p0[0] - n[0] * 3, p0[1] - n[1] * 3)])
+    h0 = W_START / 2
+    taper = Polygon([(p0[0] + n[0] * h0, p0[1] + n[1] * h0), (pm[0] + n[0] * W_TIP / 2, pm[1] + n[1] * W_TIP / 2),
+                     (pm[0] - n[0] * W_TIP / 2, pm[1] - n[1] * W_TIP / 2), (p0[0] - n[0] * h0, p0[1] - n[1] * h0)])
     cone = unary_union([taper, Point(p1).buffer(10, 64)])
     y_meet = pm
     strip_end = max(y for y in RAIL_M5 if y <= y_c0) + 15
-    bot = unary_union([box(-10, 2, 10, strip_end), cone.buffer(8, join_style=2)]).convex_hull   # one piece: strip + cone surround
+    pad = Point(p0).buffer(W_START / 2 + 14, 48)             # extra wood round the landing end
+    bot = unary_union([box(-10, 2, 10, strip_end), cone.buffer(8, join_style=2), pad]).convex_hull   # one piece
     bot = bot.difference(box(-11, -40, 11, 1.0)).difference(cone)                                  # clear of the 2020 (1 all round)
     bot = bot.difference(unary_union([Point(0, y).buffer(M5 / 2, 48) for y in RAIL_M5 if y < strip_end - 10]))
     yw0, yw1 = YW0, YW1
     # second pair uphill of the S: the same wall, placed so its M5 land on the 30 grid with room above the S
-    up0 = min(y for y in RAIL_M5 if y - (15 - YW0) >= Y0 + 6) - (15 - YW0)
+    up0 = min(y for y in RAIL_M5 if y - (15 - YW0) >= y0 + 6) - (15 - YW0)
     walls = [(yw0, yw1), (up0, up0 + (yw1 - yw0))]
     slots, tabs = [], []
     for w0, w1 in walls:
@@ -64,7 +95,7 @@ def geometry():
     wall = box(0, 0, yw1 - yw0, WALL_H).difference(unary_union(
         [box(y - yw0 - 0.2, v_tab - T / 2 - 0.1, y - yw0 + TAB_W + 0.2, v_tab + T / 2 + 0.1) for y in tab_y] +
         [Point(y - yw0, 10).buffer(M5 / 2, 48) for y in RAIL_M5 if yw0 + 6 < y < yw1 - 6]))
-    return dict(path=path, cone=cone, bot=bot, plate=plate, wall=wall, yw=(yw0, yw1), walls=walls, yp=(yp0, yp1), y_meet=y_meet, y_c0=y_c0)
+    return dict(path=path, cone=cone, bot=bot, plate=plate, wall=wall, yw=(yw0, yw1), walls=walls, y0=y0, cross=cross, y_land=y_land, yp=(yp0, yp1), y_meet=y_meet, y_c0=y_c0)
 
 
 def emit(out_dir, wood="ply3"):
@@ -77,7 +108,7 @@ def emit(out_dir, wood="ply3"):
     g = geometry()
     out = []
     for name, geo, copies, note in (
-            ("feed_drop_top_s", g["plate"], "cut 1", f"top plate, {ZC:.1f} above the rail top in the walls' tabs: S (20 slot, 2 x r{S_R:g}) to a 20 drop hole, ending parallel"),
+            ("feed_drop_top_s", g["plate"], "cut 1", f"top plate, {ZC:.1f} above the rail top in the walls' tabs: S (20 slot) to the rail's left edge, parallel, 20 deg exit: the ball rolls off slowly beside the rail"),
             ("feed_drop_bottom", g["bot"], "cut 1", f"bottom plate under the rail: M5 every {PITCH:g} into its bottom slot; cone 6 -> {W_TIP:g}, step into the 20 circle"),
             ("feed_drop_wall", g["wall"], "cut 4 (all four walls are the same)", f"wall: {WALL_H:g} tall, 2 tab holes at {20 + ZC:.1f} up, M5 {PITCH:g} apart at 10 up")):
         if name != "feed_drop_wall":       # geometry frame is mirrored vs the top view (x left looking downhill = -x
@@ -123,12 +154,13 @@ def main():
         for w0, w1 in g["walls"]:
             a.add_patch(plt.Rectangle((x, w0), T, w1 - w0, fc="peru", ec="k"))
     a.plot(*path.xy, "b--", lw=.9); a.plot([XL, X_END], [y_c0, YEND], "g--", lw=.9)
-    a.add_patch(plt.Circle((0, Y0 + 15), BR, fc="steelblue", alpha=.35))
+    Y0 = g["y0"]
+    a.add_patch(plt.Circle((0, Y0 + 15), BR, fc="steelblue", alpha=.35)); a.add_patch(plt.Circle(g["cross"], BR, fc="steelblue", alpha=.5))
     a.add_patch(plt.Circle((XL, Y_HOLE), BR, fc="steelblue", alpha=.6)); a.add_patch(plt.Circle((X_END, YEND), BR, fc="green", alpha=.6))
     A = dict(arrowprops=dict(arrowstyle="->"), fontsize=8)
-    a.annotate("TOP PLATE, 9 above the rail top:\nS to a 20 drop hole (ends parallel)", (XL - 12, Y_HOLE + 18), (-86, Y0 + 20), **A)
-    a.annotate("drops onto the narrow\nend of the cone below", (XL, Y_HOLE), (-86, Y_HOLE - 12), **A)
-    a.annotate(f"BOTTOM PLATE: taper 6 -> {W_TIP:g},\nconcave step into the 20 circle", y_meet, (-86, 25), **A)
+    a.annotate("TOP PLATE, 9 above the rail top: S to\nthe rail's left edge, parallel, then a\n20 deg exit: rolls off slowly beside the rail", (XL - 12, Y_HOLE + 18), (-86, Y0 + 20), **A)
+    a.annotate("leaves the rail here, 20 deg off\nits line; lands in the cone's\n12 wide end just downhill", g["cross"], (-86, Y_HOLE - 12), **A)
+    a.annotate(f"BOTTOM PLATE: taper {W_START:g} -> {W_TIP:g},\nconcave step into the 20 circle", y_meet, (-86, 25), **A)
     a.annotate("walls on the rail's faces,\ndownhill of the elbow;\nleft one between the\nlane and the rail", (-10 - T, (yw0 + yw1) / 2), (22, (yw0 + yw1) / 2 + 20), **A)
     a.annotate("tabs on the slots'\nOUTER edges", (10 + T, yw1 - 9), (24, yw1 + 10), **A)
     a.set_xlim(-88, 52); a.set_ylim(-42, yp1 + 12); a.invert_yaxis(); a.set_aspect("equal")
@@ -170,10 +202,10 @@ def main():
     s.set_title("SIDE (along the rail; the 2020 on the left; the lane is beside the rail)", fontsize=9)
     out = Path(__file__).resolve().parent.parent / "views" / "feed_drop_v5.png"
     plt.savefig(out, dpi=100)
-    # where the ball's centre crosses the rail edge (x -10): first arc if 10 < half the offset
-    t = math.degrees(math.acos(1 - 10 / S_R)) if 10 <= -XL / 2 else S_TH
-    print(f"{out.name}: lane x {XL:.2f}; S two r{S_R:g} arcs of {S_TH:.1f} deg, y {Y0:.1f} -> hole at {Y_HOLE:g}; cone 6 at {y_c0:g} -> {W_TIP:g} at "
-          f"({y_meet[0]:.1f}, {y_meet[1]:.1f}), circle centre ({X_END:g}, {YEND:g}); walls {g["walls"]}; ball centre crosses the rail edge heading {t:.1f} deg off the rail line")
+    sg = segments()
+    print(f"{out.name}: S two r{S_R:g} arcs of {sg[0][2]:.1f} deg to x {X_EDGE:g}, from y {Y0:.1f}; parallel {PAR_L:g}; exit {EXIT_A:g} deg "
+          f"(diagonal {sg[4][1]:.1f}) to the end hole at ({XL:g}, {Y_HOLE:g}); ball leaves the rail at y {g['cross'][1]:.1f} heading "
+          f"{EXIT_A:g} deg off the rail line; cone {W_START:g} at y {y_c0:.1f} -> {W_TIP:g}, step into the 20 circle at ({X_END:g}, {YEND:g}); walls {g['walls']}")
 
 
 if __name__ == "__main__":
