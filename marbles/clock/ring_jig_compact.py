@@ -124,7 +124,7 @@ def backplate():
     return g.difference(unary_union(cuts))
 
 
-TW_OD = 40.0          # twist-lock backplate: larger disc (grip, and wood round the slots)
+TW_OD = RING_OD + 2.0  # twist-lock backplate: just over the ring OD (40 was far too big: the wires would not come out)
 TW_LEG = 3.6          # sideways leg: the wire travels this far (arc at the wire radius) when you twist the plate
 TW_BUMP = 0.3         # entry bump: the leg's outer wall pinches in this much just past the entry (wire snaps past it)
 
