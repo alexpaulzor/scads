@@ -539,3 +539,13 @@ Ply3 and acrylic3 pallets are brittle. Parked for now: Alex is cutting 3 layers 
   way the ply3 sheet does, put the coupons next to them, keep only the clamp margin) before cutting.
 - pallet holes are now 5.0 (PAL_HOLE); the alu files need regenerating with it.
 - bit: 1/8in single-flute carbide for aluminium, cutting length >= 12 mm (Alex to check what he has).
+
+## Feed drop at the wheel (2026-11-20, first try)
+
+Exit rail ends against the vertical beam; the wheel is below and left of the rail end. First try, nothing cut: a 14 ga
+wire guide on the rail top, diagonal from the right keeper (hooked through a view slot ~22 mm from the beam, just
+inside the keeper) to the beam's T-slot about 1 mm left of the rail centre, at ball-centre height (9.0 above the rail
+top). It steers each ball off the rail's left edge right at the beam (`views/feed_drop_wire.png`). Checked: a shim on
+the rail top can't do it alone (wire: never tips the ball; one ply3 layer: only if its edge sits exactly on the slot
+lip; two layers: works but has nowhere to bolt). If balls stay too lively: soft pad on the beam face, or a shallower
+wire angle (start it further upstream).
