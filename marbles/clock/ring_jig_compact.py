@@ -213,34 +213,55 @@ write("ring_jig_d" + args.tag, [core, plate], args.jig_material,
 if args.base:
     write("ring_jig_base" + args.tag, [base_layer(outline, (CUT_LEN / 2, yc))], args.jig_material,
           "plain base layer for the sandwich: D outline, M5 rail holes, M5 at the ring centre")
-sp = [] if args.spiders < 1 else [affinity.translate(spider(split=True), RING_ID / 2 + i * (RING_ID + gap), RING_ID / 2) for i in range(args.spiders)]
-if sp:
-    write("ring_mandrel" if args.spiders == 1 else f"ring_mandrel_x{args.spiders}", sp, args.spider_material,
-          f"mandrel / spacing spider x{args.spiders}, notches at {args.angles} deg, M{args.rod:g} rod hole")
-bp = [] if args.backplates < 1 else [affinity.translate(backplate(), RING_OD / 2 + i * (RING_OD + gap), RING_OD / 2) for i in range(args.backplates)]
-if bp:
-    write("ring_mandrel_back" if args.backplates == 1 else f"ring_mandrel_back_x{args.backplates}", bp, args.spider_material,
-          f"mandrel backplate x{args.backplates}: ring OD d{RING_OD:.2f}, flared open wire slots at {args.angles} deg, M{args.rod:g} rod hole")
-
-# mandrel + backplate together: one pair, and pairs repeated along x out to --pairs-x (the length of the strip you cut from)
-def pair_row(n_max_x):
-    items, x = [], 0.0
-    while True:
-        for g, d in ((spider(split=True), RING_ID), (backplate_twist(), TW_OD)):
-            if x + d + KERF_MAX > n_max_x:
-                return items
-            items.append(affinity.translate(g, x + d / 2, TW_OD / 2))
-            x += d + gap
+# a la carte: tilt-out mandrels and slide-in backplates, 4- and 8-wire (the S split and the paired files are parked)
+WIRES = {4: (45, 135, 225, 315), 8: (0, 45, 90, 135, 180, 225, 270, 315)}
+RW = RING_ID / 2 - WD / 2            # wire centre radius (in a mandrel notch)
+SLOT_W = WD + 0.15
 
 
-KERF_MAX = 0.2
-if args.spiders > 0 and args.backplates > 0:
-    one_pair = [affinity.translate(spider(split=True), RING_ID / 2, TW_OD / 2), affinity.translate(backplate_twist(), RING_ID + gap + TW_OD / 2, TW_OD / 2)]
-    TW_NOTE = (f"twist-lock backplate d{TW_OD:g}: radial entry slots, then {TW_LEG:g} sideways legs at the wire radius "
-               f"(twist {math.degrees(TW_LEG / (RING_ID / 2 - WD / 2)):.1f} deg) past a {TW_BUMP:g} bump")
-    write("ring_mandrel_twist_pair", one_pair, args.spider_material,
-          f"1 mandrel d{RING_ID:.2f} + 1 {TW_NOTE}")
-    row = pair_row(args.pairs_x)
-    n_sp, n_bp = (len(row) + 1) // 2, len(row) // 2
-    write(f"ring_mandrel_twist_pairs_{n_sp}m{n_bp}b", row, args.spider_material,
-          f"{n_sp} mandrels + {n_bp} twist-lock backplates alternating along x (to {args.pairs_x:g})")
+def mandrel_tilt(angles):
+    """mandrel disc (ring ID, M3 rod hole) whose notches each run on out to the rim along +-y from the wire: with the rod
+    out, tip the disc edge-on about its x axis (marked by the two rim nicks) and every wire slides out of its notch along
+    that channel, then the disc comes out between the wires. The wires never have to move."""
+    r = RING_ID / 2
+    g = Point(0, 0).buffer(r, 128)
+    cuts = [Point(0, 0).buffer(ROD_R, 48)]
+    for a in angles:
+        t = math.radians(a)
+        wx, wy = RW * math.cos(t), RW * math.sin(t)
+        cuts.append(affinity.rotate(box(r - WD, -SLOT_W / 2, r + 1, SLOT_W / 2), a, origin=(0, 0)))      # the notch
+        if abs(wy) > 1e-6:                                                                              # escape channel
+            y1 = math.copysign(r + 1, wy)
+            cuts.append(box(wx - SLOT_W / 2, min(wy, y1), wx + SLOT_W / 2, max(wy, y1)))
+    for x in (r, -r):                                                                                   # tilt-axis nicks
+        cuts.append(Point(x, 0).buffer(0.8, 16))
+    return g.difference(unary_union(cuts))
+
+
+def backplate_slide(angles, offset):
+    """ring-OD + 2 disc that slides on from one side: every slot runs parallel to the slide direction, open at the
+    leading edge (with a flared mouth), out to the furthest wire on its line. Slots run at `offset` deg to the wires
+    (22.5 for 8 wires keeps the wood between slots >= 3.8). 4-wire plate: an M3 rod slot down the middle too."""
+    R = RING_OD / 2 + 1
+    g = Point(0, 0).buffer(R, 128)
+    lines = {}
+    for a in angles:
+        t = math.radians(a - offset)
+        y = round(RW * math.sin(t), 3)
+        lines[y] = max(lines.get(y, -99), RW * math.cos(t))
+    cuts = []
+    for y, xmax in lines.items():
+        cuts.append(LineString([(-R - 1, y), (xmax, y)]).buffer(SLOT_W / 2, 24, cap_style=1))
+        cuts.append(Polygon([(-R - 1, y - SLOT_W / 2 - 1.2), (-R + 2.5, y - SLOT_W / 2), (-R + 2.5, y + SLOT_W / 2), (-R - 1, y + SLOT_W / 2 + 1.2)]))
+    if 0.0 not in lines and min(abs(y) for y in lines) - SLOT_W / 2 - ROD_R >= 4:
+        cuts.append(LineString([(-R - 1, 0), (0, 0)]).buffer(ROD_R, 24, cap_style=1))
+    return affinity.rotate(g.difference(unary_union(cuts)), offset, origin=(0, 0)), sorted(lines)
+
+
+for n, ang in WIRES.items():
+    write(f"ring_mandrel_{n}w", [mandrel_tilt(ang)], args.spider_material,
+          f"{n}-wire tilt-out mandrel d{RING_ID:.2f}, M{args.rod:g} rod; notches run out along +-y (tilt about x: rim nicks)")
+    off = 0.0 if n == 4 else 22.5
+    bp_g, levels = backplate_slide(ang, off)
+    write(f"ring_back_slide_{n}w", [bp_g], args.spider_material,
+          f"{n}-wire slide-on backplate d{RING_OD + 2:.2f}: {len(levels)} parallel slots at {off:g} deg to the wires, open on one side")
