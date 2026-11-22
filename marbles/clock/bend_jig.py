@@ -35,7 +35,7 @@ args = ap.parse_args()
 M5 = 5.0
 WOOD = 8.0
 # ring jig (same as ring_jig_compact.py's D jig): ring hole with the mandrel core cut in place, iron hole at its top
-BORE, ROD, IRON, GROOVE_CLR = 20.0, 6.0, 15.0, 0.3
+BORE, ROD, IRON, GROOVE_CLR = 20.0, 3.0, 15.0, 0.3   # M3 rod
 RING_ID = BORE + 2 * args.wire
 RING_OD = RING_ID + 2 * args.wire
 RING_CL = RING_ID + args.wire

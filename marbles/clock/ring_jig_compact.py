@@ -10,7 +10,8 @@ JIG (veneer plywood by default): one D-shaped plate stuck to scrap backing.
   - A 15 mm iron hole centred on the wire's circle, at the top of the dome.
   - At least 10 mm of wood round the ring hole, at least 4 round the iron hole.
 SPIDERS (veneer plywood by default): discs = ring inside diameter with notches one wire deep at the
-  straight-wire angles and a centre hole for the threaded rod (M6 by default); string them on the rod as a mandrel.
+  straight-wire angles and a centre hole for the threaded rod (M3 by default), split in two along a yin-yang S so they
+  come out of a soldered tube; string them on the rod as a mandrel.
 BACKPLATES: discs = ring OUTSIDE diameter with the same rod hole and the same wire slots, open to the rim and flared
   wider toward it so the plate comes off past the soldered joints. Put one on the rod behind a mandrel: the straight wires pass through its slots and the ring sits against
   its face, so the ring stays square and in place while you set up to solder.
@@ -44,7 +45,7 @@ ap.add_argument("--angles", type=float, nargs="+", default=[45, 135, 225, 315, 0
                 help="straight-wire angles: default the 8-notch flange interface (short_parts.FLANGE_ANGLES)")
 ap.add_argument("--spiders", type=int, default=1, help="mandrel discs in the mandrel file")
 ap.add_argument("--backplates", type=int, default=1, help="mandrel backplates (ring-OD discs) in the backplate file")
-ap.add_argument("--rod", type=float, default=6.0, help="threaded rod through the mandrel, backplate, jig core and base (mm)")
+ap.add_argument("--rod", type=float, default=3.0, help="threaded rod through the mandrel, backplate, jig core and base (mm)")
 ap.add_argument("--centre-y", type=float, default=30.0,
                 help="ring centre this far above the flat edge (30 = on the upper of two stacked 2020s, as the acrylic layer; 0: wall)")
 ap.add_argument("--mount-y", type=float, default=10.0,
@@ -102,12 +103,30 @@ def base_layer(plate_outline, c):
     return plate_outline.difference(unary_union([Point(m).buffer(2.5, 48) for m in mounts(plate_outline)] + [Point(c).buffer(ROD_R, 48)]))
 
 
-def spider():
+SPLIT_GAP = 0.1      # the S is cut as a gap this wide (= the kerf): after the kerf offset both halves' paths meet on the S
+
+
+def s_curve(r):
+    """yin-yang S through the centre: straight in from the rim through the top notch (90 deg) to 1.5 below its floor, a
+    semicircle to the centre, the opposite semicircle, then straight out through the bottom notch (270 deg); no slivers
+    at the rim (the cut leaves it square through the notch floor). Runs 1 past the rim at both ends."""
+    y0 = r - WD - 1.5
+    h = y0 / 2
+    a = [(h * math.cos(math.radians(90 - 180 * i / 60)), h + h * math.sin(math.radians(90 - 180 * i / 60))) for i in range(61)]
+    b = [(h * math.cos(math.radians(90 + 180 * i / 60)), -h + h * math.sin(math.radians(90 + 180 * i / 60))) for i in range(1, 61)]
+    return LineString([(0, r + 1)] + a + b + [(0, -r - 1)])
+
+
+def spider(split=False):
+    """mandrel disc: ring ID, wire notches, rod hole. split: cut in two along a yin-yang S through the centre (the halves
+    mesh; the wires round them hold them together, and they come out one at a time once the rod is pulled)"""
     g = Point(0, 0).buffer(RING_ID / 2, 128)
     r = RING_ID / 2
     w = WD + 0.15
     cuts = [affinity.rotate(box(r - WD, -w / 2, r + 1, w / 2), a, origin=(0, 0)) for a in args.angles]
     cuts.append(Point(0, 0).buffer(ROD_R, 48))
+    if split:
+        cuts.append(s_curve(r).buffer(SPLIT_GAP / 2, cap_style=2))
     return g.difference(unary_union(cuts))
 
 
@@ -155,7 +174,7 @@ def write(name_base, polys, material, note):
     another part's hole first)"""
     T, KERF, _ = material_fit(material)
     s2g, motion, mat, job = load_profile(material, 1000, None)
-    gs = [p.buffer(KERF / 2, join_style=2) for p in polys]
+    gs = [q.buffer(KERF / 2, join_style=2) for p in polys for q in getattr(p, "geoms", [p])]   # split halves stay apart
     x0 = min(g.bounds[0] for g in gs); y0 = min(g.bounds[1] for g in gs)
     x1 = max(g.bounds[2] for g in gs); y1 = max(g.bounds[3] for g in gs)
     order = []
@@ -194,7 +213,7 @@ write("ring_jig_d" + args.tag, [core, plate], args.jig_material,
 if args.base:
     write("ring_jig_base" + args.tag, [base_layer(outline, (CUT_LEN / 2, yc))], args.jig_material,
           "plain base layer for the sandwich: D outline, M5 rail holes, M5 at the ring centre")
-sp = [] if args.spiders < 1 else [affinity.translate(spider(), RING_ID / 2 + i * (RING_ID + gap), RING_ID / 2) for i in range(args.spiders)]
+sp = [] if args.spiders < 1 else [affinity.translate(spider(split=True), RING_ID / 2 + i * (RING_ID + gap), RING_ID / 2) for i in range(args.spiders)]
 if sp:
     write("ring_mandrel" if args.spiders == 1 else f"ring_mandrel_x{args.spiders}", sp, args.spider_material,
           f"mandrel / spacing spider x{args.spiders}, notches at {args.angles} deg, M{args.rod:g} rod hole")
@@ -207,7 +226,7 @@ if bp:
 def pair_row(n_max_x):
     items, x = [], 0.0
     while True:
-        for g, d in ((spider(), RING_ID), (backplate_twist(), TW_OD)):
+        for g, d in ((spider(split=True), RING_ID), (backplate_twist(), TW_OD)):
             if x + d + KERF_MAX > n_max_x:
                 return items
             items.append(affinity.translate(g, x + d / 2, TW_OD / 2))
@@ -216,7 +235,7 @@ def pair_row(n_max_x):
 
 KERF_MAX = 0.2
 if args.spiders > 0 and args.backplates > 0:
-    one_pair = [affinity.translate(spider(), RING_ID / 2, TW_OD / 2), affinity.translate(backplate_twist(), RING_ID + gap + TW_OD / 2, TW_OD / 2)]
+    one_pair = [affinity.translate(spider(split=True), RING_ID / 2, TW_OD / 2), affinity.translate(backplate_twist(), RING_ID + gap + TW_OD / 2, TW_OD / 2)]
     TW_NOTE = (f"twist-lock backplate d{TW_OD:g}: radial entry slots, then {TW_LEG:g} sideways legs at the wire radius "
                f"(twist {math.degrees(TW_LEG / (RING_ID / 2 - WD / 2)):.1f} deg) past a {TW_BUMP:g} bump")
     write("ring_mandrel_twist_pair", one_pair, args.spider_material,
