@@ -265,3 +265,23 @@ for n, ang in WIRES.items():
     bp_g, levels = backplate_slide(ang, off)
     write(f"ring_back_slide_{n}w", [bp_g], args.spider_material,
           f"{n}-wire slide-on backplate d{RING_OD + 2:.2f}: {len(levels)} parallel slots at {off:g} deg to the wires, open on one side")
+
+
+# one sheet: a row of each part (4w mandrel, 8w mandrel, 4w backplate, 8w backplate), as many as fit along x to --pairs-x
+def sheet_rows(max_x, gap_xy=3.0):
+    parts = [mandrel_tilt(WIRES[4]), mandrel_tilt(WIRES[8]), backplate_slide(WIRES[4], 0.0)[0], backplate_slide(WIRES[8], 22.5)[0]]
+    out, y, counts = [], 0.0, []
+    for g in parts:
+        x0, y0, x1, y1 = g.bounds
+        w, h = x1 - x0, y1 - y0
+        n = int((max_x - KERF_ROW + gap_xy) // (w + gap_xy))
+        out += [affinity.translate(g, -x0 + i * (w + gap_xy), -y0 + y) for i in range(n)]
+        counts.append(n)
+        y += h + gap_xy
+    return out, counts
+
+
+KERF_ROW = 0.2
+rows, cnt = sheet_rows(args.pairs_x)
+write(f"ring_tilt_slide_rows_{cnt[0]}m4_{cnt[1]}m8_{cnt[2]}b4_{cnt[3]}b8", rows, args.spider_material,
+      f"rows to {args.pairs_x:g}: {cnt[0]} x 4w mandrel, {cnt[1]} x 8w mandrel, {cnt[2]} x 4w slide backplate, {cnt[3]} x 8w slide backplate")
