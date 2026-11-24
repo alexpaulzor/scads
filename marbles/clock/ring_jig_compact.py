@@ -238,7 +238,11 @@ def mandrel_tilt(angles):
     return g.difference(unary_union(cuts))
 
 
-def backplate_slide(angles, offset):
+EXPOSE_CLEAR = 6.0    # exposed-wire variant: open this far either side of the wire's surface
+CENTRE_HOLE = 3.00    # hole variant: closed centre hole (as cut), the bolt goes in axially and comes out before sliding
+
+
+def backplate_slide(angles, offset, centre="slot", expose=None):
     """ring-OD + 2 disc that slides on from one side: every slot runs parallel to the slide direction, open at the
     leading edge (with a flared mouth), out to the furthest wire on its line. Slots run at `offset` deg to the wires
     (22.5 for 8 wires keeps the wood between slots >= 3.8). 4-wire plate: an M3 rod slot down the middle too."""
@@ -253,11 +257,39 @@ def backplate_slide(angles, offset):
     for y, xmax in lines.items():
         cuts.append(LineString([(-R - 1, y), (xmax, y)]).buffer(SLOT_W / 2, 24, cap_style=1))
         cuts.append(Polygon([(-R - 1, y - SLOT_W / 2 - 1.2), (-R + 2.5, y - SLOT_W / 2), (-R + 2.5, y + SLOT_W / 2), (-R - 1, y + SLOT_W / 2 + 1.2)]))
-    if 0.0 not in lines and min(abs(y) for y in lines) - SLOT_W / 2 - ROD_R >= 4:
+    room = 0.0 not in lines and min(abs(y) for y in lines) - SLOT_W / 2 - ROD_R >= 4
+    if centre == "slot" and room:
         cuts.append(LineString([(-R - 1, 0), (0, 0)]).buffer(ROD_R, 24, cap_style=1))
-    return affinity.rotate(g.difference(unary_union(cuts)), offset, origin=(0, 0)), sorted(lines)
+    elif centre == "hole":
+        cuts.append(Point(0, 0).buffer(CENTRE_HOLE / 2, 48))
+    plate = affinity.rotate(g.difference(unary_union(cuts)), offset, origin=(0, 0))
+    if expose is not None:
+        # open round one wire: from its inner surface out to the rim, EXPOSE_CLEAR either side of it; symmetric about
+        # that wire's radial line, so the plate flipped over that line exposes the same wire with its slots the other way
+        c = WD / 2 + EXPOSE_CLEAR
+        win = affinity.rotate(box(RW - WD / 2, -c, R + 2, c), expose, origin=(0, 0))
+        others = [Point(RW * math.cos(math.radians(a)), RW * math.sin(math.radians(a))) for a in angles if a != expose]
+        wood = min(p.distance(win) for p in others) - SLOT_W / 2
+        plate = plate.difference(win)
+        return plate, wood
+    return plate, sorted(lines)
 
 
+hole_plate, _ = backplate_slide(WIRES[4], 0.0, centre="hole")
+write("ring_back_slide_4w_hole3", [hole_plate], args.spider_material,
+      f"4-wire slide-on backplate d{RING_OD + 2:.2f}, closed {CENTRE_HOLE:.2f} centre hole (bolt out before sliding)")
+for n, off in ((4, 0.0), (8, 22.5)):
+    # which wire to expose: the plate must stay one piece (the window can't cut a tine's root); most wood wins
+    best = None
+    for ex in WIRES[n]:
+        pl, wood = backplate_slide(WIRES[n], off, expose=ex)
+        if pl.geom_type == "Polygon" and (best is None or wood > best[1]):
+            best = (pl, wood, ex)
+    pl, wood, ex = best
+    print(f"  {n}w exposed: wire at {ex} deg open {EXPOSE_CLEAR:g} each side; wood beside the neighbours' slots "
+          f"{wood:.2f}; flip over the {ex} deg line for slots at {(2 * ex - off) % 180:g} deg (vs {off:g})")
+    write(f"ring_back_slide_{n}w_expose", [pl], args.spider_material,
+          f"{n}-wire slide-on backplate, wire at {ex} deg exposed ({EXPOSE_CLEAR:g} clear each side); flip one for the cross direction")
 for n, ang in WIRES.items():
     write(f"ring_mandrel_{n}w", [mandrel_tilt(ang)], args.spider_material,
           f"{n}-wire tilt-out mandrel d{RING_ID:.2f}, M{args.rod:g} rod; notches run out along +-y (tilt about x: rim nicks)")
