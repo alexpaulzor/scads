@@ -284,7 +284,7 @@ for n, off in ((4, 0.0), (8, 22.5)):
     # which wire to expose: the plate must stay one piece (the window can't cut a tine's root); most wood wins
     best = None
     for ex in WIRES[n]:
-        pl, wood = backplate_slide(WIRES[n], off, expose=ex)
+        pl, wood = backplate_slide(WIRES[n], off, centre="hole" if n == 4 else "slot", expose=ex)
         if pl.geom_type == "Polygon" and (best is None or wood > best[1]):
             best = (pl, wood, ex)
     pl, wood, ex = best
@@ -292,7 +292,7 @@ for n, off in ((4, 0.0), (8, 22.5)):
           f"{wood:.2f}; flip over the {ex} deg line for slots at {(2 * ex - off) % 180:g} deg (vs {off:g})")
     VARIANTS[f"ring_back_slide_{n}w_expose"] = pl
     write(f"ring_back_slide_{n}w_expose", [pl], args.spider_material,
-          f"{n}-wire slide-on backplate, wire at {ex} deg exposed ({EXPOSE_CLEAR:g} clear each side); flip one for the cross direction")
+          f"{n}-wire slide-on backplate, wire at {ex} deg exposed ({EXPOSE_CLEAR:g} clear each side)" + (f", {CENTRE_HOLE:.2f} centre hole" if n == 4 else "") + "; flip one for the cross direction")
 for n, ang in WIRES.items():
     write(f"ring_mandrel_{n}w", [mandrel_tilt(ang)], args.spider_material,
           f"{n}-wire tilt-out mandrel d{RING_ID:.2f}, M{args.rod:g} rod; notches run out along +-y (tilt about x: rim nicks)")
