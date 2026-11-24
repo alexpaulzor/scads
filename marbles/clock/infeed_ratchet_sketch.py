@@ -1,86 +1,83 @@
 #!/usr/bin/env python3
-"""Sketch: rocking ratchet in the infeed tunnel (4-wire, wires at 45/135/225/315). Fixed lower jaw with a sawtooth
-(ramps gentler than the swing's tilt, so the forward tilt rolls balls up and over; cliffs a ball can't roll back over
-at 12 deg), hinged top pawls offset half a pitch that let balls pass forward only.
+"""Sketch: infeed ratchet. A FIXED toothed lower jaw (rack) at the end of the waiting track and a row of independently
+hinged TOP PAWLS on the pendulum, offset half a pitch. The swing slides the pawls along the rack (>40 overlap at the
+peak): a push stroke shoves each ball up its ramp and over the tooth into the next pocket; on the return the pawls hinge
+up and ride back over the balls while the concave pocket faces hold them. One ball per pocket.
     python3 marbles/clock/infeed_ratchet_sketch.py   # -> marbles/views/infeed_ratchet.png"""
 import math
 from pathlib import Path
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from shapely.geometry import Point, Polygon, box  # noqa: E402
+from shapely.ops import unary_union  # noqa: E402
 
-R = 19.05 / 2; RW = 11.025; WD = 2.05
-TILT = 12.0
-PITCH = 40.0          # two balls per valley ("at least 2 balls in one grab")
-CLIFF_SET = 1.0       # the ball can only rise 1.39 off the lower wires before it hits the upper ones (20 bore, 19.05 ball)
-N = 3
-ZC = -7.8 + math.sqrt((R + WD / 2) ** 2 - 7.8 ** 2)     # ball centre on the two lower wires
-Z0 = ZC - R                                              # ball bottom on the wires (valley floor of the jaw)
-CLIFF = CLIFF_SET
-RAMP = math.degrees(math.atan(CLIFF / PITCH))
-
-
-def tooth_profile(x0):
-    pts = [(x0, Z0 - 3)]
-    for k in range(N):
-        a = x0 + k * PITCH
-        pts += [(a, Z0), (a + PITCH, Z0 + CLIFF), (a + PITCH, Z0)]
-    pts += [(x0 + N * PITCH, Z0 - 3)]
-    return pts
+BALL = 19.05; BR = BALL / 2
+H = 2 / 3 * BALL          # tooth height above the pocket floor (12.7)
+P = 26.0                  # pitch: one ball per pocket
+RP = BR + 0.3             # concave face: the ball's curve + 0.3
+TIP_R = 1.5
+N = 5                     # pockets drawn
+OVERLAP = 40.0            # pawls overlap the rack at least this much at the peak of the swing
 
 
-def ball_on_ramp(x):
-    """ball centre on the ramp at contact abscissa x (ramp rises left to right)"""
-    s = math.tan(math.radians(RAMP))
-    k = int(x // PITCH); u = x - k * PITCH
-    zr = Z0 + u * s
-    return (x - R * math.sin(math.radians(RAMP)), zr + R * math.cos(math.radians(RAMP)))
+def rack():
+    """fixed lower jaw: per pitch, a concave pocket face (holds the ball from going back) then a ramp up to the next tip"""
+    teeth = []
+    for k in range(N + 1):
+        xb = k * P                                      # ball centre in pocket k at (xb, BR)
+        xt = xb - math.sqrt(RP ** 2 - (H - BR) ** 2)    # tooth tip x (where the concave face reaches height H)
+        x_ramp0 = xb - P                                # ramp starts under the previous ball
+        teeth.append(Polygon([(x_ramp0, 0), (xt, H), (xt, 0)]))
+    body = unary_union([box(-P - 5, -8, N * P + 5, 0)] + teeth)
+    pockets = unary_union([Point(k * P, BR).buffer(RP, 96) for k in range(N + 1)])
+    return body.difference(pockets).buffer(TIP_R).buffer(-TIP_R)          # round the tips
+
+
+def pawl(xb, yh):
+    """the top pawl that pushes the ball centred at (xb, BR): hangs from a hinge above, its tip stops 1.5 above the tooth
+    tips (H) and its leading face is concave (the ball's curve + 0.3), cupping the ball's upper back; the trailing lower
+    corner is ramped so on the return it rides up over the ball behind"""
+    y_tip = H + 1.5
+    body = Polygon([(xb - 14, yh), (xb - 1, yh), (xb - 1, y_tip), (xb - 9, y_tip), (xb - 14, y_tip + 7)])
+    return body.difference(Point(xb, BR).buffer(RP, 96)), (xb - 8, yh - 3)
 
 
 def main():
-    fig, (a, b) = plt.subplots(2, 1, figsize=(14, 9), gridspec_kw=dict(height_ratios=[1.3, 1]))
-    L = N * PITCH
-    for z in (7.8, -7.8):
-        a.plot([-10, L + 10], [z + WD / 2, z + WD / 2], color="0.6", lw=1); a.plot([-10, L + 10], [z - WD / 2, z - WD / 2], color="0.6", lw=1)
-    a.text(L + 12, 7.8, "upper wires\n(135/45)", fontsize=7, va="center"); a.text(L + 12, -7.8, "lower wires\n(225/315)", fontsize=7, va="center")
-    for xr in range(0, int(L) + 1, 30):                            # rings, top and bottom snipped
-        a.plot([xr, xr], [-14.1, -10.5], color="0.8", lw=3); a.plot([xr, xr], [10.5, 14.1], color="0.8", lw=3)
-    a.text(1, 15, "rings: top + bottom segments snipped out (jaw plates pass through the gaps)", fontsize=7, color="0.4")
-    tp = tooth_profile(0)
-    a.fill([p[0] for p in tp], [p[1] for p in tp], fc="burlywood", ec="saddlebrown")
-    a.text(2, Z0 - 2.4, f"FIXED LOWER JAW (ply3, in the bottom gap): steps of {CLIFF:.1f} every {PITCH:g} (ramp {RAMP:.1f} deg)", fontsize=7.5)
-    for k in range(N):                                              # two balls per valley
-        for j, x in enumerate((k * PITCH + 12, k * PITCH + 12 + 2 * R)):
-            c = ball_on_ramp(x)
-            a.add_patch(plt.Circle(c, R, fc="steelblue", alpha=.45, ec="k"))
-    for k in range(N):                                              # hinged top pawls, half a pitch from the cliffs
-        hx = k * PITCH + PITCH / 2 - 6
-        a.plot([hx], [13.5], "ko", ms=4)
-        a.plot([hx, hx + 9], [13.5, 4.5], color="saddlebrown", lw=4, solid_capstyle="round")
-        a.annotate("", (hx + 11, 9), (hx + 4, 3), arrowprops=dict(arrowstyle="<-", color="g", lw=1))
-    a.text(PITCH / 2 + 6, 16.5, "HINGED TOP PAWLS (one tooth each): swing up to let a ball go forward, a stop behind\n"
-           "each keeps it from swinging back; a rubber band holds them down against gravity when upside down", fontsize=7.5)
-    a.annotate("forward", (L - 5, -15), (L - 35, -15), arrowprops=dict(arrowstyle="->", lw=2), fontsize=9, va="center")
-    a.set_xlim(-12, L + 28); a.set_ylim(-18, 21); a.set_aspect("equal")
-    a.set_title("SIDE SECTION of the infeed tunnel at the jaws (tunnel axis horizontal = the pendulum at mid swing)", fontsize=10)
-    # the cycle
+    fig, (a, b) = plt.subplots(2, 1, figsize=(14, 10), gridspec_kw=dict(height_ratios=[1.6, 1]))
+    r = rack()
+    a.fill(*r.exterior.xy, fc="burlywood", ec="saddlebrown")
+    a.text(-P, -6, f"FIXED LOWER JAW (frame, end of the waiting track): teeth {H:.1f} tall (2/3 ball), concave pocket faces "
+           f"(ball curve + 0.3), pitch {P:g}: one ball per pocket", fontsize=8)
+    for k in range(N):
+        a.add_patch(plt.Circle((k * P, BR), BR, fc="steelblue", alpha=.5, ec="k"))
+    yh = BALL + 10
+    for k in range(N):                                    # one pawl behind each ball (pushes it from behind)
+        g, hinge = pawl(k * P, yh)
+        a.fill(*g.exterior.xy, fc="peru", ec="k", alpha=.9)
+        a.plot(*hinge, "wo", ms=5, mec="k")
+    a.plot([-P / 2 - 8, (N - 1) * P - P / 2 + 8], [yh + 4, yh + 4], color="0.3", lw=6)
+    a.text(-P / 2 - 8, yh + 7, "PENDULUM: a row of independent hinged pawls, one just behind each pocket; each "
+           "has a stop so it can't fold back while pushing, and a rubber band to hold it down", fontsize=8)
+    a.annotate("push stroke: pawls drive the balls up the ramps and over\nthe tips into the next pockets (one pitch)",
+               ((N - 1) * P - 2, yh + 13), ((N - 1) * P - 70, yh + 13), arrowprops=dict(arrowstyle="->", lw=2), fontsize=8, va="center")
+    a.annotate("return: pawls hinge up and ride back over the balls;\nthe concave pocket faces hold the balls",
+               (-P / 2 - 2, -14), (2 * P, -14), arrowprops=dict(arrowstyle="->", lw=2), fontsize=8, va="center")
+    a.set_xlim(-P - 10, N * P + 10); a.set_ylim(-20, yh + 22); a.set_aspect("equal")
+    a.set_title("SIDE VIEW in the swing plane (pendulum at the peak of its swing: pawls overlap the rack)", fontsize=10)
     b.axis("off")
-    rows = [("pendulum fully LEFT (pickup)", f"tunnel tilted {TILT:g} deg, mouth down: effective ramp slope {RAMP - TILT:+.1f} deg (downhill): "
-             "waiting balls roll in, every ball rolls up its ramp and drops over the cliff into the next valley"),
-            ("swinging through the middle", "tilt passing 0: balls settle in their valleys against the cliffs"),
-            ("pendulum fully RIGHT", f"tilted {TILT:g} deg the other way: balls roll back against the cliff behind them; a {CLIFF:.1f} cliff "
-             f"needs 26 deg to roll back over, more than {TILT:g}, so nothing goes back. Pawls hold them seated"),
-            ("result", f"one step of {PITCH:g} per full swing = 2 balls into the splitter per swing (2 s), which then split one each "
-             "way over the rocking motion. If the valleys are already full, the next waiting ball is just pushed back at the lip")]
-    y = 0.95
-    for t, d in rows:
-        b.text(0.0, y, t, fontsize=10, weight="bold", va="top"); b.text(0.27, y, d, fontsize=9, va="top", wrap=True)
-        y -= 0.22
-    b.text(0.0, 0.05, "Numbers: ball centre sits 0.70 below the tunnel axis on the two lower wires; the gap between the lower wires is "
-           "13.6 wide (room for the jaw plate). A ball can rise only 1.39 before it hits the upper wires, so the steps are 1.0 (a 0.5 step already needs 19 deg).",
-           fontsize=8, color="0.3")
+    b.text(0, 0.95, "Cycle", fontsize=11, weight="bold", va="top")
+    b.text(0, 0.82, f"- Each swing slides the pawl row along the rack by more than one pitch ({P:g}); at the peak the row overlaps the "
+           f"rack by > {OVERLAP:g}\n  (more than one pitch), so even a short swing still steps at least one ball and the supply doesn't stall.\n"
+           "- Push: every pawl's concave face catches the ball ahead of it and drives it up the ramp; over the tip it drops into the next "
+           "pocket.\n- Return: the pawls swing up on their hinges and ride back over the balls; the pocket faces (concave, 2/3 ball tall) "
+           "keep the balls from going back.\n- Last pocket: hands the ball to the splitter mouth at the peak; if the pockets are full the "
+           "next waiting ball is just pushed back at the lip.", fontsize=9, va="top")
+    b.text(0, 0.18, f"Numbers: tooth {H:.1f} tall, pitch {P:g}, ramp {math.degrees(math.atan(H / (P - math.sqrt(RP**2 - (H - BR)**2)))):.0f} deg "
+           f"(ramp length {P - math.sqrt(RP**2 - (H - BR)**2):.1f}), pocket face radius {RP:.2f}. The balls ride on the rack, not in a "
+           "wire tunnel here, so they can rise the full tooth height: side guides needed.", fontsize=8.5, color="0.3", va="top")
     out = Path(__file__).resolve().parent.parent / "views" / "infeed_ratchet.png"
     plt.tight_layout(); plt.savefig(out, dpi=100)
-    print(f"{out.name}: pitch {PITCH:g}, ramp {RAMP:.2f}, cliff {CLIFF:.2f}, ball centre {ZC:.2f}")
+    print(f"{out.name}: tooth {H:.2f}, pitch {P:g}")
 
 
 if __name__ == "__main__":
