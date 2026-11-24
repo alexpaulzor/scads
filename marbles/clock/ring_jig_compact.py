@@ -275,7 +275,9 @@ def backplate_slide(angles, offset, centre="slot", expose=None):
     return plate, sorted(lines)
 
 
+VARIANTS = {}
 hole_plate, _ = backplate_slide(WIRES[4], 0.0, centre="hole")
+VARIANTS["ring_back_slide_4w_hole3"] = hole_plate
 write("ring_back_slide_4w_hole3", [hole_plate], args.spider_material,
       f"4-wire slide-on backplate d{RING_OD + 2:.2f}, closed {CENTRE_HOLE:.2f} centre hole (bolt out before sliding)")
 for n, off in ((4, 0.0), (8, 22.5)):
@@ -288,6 +290,7 @@ for n, off in ((4, 0.0), (8, 22.5)):
     pl, wood, ex = best
     print(f"  {n}w exposed: wire at {ex} deg open {EXPOSE_CLEAR:g} each side; wood beside the neighbours' slots "
           f"{wood:.2f}; flip over the {ex} deg line for slots at {(2 * ex - off) % 180:g} deg (vs {off:g})")
+    VARIANTS[f"ring_back_slide_{n}w_expose"] = pl
     write(f"ring_back_slide_{n}w_expose", [pl], args.spider_material,
           f"{n}-wire slide-on backplate, wire at {ex} deg exposed ({EXPOSE_CLEAR:g} clear each side); flip one for the cross direction")
 for n, ang in WIRES.items():
@@ -317,3 +320,12 @@ KERF_ROW = 0.2
 rows, cnt = sheet_rows(args.pairs_x)
 write(f"ring_tilt_slide_rows_{cnt[0]}m4_{cnt[1]}m8_{cnt[2]}b4_{cnt[3]}b8", rows, args.spider_material,
       f"rows to {args.pairs_x:g}: {cnt[0]} x 4w mandrel, {cnt[1]} x 8w mandrel, {cnt[2]} x 4w slide backplate, {cnt[3]} x 8w slide backplate")
+
+
+# a 300 mm row (along x, to --pairs-x) of each backplate variant, one file each
+for name, g in VARIANTS.items():
+    x0, y0, x1, y1 = g.bounds
+    w = x1 - x0
+    n = int((args.pairs_x - KERF_ROW + gap) // (w + gap))
+    write(f"{name}_row{n}", [affinity.translate(g, -x0 + i * (w + gap), -y0) for i in range(n)], args.spider_material,
+          f"{n} x {name} in a row to {args.pairs_x:g}")
