@@ -7,94 +7,135 @@ import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.image as mi  # noqa: E402
 
-T = 2.63; GAP = 24; CAR_IN = 44.5; UP_R = 50; HUB = 21
-M = dict(MOD=2.0, ZA=59, PA=12, ZB=60, PB=12, N=3)
-H = dict(MOD=2.0, ZA=55, PA=10, ZB=60, PB=10, N=5)
-COL = dict(fix="0.80", sec="darkorange", mpl="gold", minute="firebrick", hpl="hotpink", hour="royalblue", hw="0.25")
+import clock_pins as cp  # noqa: E402
+
+T, A, G, MID, CB = cp.T, cp.A, cp.G, cp.M, cp.CB
+GAP, GAP2, CAR_IN, UP_R, CAR_OUT = 24, 10, 44.5, 50, cp.A + 14
+COL = dict(fix="0.80", sec="darkorange", mpl="gold", minute="firebrick", hpl="hotpink", hour="royalblue", hw="0.25", pin="0.15")
 HERE = Path(__file__).resolve().parent
 VIEWS = HERE.parent / "views"
 
 
-def geo(S):
-    A = S["MOD"] * (S["ZA"] + S["PA"]) / 2
-    mB = 2 * A / (S["ZB"] + S["PB"])
-    return A, mB
+def box(ax, z0, dz, r0, r1, col, ec="k", lw=.5):
+    ax.add_patch(plt.Rectangle((z0, r0), dz, r1 - r0, fc=col, ec=ec, lw=lw))
 
 
-def box(ax, z0, dz, r0, r1, col, lab=None, lx=0, ly=0, fs=7.5, ec="k"):
-    ax.add_patch(plt.Rectangle((z0, r0), dz, r1 - r0, fc=col, ec=ec, lw=.6))
-    if lab:
-        ax.annotate(lab, (z0 + dz / 2, (r0 + r1) / 2), (z0 + dz / 2 + lx, (r0 + r1) / 2 + ly), fontsize=fs,
-                    arrowprops=dict(arrowstyle="-", lw=.6, color="0.3"), bbox=dict(fc="w", ec="0.7", lw=.5, pad=1.5))
+def suns(name):
+    S = cp.STAGES[name]
+    a, b = cp.stage_numbers(S)
+    return S, a, b
 
 
-def stage(ax, z0, S, ccar, cpl, cout, name):
-    A, mB = geo(S)
-    pr_a = S["MOD"] * S["PA"] / 2 + S["MOD"]; pr_b = mB * S["PB"] / 2 + mB
-    sun_a = S["MOD"] * S["ZA"] / 2 + S["MOD"]; sun_b = mB * S["ZB"] / 2 + mB
-    zA, zB = z0 + T, z0 + 2 * T
-    box(ax, z0, T, CAR_IN, A + S["MOD"] * S["PA"] / 2 + 4, ccar)                          # carrier
-    box(ax, zA - 15, 15, 20, 35, COL["fix"]); box(ax, zA - 14.5, 14, 4, 20, COL["fix"])   # beam + SK8 behind the fixed sun
-    box(ax, zA, T, 4.2, sun_a, COL["fix"])                                                # fixed sun
-    box(ax, zB, T, 11.1, sun_b, cout); box(ax, zB + T, 2 * T, 11.1, HUB, cout)            # output sun + hub rings
-    box(ax, zB + 0.3, 7, 4, 11, "silver")                                                 # 608
-    box(ax, zA, T, A - pr_a, A + pr_a, cpl); box(ax, zB, T, A - pr_b, A + pr_b, cpl)      # planet layers A, B
-    box(ax, z0 - 2, 3 * T + 6, A - 1.5, A + 1.5, ccar, ec="k")                            # axle bolt (clamped to the carrier)
+def layout():
+    """z positions (along the rod) of one stage, back carrier's back face = 0 (same as clock_train.scad, explode 0)"""
+    z = dict(bc=0.0)
+    z["fa"] = T + CB
+    z["fb"] = z["fa"] + 2 * T + G + MID
+    z["fc"] = z["fb"] + 2 * T + G + 0.5
+    z["pa"] = z["fa"] + T + T / 2
+    z["pb"] = z["fb"] + T + T / 2
+    z["depth"] = z["fc"] + T
+    return z
+
+
+def pin_wheel(ax, z0, sn, col, bore_r, hub_in, hub_out):
+    zf = z0 + T + G
+    for zz in (z0, zf):
+        box(ax, zz, T, bore_r, sn["rim"], col)
+    box(ax, z0 + T, G, hub_in, hub_out, col)
+    R = sn["R"]
+    box(ax, z0 - cp.PIN, 2 * T + G + 2 * cp.PIN, R - cp.PIN / 2, R + cp.PIN / 2, COL["pin"], ec="none")
+    for zz in (z0 - cp.PIN, zf + T):
+        box(ax, zz, cp.PIN, R - 4, R + cp.PIN / 2, COL["pin"], ec="none")
+
+
+def stage(ax, z0, name, ccar, cpl, cout):
+    S, a, b = suns(name)
+    z = {k: v + z0 for k, v in layout().items()}
+    fc_in = max(x["rim"] for n in cp.STAGES for x in suns(n)[1:]) + 1
+    box(ax, z["bc"], T, CAR_IN, CAR_OUT, ccar); box(ax, z["fc"], T, fc_in, CAR_OUT, ccar)
+    box(ax, z["bc"] - 2, z["fc"] + T + 5 - z["bc"], A - 1.5, A + 1.5, COL["hw"])                     # axle bolt
+    box(ax, z["fa"] - 15, 15, 20, 35, COL["fix"]); box(ax, z["fa"] - 14.5, 14, 4, 20, COL["fix"])    # beam + SK8 (schematic)
+    pin_wheel(ax, z["fa"], a, COL["fix"], 4.2, 4.5, 40)
+    pin_wheel(ax, z["fb"], b, cout, 8, 11.1, 21)
+    box(ax, z["fb"] + T + 0.4, 7, 4, 11, "silver")                                                   # 608
+
+    tipA, tipB = TIPS[name]
+    for zp, tip in ((z["pa"], tipA), (z["pb"], tipB)):
+        box(ax, zp, 2 * T, A - tip, A + tip, cpl)
+    box(ax, z["pa"] + 2 * T, z["pb"] - z["pa"] - 2 * T, A - cp.HUB_R, A + cp.HUB_R, cpl)            # 5 hub rings
     for s in (-1, 1):
-        box(ax, zA - 0.4, 2 * T + 0.8, A + s * S["MOD"] * S["PA"] / 5 - 1, A + s * S["MOD"] * S["PA"] / 5 + 1, "k")   # wire pins
-    return dict(A=A, sun_a=sun_a, sun_b=sun_b, pr_a=pr_a, zA=zA, zB=zB, front=zB + 3 * T)
+        box(ax, z["pa"] - 0.3, z["pb"] + 2 * T - z["pa"] + 0.6, A + s * cp.TIE_R - 1, A + s * cp.TIE_R + 1, COL["pin"], ec="none")
+    box(ax, z["bc"] - 2, z["fc"] + T + 5 - z["bc"], A - 1.5, A + 1.5, COL["hw"])
+    # clearances (assert, then report)
+    chk = {"planet hub inside the middle discs' rims": A - cp.HUB_R - max(a["rim"], b["rim"]),
+           "planet tips vs fixed hub ring (r 40)": A - tipA - 40,
+           "front carrier opening vs sun B rim": fc_in - b["rim"]}
+    for k, v in chk.items():
+        assert v > 0, (name, k, v)
+    return z, a, b, chk
 
 
 def drive_diagram():
-    fig, ax = plt.subplots(figsize=(17, 11))
+    global TIPS
+    TIPS = {n: tuple(cp.planet_profile(S[p], sn["Z"], sn["p"])[1] for p, sn in (("PA", suns(n)[1]), ("PB", suns(n)[2])))
+            for n, S in cp.STAGES.items()}
+    fig, ax = plt.subplots(figsize=(18, 11))
     zw = -GAP - 2
-    box(ax, -60, 140, -4, 4, COL["fix"]); ax.text(-58, -11, "FIXED smooth 8 mm rod (escape-wheel axle)", fontsize=8)
+    m, ma, mb, chk_m = stage(ax, 0, "minute", COL["sec"], COL["mpl"], COL["minute"])
+    z_h = m["depth"] + GAP2
+    h, ha, hb, chk_h = stage(ax, z_h, "hour", COL["minute"], COL["hpl"], COL["hour"])
     box(ax, zw, T, 92, 122, COL["sec"]); box(ax, zw + T, 2, 112, 134, COL["sec"])
-    m = stage(ax, 0, M, COL["sec"], COL["mpl"], COL["minute"], "minute")
-    box(ax, zw + T, -zw - T, m["A"] + 13 - 2.5, m["A"] + 13 + 2.5, COL["sec"])            # wheel -> carrier standoff
-    z_h = m["front"] + GAP
-    box(ax, 3 * T, z_h - 3 * T, UP_R - 2.5, UP_R + 2.5, COL["minute"])                     # minute sun -> hour carrier standoff
-    h = stage(ax, z_h, H, COL["minute"], COL["hpl"], COL["hour"], "hour")
-    box(ax, z_h - 1.6, 1.6, UP_R - 4, 142, COL["minute"])                                  # minute hand
-    box(ax, h["front"], 1.6, 0, 76, COL["hour"])                                           # hour hand
-    box(ax, h["front"] + 3, 8, 4, 8, COL["hw"])                                            # collar
-    # labels
+    box(ax, zw + T, -zw - T, 80 - 2.5, 80 + 2.5, COL["sec"])                                         # wheel -> carrier standoff
+    z_mfd = m["fb"] + T + G
+    box(ax, z_mfd + T, z_h - z_mfd - T, UP_R - 2.5, UP_R + 2.5, COL["minute"])                       # minute sun -> hour carrier
+    box(ax, z_h - 1.6, 1.6, UP_R - 4, 142, COL["minute"])                                            # minute hand
+    z_hfd = h["fb"] + T + G + T
+    box(ax, z_hfd, 3 * T, 4.2, 21, COL["hour"]); box(ax, z_hfd + 3 * T, 1.6, 0, 76, COL["hour"])     # spacers + hour hand
+    box(ax, z_hfd + 3 * T + 3, 8, 4, 8, COL["hw"])                                                   # collar
+    box(ax, zw - 12, z_hfd + 3 * T + 25 - zw, -4, 4, COL["fix"])                                     # rod
     L = lambda txt, xy, xyt, c="k": ax.annotate(txt, xy, xyt, fontsize=8.5, color=c, arrowprops=dict(arrowstyle="->", lw=1, color=c),
                                                 bbox=dict(fc="w", ec=c, lw=.8, pad=2))
-    L("ESCAPE WHEEL front ring\n+ seconds pointer (1 rev/min)", (zw + 1, 125), (-62, 136), COL["sec"])
-    L("6 standoffs: wheel drives\nthe MINUTE CARRIER", (zw + 12, m["A"] + 13), (-62, 98), COL["sec"])
-    L("minute carrier (annulus)", (1, 78), (-62, 70), COL["sec"])
-    L("3 M3 axle bolts, nutted to the carrier:\nthe planets spin on them", (T * 3 + 3, m["A"]), (-62, 50), COL["sec"])
-    L("MINUTE PLANET (2 layers tied by 2 wire pins):\nlayer A rolls round the FIXED sun 59,\nlayer B pushes the MINUTE SUN 60", (2 * T, m["A"] + 8), (-10, 104), "darkgoldenrod")
-    L("FIXED minute sun 59, bolted to a 1515 beam;\nSK8 on the beam clamps the rod", (T * 1.5, 30), (-62, 22), "0.35")
-    L("MINUTE SUN 60 + 2 hub rings on a 608\n(1 rev/hour)", (2.5 * T, 50), (20, 70), COL["minute"])
-    L("5 standoffs: minute sun drives\nthe HOUR CARRIER", (25, UP_R), (24, 37), COL["minute"])
-    L("MINUTE HAND, on the hour carrier", (z_h - 1, 130), (z_h - 46, 140), COL["minute"])
-    L("HOUR PLANET (2 layers, 2 pins):\nA rolls round the FIXED sun 55,\nB pushes the HOUR SUN 60", (z_h + 2 * T, h["A"] + 6), (z_h + 18, 100), "mediumvioletred")
-    L("FIXED hour sun 55\n+ its beam + SK8", (z_h + T * 1.5, 28), (z_h + 18, 22), "0.35")
-    L("HOUR SUN 60 on a 608\n+ HOUR HAND (1 rev / 12 h)", (h["front"] + 1, 60), (h["front"] + 14, 74), COL["hour"])
-    L("collar", (h["front"] + 7, 6), (h["front"] + 16, -10), "k")
-    ax.set_xlim(-64, 125); ax.set_ylim(-16, 150); ax.set_aspect("equal")
+    L("ESCAPE WHEEL front ring\n+ seconds pointer (1 rev/min)", (zw + 1, 125), (zw - 40, 138), COL["sec"])
+    L("6 standoffs: wheel drives\nthe MINUTE CARRIER", (zw + 12, 80), (zw - 40, 100), COL["sec"])
+    L("minute carrier: back + front annulus,\ntied by the 3 M3 planet axle bolts", (1, 50), (zw - 40, 52), COL["sec"])
+    L(f"MINUTE PLANET: gear A (2 layers) + 5 hub rings + gear B (2 layers),\n2 wire tie pins, spins on the axle bolt.\n"
+      f"A rolls round the FIXED {ma['Z']}-pin sun, B pushes the {mb['Z']}-pin MINUTE SUN", (m["pa"] + 3, A + 12), (-30, 108), "darkgoldenrod")
+    L(f"FIXED minute sun: {ma['Z']} wire pins between 2 discs (3 hub rings),\nends bent inward; bolted to a 1515 beam, SK8 on the beam\n"
+      f"clamps the rod (beam + SK8 drawn schematically: they sit below the rod)", (m["fa"] + 1, 30), (zw - 40, 14), "0.35")
+    L(f"MINUTE SUN: {mb['Z']} pins between 2 discs,\n608 in its hub rings (1 rev/h)", (m["fb"] + 1, 45), (m["fb"] - 20, -34), COL["minute"])
+    L("5 standoffs: minute sun\ndrives the HOUR CARRIER", (z_mfd + 6, UP_R), (z_mfd + 14, -30), COL["minute"])
+    L("MINUTE HAND, on the hour carrier", (z_h - 1, 135), (z_h - 50, 145), COL["minute"])
+    L(f"HOUR PLANET: A rolls round the FIXED {ha['Z']}-pin sun,\nB pushes the {hb['Z']}-pin HOUR SUN", (h["pb"] + 3, A + 12), (z_h + 10, 108), "mediumvioletred")
+    L(f"FIXED hour sun ({ha['Z']} pins)\n+ its beam + SK8", (h["fa"] + 1, 30), (z_h + 50, 36), "0.35")
+    L("HOUR SUN (60 pins) on a 608,\n3 spacer rings + HOUR HAND\n(1 rev / 12 h), clear of the\nfront carrier and its nuts", (z_hfd + 3 * T + 1, 66), (z_hfd + 16, 72), COL["hour"])
+    L("wire pin, ends bent\nover on both outer faces", (m["fa"] - 1, ma["R"] - 2), (m["fa"] - 2, 90), COL["pin"])
+    L("collar", (z_hfd + 3 * T + 7, 6), (z_hfd + 3 * T + 16, -10), "k")
+    ax.set_xlim(zw - 44, z_hfd + 60); ax.set_ylim(-40, 152); ax.set_aspect("equal")
     ax.set_xlabel("along the rod, mm (back -> front, viewer on the right)"); ax.set_ylabel("radius from the rod, mm")
-    ax.set_title("WHAT DRIVES WHAT: half side-section above the rod. One colour = one rigid body. Grey = fixed.\n"
+    ax.set_title("WHAT DRIVES WHAT, pin-wheel version: half side-section above the rod. One colour = one rigid body. Grey = fixed, black = wire.\n"
                  "orange (1 rev/min) -> yellow planets -> red (1 rev/h) -> pink planets -> blue (1 rev/12 h)", fontsize=11)
     out = VIEWS / "clock_train_drive.png"
     plt.tight_layout(); plt.savefig(out, dpi=100)
+    for n, c in (("minute", chk_m), ("hour", chk_h)):
+        print(n, "; ".join(f"{k} {v:.2f}" for k, v in c.items()))
+    print(f"stage depth {m['depth']:.2f}; hour carrier at z {z_h:.2f}; hour hand front at z {z_hfd + 3 * T + 1.6:.2f}; "
+          f"escape wheel ring at z {zw}")
     return out
 
 
 def renders():
     fig = plt.figure(figsize=(20, 15))
-    for i, (n, t) in enumerate((("ct_iso", "exploded, from the front"), ("ct_back", "exploded, from behind: the SK8 + 1515 mounts"),
-                                ("ct_planet", "one minute planet: 2 layers, 2 wire pins, M3 axle bolt"))):
+    for i, (n, t) in enumerate((("ct_iso", "assembled, from the front"),
+                                ("ct_planet", "a minute planet (exploded 5 mm): gear A in the fixed sun's pins, hub, gear B in the minute sun's pins"))):
         a = fig.add_axes([0.0 + (i % 2) * 0.5, 0.52 - (i // 2) * 0.5, 0.5, 0.46]); a.imshow(mi.imread(VIEWS / f"{n}.png")); a.axis("off"); a.set_title(t, fontsize=14)
-    a = fig.add_axes([0.52, 0.04, 0.46, 0.42]); a.axis("off")
-    for k, (c, txt) in enumerate(((COL["sec"], "ORANGE: escape wheel + standoffs + minute carrier + its 3 planet axle bolts (1 rev/min)"),
-                                  (COL["mpl"], "YELLOW: the 3 minute planets (spin on their bolts)"),
-                                  (COL["minute"], "RED: minute sun 60 + 5 standoffs + hour carrier + its 5 axle bolts + minute hand (1 rev/h)"),
-                                  (COL["hpl"], "PINK: the 5 hour planets"),
-                                  (COL["hour"], "BLUE: hour sun 60 + hour hand (1 rev / 12 h)"),
-                                  (COL["fix"], "GREY: fixed: rod, fixed suns 59 + 55, 1515 beams, SK8s"))):
+    a = fig.add_axes([0.05, 0.04, 0.9, 0.42]); a.axis("off")
+    for k, (c, txt) in enumerate(((COL["sec"], "ORANGE: escape wheel + 6 standoffs + minute carrier (back + front) + its 3 planet axle bolts (1 rev/min)"),
+                                  (COL["mpl"], "YELLOW: the 3 minute planets: gear A (2 layers) + 5 hub rings + gear B (2 layers), 2 tie pins, spin on their bolts"),
+                                  (COL["minute"], "RED: minute sun (60 pins) + 5 standoffs + hour carrier (back + front) + its 3 axle bolts + minute hand (1 rev/h)"),
+                                  (COL["hpl"], "PINK: the 3 hour planets (gear A in the fixed 55-pin sun, gear B in the hour sun)"),
+                                  (COL["hour"], "BLUE: hour sun (60 pins) + 3 spacer rings + hour hand (1 rev / 12 h)"),
+                                  (COL["fix"], "GREY: fixed: rod, fixed pin suns (59 and 55 pins), 1515 beams, SK8s.   BLACK: 2.05 wire pins, bent over at both ends"))):
         a.add_patch(plt.Rectangle((0, 0.9 - k * 0.15), 0.06, 0.1, fc=c, ec="k", transform=a.transAxes))
         a.text(0.08, 0.95 - k * 0.15, txt, fontsize=13, va="center", transform=a.transAxes)
     out = VIEWS / "clock_train_3d.png"

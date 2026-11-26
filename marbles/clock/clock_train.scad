@@ -1,88 +1,94 @@
-// Clock train MVP: two "differential sun" planetaries on the FIXED escape-wheel axle (smooth 8 mm rod). No dial, no ring
-// gears; the hands come straight off the parts that turn at the right speed.
+// Clock train MVP, PIN-WHEEL version: two "differential sun" planetaries on the FIXED escape-wheel axle (smooth 8 mm
+// rod). No dial, no ring gears; the hands come straight off the parts that turn at the right speed.
+// Every SUN is a pin wheel: 2.05 wire pins between TWO ply discs, ends bent over (radially inward) on the discs' outer
+// faces. Every PLANET is a ply gear 2 layers thick with teeth cut as the envelope of the pins (clock_pins.py), so each
+// mesh is wood on steel and a planet can float along its pins without losing the mesh.
 //
-// WHAT DRIVES WHAT (each colour below is one rigid body that turns as a unit):
-//   ORANGE  escape wheel (1 rev/min, seconds pointer) --6 standoffs--> MINUTE CARRIER --3 M3 axle bolts--> minute planets
-//   YELLOW  minute planets: two ply layers pinned together (2 wire pins), spinning on their M3 axle bolt.
-//           layer A rolls round the FIXED minute sun (59); layer B turns the MINUTE SUN (60).
-//   RED     MINUTE SUN (60, on a 608) --5 standoffs--> HOUR CARRIER + MINUTE HAND --5 M3 axle bolts--> hour planets
-//   PINK    hour planets: layer A rolls round the FIXED hour sun (55); layer B turns the HOUR SUN (60).
-//   BLUE    HOUR SUN (60, on a 608) + HOUR HAND.
+// WHAT DRIVES WHAT (each colour is one rigid body that turns as a unit):
+//   ORANGE  escape wheel (1 rev/min, seconds pointer) --6 standoffs--> MINUTE CARRIER (back + front annulus, tied by the
+//           3 M3 axle bolts) --> minute planets
+//   YELLOW  minute planet: gear A (2 layers) + 5 hub rings + gear B (2 layers), 2 wire tie pins, spinning on its bolt.
+//           gear A rolls round the FIXED 59-pin sun; gear B turns the 60-pin MINUTE SUN.
+//   RED     MINUTE SUN (on a 608) --5 standoffs--> HOUR CARRIER + MINUTE HAND --> hour planets
+//   PINK    hour planet: gear A rolls round the FIXED 55-pin sun; gear B turns the 60-pin HOUR SUN.
+//   BLUE    HOUR SUN (on a 608) + HOUR HAND.
 //   GREY    fixed: the rod; each fixed sun bolted (M3) to a 1515 MakerBeam XL piece, an SK8 on the beam clamping the rod.
 //   output / carrier = 1 - (ZA * PB) / (PA * ZB): minutes 1 - 59/60 = 1/60, hours 1 - 55/60 = 1/12.
-// Each output sun is 3 ply layers bolted together (the gear + 2 hub rings) to hold its 608 (7 thick).
+// Stage stack (back -> front): back carrier | bend room | sun A back disc | planet A | sun A front disc | 2 rows of bent
+// ends | sun B back disc | planet B | sun B front disc | front carrier. Each sun's discs are held apart by 3 hub rings.
 // Viewed from the front (+z toward the viewer); every hand turns clockwise.
 // Animate (FPS 20, Steps 200): one run = `minutes_per_anim` minutes.
+include <clock_pins_profiles.scad>
 
 /* [View] */
 minutes_per_anim = 60;       // minutes of clock time per animation run
 t_fixed = -1;                // >= 0: freeze at this fraction of the run
 explode = 0;                 // spread the layers (mm)
 section = false;             // cut away the near half (see the stack from the side)
-body_colours = true;         // colour each rigid body (false: wood colours)
+show_pins = true;            // draw the sun pins (slow)
 
-/* [Minute stage] */
-M_MOD = 2.0; M_ZA = 59; M_PA = 12; M_ZB = 60; M_PB = 12; M_N = 3;
-/* [Hour stage] */
-H_MOD = 2.0; H_ZA = 55; H_PA = 10; H_ZB = 60; H_PB = 10; H_N = 5;
 /* [Mounting] */
 // SK8, as measured in mowerbot/purchased_parts.scad (sk8_*): flange width, length along the rod, rod centre above the base,
 // total height, upright width, flange height, bolt holes (d, centre-centre)
 SK8_W = 42; SK8_T = 14; SK8_H = 20; SK8_TOP = 33.5; SK8_UP_W = 20; SK8_FL_H = 6.5; SK8_HOLE = 5.5; SK8_HOLE_CC = 31.5;
-BEAM = 15; BEAM_L = 50;               // 1515 MakerBeam XL piece
-GAP = 24;                             // carrier standoff length: room behind each fixed sun for its beam + SK8
-CAR_IN = 44.5;                        // carrier opening radius (SK8 + beam reach 43)
-UP_R = 50;                            // minute sun -> hour carrier standoffs radius (inside the minute sun's teeth)
+BEAM = 15; BEAM_L = 50;      // 1515 MakerBeam XL piece
+GAP = 24;                    // escape wheel front ring -> minute carrier
+GAP2 = 10;                   // minute stage front -> hour carrier (the hour beam + SK8 reach back into it)
+CAR_IN = 44.5;               // back carrier opening radius (SK8 + beam reach 43)
+UP_R = 50;                   // minute sun -> hour carrier standoffs radius
 
 /* [Hidden] */
-T = 2.63; PA_DEG = 20;
+T = 2.63; PIN = 2.05; PIN_HOLE = 2.2; BEND_L = 4;
+A = 72; P = 12; N = 3;       // both stages: centre distance, planet teeth, planets
+M_ZA = 59; H_ZA = 55; ZB = 60;
+CB = 3; G = 3 * T; MID = 2 * T;   // bend room behind sun A; disc-to-disc round a planet; between the two suns
+HUB_R = 7.2; TIE_R = 4.4;
+CAR_OUT = A + 14; FC_IN = max(minute_A_RIM, minute_B_RIM, hour_A_RIM) + 1;
 $fn = 36;
 tt = t_fixed >= 0 ? t_fixed : $t;
 esc = -360 * minutes_per_anim * tt;
-m_out = esc * (1 - M_ZA * M_PB / (M_PA * M_ZB));
-h_out = m_out * (1 - H_ZA * H_PB / (H_PA * H_ZB));
+m_out = esc * (1 - M_ZA / ZB);
+h_out = m_out * (1 - H_ZA / ZB);
 E = explode;
 
-C_FIX = body_colours ? "gainsboro" : "burlywood";
-C_SEC = body_colours ? "darkorange" : "tan";
-C_MPL = body_colours ? "gold" : "peru";
-C_MIN = body_colours ? "firebrick" : "goldenrod";
-C_HPL = body_colours ? "hotpink" : "sienna";
-C_HR  = body_colours ? "royalblue" : "goldenrod";
-C_HW  = "dimgray";        // hardware
+C_FIX = "gainsboro"; C_SEC = "darkorange"; C_MPL = "gold"; C_MIN = "firebrick"; C_HPL = "hotpink"; C_HR = "royalblue";
+C_HW = "dimgray"; C_PIN = [0.25, 0.25, 0.28];
 
-function inv(a) = tan(a) - a * PI / 180;
-module gear2d(z, m, bore = 0) {
-    rp = m * z / 2; rb = rp * cos(PA_DEG); ra = rp + m; rf = max(rp - 1.25 * m, 1);
-    half = 90 / z + inv(PA_DEG) * 180 / PI;
-    st = 6;
-    pts = [for (i = [0:st]) let(r = max(rb, rf) + (ra - max(rb, rf)) * i / st, a = acos(rb / r)) [r, half - inv(a) * 180 / PI]];
-    tooth = concat([for (p = pts) [p[0] * cos(p[1]), p[0] * sin(p[1])]], [for (i = [st:-1:0]) [pts[i][0] * cos(-pts[i][1]), pts[i][0] * sin(-pts[i][1])]]);
-    difference() {
-        union() { circle(r = rf); for (k = [0:z - 1]) rotate(k * 360 / z) polygon(concat([[0, 0]], tooth)); }
-        if (bore > 0) circle(d = bore);
+// colour + (with section) cut away y < 0 inside the colour, so cut faces keep the part's colour
+module C(col) { color(col) if (section) intersection() { children(); translate([-300, 0, -200]) cube([600, 600, 400]); } else children(); }
+module slab(z0, col, h = T) { C(col) translate([0, 0, z0]) linear_extrude(h) children(); }
+module ann(r0, r1) { difference() { circle(r = r1, $fn = 120); circle(r = r0, $fn = 72); } }
+module standoff(r, a, z0, len, col) { C(col) rotate(a) translate([r, 0, z0]) cylinder(d = 5, h = len, $fn = 6); }
+module bearing608(z0) { C("silver") translate([0, 0, z0]) difference() { cylinder(d = 22, h = 7); translate([0, 0, -1]) cylinder(d = 8, h = 9); } }
+module bolt(z0, len, col) { C(col) { cylinder(d = 3, h = len, $fn = 12); translate([0, 0, z0 - 2]) cylinder(d = 5.5, h = 2, $fn = 6); } }
+
+// a pin wheel: back disc at z0, 3 hub rings, front disc; Z pins on radius R, bent inward on both outer faces
+module pin_wheel(z0, Z, R, RIM, ang, col, bore, hub_in, hub_out, holes) {
+    zf = z0 + T + G + 2 * E;
+    for (zz = [z0, zf]) slab(zz, col) rotate(ang) difference() {
+        circle(r = RIM, $fn = 120); circle(d = bore);
+        for (k = [0:Z - 1]) rotate((k + 0.5) * 360 / Z) translate([R, 0]) circle(d = PIN_HOLE, $fn = 10);
+        for (h = holes) translate(h) circle(d = 3.3);
+    }
+    for (i = [0:2]) slab(z0 + T + E + i * T, col) rotate(ang) difference() { ann(hub_in, hub_out); for (h = holes) translate(h) circle(d = 3.3); }
+    if (show_pins) C(C_PIN) rotate(ang) for (k = [0:Z - 1]) rotate((k + 0.5) * 360 / Z) translate([R, 0, 0]) {
+        translate([0, 0, z0 - PIN / 2]) cylinder(d = PIN, h = zf + T - z0 + PIN, $fn = 8);
+        for (zz = [z0 - PIN / 2, zf + T + PIN / 2]) translate([-BEND_L, 0, zz]) rotate([0, 90, 0]) cylinder(d = PIN, h = BEND_L, $fn = 8);
     }
 }
-module slab(z0, col, h = T) { color(col) translate([0, 0, z0]) linear_extrude(h) children(); }
-module bolt(p, z0, len, col = C_HW) { color(col) translate([p[0], p[1], z0]) { cylinder(d = 3, h = len); translate([0, 0, -2]) cylinder(d = 5.5, h = 2, $fn = 6); } }
-module standoff(r, a, z0, len, col) { color(col) rotate(a) translate([r, 0, z0]) cylinder(d = 5, h = len, $fn = 6); }
-module bearing608(z0) { color("silver") translate([0, 0, z0]) difference() { cylinder(d = 22, h = 7); translate([0, 0, -1]) cylinder(d = 8, h = 9); } }
 
-// one stage: z0 = carrier plate's back face; c = carrier angle, o = output sun angle
-module stage(z0, MOD, ZA, PA, ZB, PB, N, c, o, CCAR, CPL, COUT) {
-    A = MOD * (ZA + PA) / 2;                    // centre distance
-    MODB = 2 * A / (ZB + PB);
-    zA = z0 + T + E; zB = z0 + 2 * (T + E);
-    // CARRIER (input): annulus with the planet axle bolts (bolt clamped to the carrier by a nut; the planet spins on it)
-    slab(z0, CCAR) rotate(c) difference() {
-        circle(r = A + PA * MOD / 2 + 4);
-        circle(r = CAR_IN);
-        for (k = [0:N - 1]) rotate(k * 360 / N) translate([A, 0]) circle(d = 3.3);
-    }
-    for (k = [0:N - 1]) rotate(c + k * 360 / N) bolt([A, 0], z0, 3 * T + 2 * E + 4, CCAR);
-    // FIXED SUN + its mount behind it: 1515 beam bolted flat to the sun's back, SK8 on the beam round the rod
-    slab(zA, C_FIX) rotate(180 / ZA) difference() { gear2d(ZA, MOD, 8.4); for (x = [-15, 15]) translate([x, -SK8_H - BEAM / 2]) circle(d = 3.3); }
-    color(C_FIX) translate([0, 0, zA]) mirror([0, 0, 1]) {
+// one stage: z0 = back carrier's back face; c = carrier angle, o = output sun angle
+module stage(z0, ZA, PROF_A, PROF_B, RA, RIMA, RB, RIMB, c, o, CCAR, CPL, COUT) {
+    z_fa = z0 + T + CB + E;                 // sun A back disc
+    z_fb = z_fa + 2 * T + G + 3 * E + MID;  // sun B back disc
+    z_fc = z_fb + 2 * T + G + 3 * E + 0.5;  // front carrier
+    // CARRIERS: back annulus (opening for the fixed sun's mount) + front annulus, tied by the planet axle bolts
+    slab(z0, CCAR) rotate(c) difference() { ann(CAR_IN, CAR_OUT); for (k = [0:N - 1]) rotate(k * 360 / N) translate([A, 0]) circle(d = 3.3); }
+    slab(z_fc, CCAR) rotate(c) difference() { ann(FC_IN, CAR_OUT); for (k = [0:N - 1]) rotate(k * 360 / N) translate([A, 0]) circle(d = 3.3); }
+    for (k = [0:N - 1]) rotate(c + k * 360 / N) translate([A, 0, 0]) bolt(z0, z_fc + T + 3 - z0, C_HW);
+    // FIXED SUN A (pin wheel) + its mount behind it: 1515 beam bolted flat to the back disc, SK8 on the beam round the rod
+    pin_wheel(z_fa, ZA, RA, RIMA, 0, C_FIX, 8.4, 4.5, 40, [[-15, -27.5], [15, -27.5], [-15, 27.5], [15, 27.5]]);
+    C(C_FIX) translate([0, 0, z_fa]) mirror([0, 0, 1]) {
         translate([-BEAM_L / 2, -SK8_H - BEAM, 0]) cube([BEAM_L, BEAM, BEAM]);
         translate([0, -SK8_H, 0.5]) difference() {
             union() { translate([-SK8_W / 2, 0, 0]) cube([SK8_W, SK8_FL_H, SK8_T]); translate([-SK8_UP_W / 2, 0, 0]) cube([SK8_UP_W, SK8_TOP, SK8_T]); }
@@ -90,43 +96,46 @@ module stage(z0, MOD, ZA, PA, ZB, PB, N, c, o, CCAR, CPL, COUT) {
             for (x = [-1, 1]) translate([x * SK8_HOLE_CC / 2, -1, SK8_T / 2]) rotate([-90, 0, 0]) cylinder(d = SK8_HOLE, h = SK8_FL_H + 2);
         }
     }
-    // OUTPUT SUN (gear + 2 hub rings, bolted) on its 608
-    slab(zB, COUT) rotate(o + 180 / ZB) difference() { gear2d(ZB, MODB, 22.2); for (k = [0:2]) rotate(k * 120 + 60) translate([16, 0]) circle(d = 3.3); }
-    slab(zB + T + E, COUT, 2 * T) rotate(o) difference() { circle(r = 21); circle(d = 22.2); for (k = [0:2]) rotate(k * 120 + 60) translate([16, 0]) circle(d = 3.3); }
-    bearing608(zB + 0.3);
-    // PLANETS: layer A (meshes the fixed sun) + layer B (meshes the output sun), tied by 2 wire pins, spinning on the axle bolt
+    // OUTPUT SUN B (pin wheel) on its 608 (in the hub rings; the discs' 16 bore keeps it in)
+    pin_wheel(z_fb, ZB, RB, RIMB, o, COUT, 16, 11.1, 21, [for (k = [0:2]) [16 * cos(k * 120 + 60), 16 * sin(k * 120 + 60)]]);
+    bearing608(z_fb + T + E + 0.4);
+    // PLANETS: gear A (2 layers) in sun A's gap, gear B (2 layers) in sun B's gap, 5 hub rings between, 2 tie pins
+    z_pa = z_fa + T + E + T / 2; z_pb = z_fb + T + E + T / 2;
     for (k = [0:N - 1]) {
         th = c + k * 360 / N;
-        psiA = th * (1 + ZA / PA);
-        psiB = th + (th - o) * ZB / PB;
+        psiA = th * (1 + ZA / P);
+        psiB = th + (th - o) * ZB / P;
         rotate(th) translate([A, 0]) {
-            slab(zA, CPL) rotate(psiA - th) difference() { gear2d(PA, MOD, 3.3); for (s = [-1, 1]) translate([s * PA * MOD / 5, 0]) circle(d = 2.2); }
-            slab(zB, CPL) rotate(psiA - th) difference() { rotate(psiB - psiA) gear2d(PB, MODB, 3.3); for (s = [-1, 1]) translate([s * PA * MOD / 5, 0]) circle(d = 2.2); }
-            color("black") rotate(psiA - th) for (s = [-1, 1]) translate([s * PA * MOD / 5, 0, zA - 0.5]) cylinder(d = 2.05, h = 2 * T + E + 1);
+            for (i = [0:1]) slab(z_pa + i * T, CPL) rotate(psiA - th) difference() { polygon(PROF_A); circle(d = 3.3); for (s = [-1, 1]) translate([s * TIE_R, 0]) circle(d = PIN_HOLE, $fn = 10); }
+            for (i = [0:1]) slab(z_pb + i * T, CPL) rotate(psiA - th) difference() { rotate(psiB - psiA) polygon(PROF_B); circle(d = 3.3); for (s = [-1, 1]) translate([s * TIE_R, 0]) circle(d = PIN_HOLE, $fn = 10); }
+            for (i = [0:4]) slab(z_pa + 2 * T + E + i * (z_pb - z_pa - 2 * T - E) / 5, CPL, (z_pb - z_pa - 2 * T - E) / 5 - 0.05) rotate(psiA - th) difference() {
+                circle(r = HUB_R); circle(d = 3.3); for (s = [-1, 1]) translate([s * TIE_R, 0]) circle(d = PIN_HOLE, $fn = 10); }
+            C(C_PIN) rotate(psiA - th) for (s = [-1, 1]) translate([s * TIE_R, 0, z_pa - PIN / 2]) cylinder(d = PIN, h = z_pb + 2 * T - z_pa + PIN, $fn = 8);
         }
     }
 }
+function stage_depth() = T + CB + 2 * (2 * T + G) + MID + 0.5 + T + 7 * E;
 
 module train() {
-    zw = -GAP - 2;                                                    // escape wheel front ring
+    zw = -GAP - 2;
     // ORANGE: escape wheel (schematic front ring) + seconds pointer + standoffs to the minute carrier
-    slab(zw, C_SEC) rotate(esc) difference() { circle(r = 122); circle(r = 92); }
-    color(C_SEC) translate([0, 0, zw + T]) rotate(esc) translate([112, -3]) cube([22, 6, 2]);
-    A_m = M_MOD * (M_ZA + M_PA) / 2;
-    for (k = [0:5]) standoff(A_m + M_PA * M_MOD / 2 + 1, esc + k * 60 + 30, zw + T, -zw - T, C_SEC);
-    stage(0, M_MOD, M_ZA, M_PA, M_ZB, M_PB, M_N, esc, m_out, C_SEC, C_MPL, C_MIN);
-    // RED: minute sun -> 5 standoffs -> hour carrier (+ minute hand on it)
-    z_mf = 3 * (T + E) + 2 * T + E;                                   // front of the minute sun's hub rings
-    z_h = z_mf + GAP;                                                 // hour carrier
-    for (k = [0:4]) standoff(UP_R, m_out + k * 72 + 36, 3 * (T + E), z_h - 3 * (T + E), C_MIN);
-    stage(z_h, H_MOD, H_ZA, H_PA, H_ZB, H_PB, H_N, m_out, h_out, C_MIN, C_HPL, C_HR);
-    color(C_MIN) translate([0, 0, z_h - 1.6]) rotate(m_out) translate([UP_R - 4, -3.5]) cube([96, 7, 1.6]);        // minute hand
-    // BLUE: hour hand on the hour sun's hub
-    color(C_HR) translate([0, 0, z_h + 3 * (T + E) + 2 * T + E]) rotate(h_out) translate([-6, -4]) cube([82, 8, 1.6]);
+    slab(zw, C_SEC) rotate(esc) ann(92, 122);
+    C(C_SEC) translate([0, 0, zw + T]) rotate(esc) translate([112, -3]) cube([22, 6, 2]);
+    for (k = [0:5]) standoff(80, esc + k * 60 + 30, zw + T, -zw - T, C_SEC);
+    stage(0, M_ZA, planet_minute_A(), planet_minute_B(), minute_A_R, minute_A_RIM, minute_B_R, minute_B_RIM, esc, m_out, C_SEC, C_MPL, C_MIN);
+    // RED: minute sun front disc -> 5 standoffs -> hour carrier (+ minute hand on its back face)
+    z_mfd = T + CB + 2 * (2 * T + G) + MID - T + 6 * E;     // minute sun front disc (back face)
+    z_h = stage_depth() + GAP2 + E;
+    for (k = [0:4]) standoff(UP_R, m_out + k * 72 + 36, z_mfd + T, z_h - z_mfd - T, C_MIN);
+    stage(z_h, H_ZA, planet_hour_A(), planet_hour_B(), hour_A_R, hour_A_RIM, hour_B_R, hour_B_RIM, m_out, h_out, C_MIN, C_HPL, C_HR);
+    C(C_MIN) translate([0, 0, z_h - 1.6]) rotate(m_out) translate([UP_R - 4, -3.5]) cube([96, 7, 1.6]);        // minute hand
+    // BLUE: 3 spacer rings + hour hand in front of the hour sun's front disc (clear of the front carrier + nuts)
+    z_hfd = z_h + z_mfd + T;
+    for (i = [0:2]) slab(z_hfd + i * T, C_HR) rotate(h_out) difference() { ann(8.4, 21); for (k = [0:2]) rotate(k * 120 + 60) translate([16, 0]) circle(d = 3.3); }
+    C(C_HR) translate([0, 0, z_hfd + 3 * T + E]) rotate(h_out) translate([-6, -4]) cube([82, 8, 1.6]);
     // GREY: the rod + front collar
-    color(C_FIX) translate([0, 0, zw - 20]) cylinder(d = 8, h = z_h + 8 * T + 4 * E - zw + 26);
-    color(C_HW) translate([0, 0, z_h + 3 * (T + E) + 2 * T + E + 3]) difference() { cylinder(d = 16, h = 8); translate([0, 0, -1]) cylinder(d = 8, h = 10); }
+    C(C_FIX) translate([0, 0, zw - 20]) cylinder(d = 8, h = z_hfd + 3 * T + E + 16 - zw + 20);
+    C(C_HW) translate([0, 0, z_hfd + 3 * T + E + 3]) difference() { cylinder(d = 16, h = 8); translate([0, 0, -1]) cylinder(d = 8, h = 10); }
 }
 
-if (section) difference() { train(); translate([-300, -600, -200]) cube([600, 600, 400]); }   // cut away y < 0
-else train();
+train();
