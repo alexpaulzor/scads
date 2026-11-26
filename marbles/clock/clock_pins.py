@@ -10,8 +10,9 @@ sun A the pitch that keeps the centre distance.
 Stack along the rod, one stage (back -> front):
   back carrier | bend room | sun A back disc | gap: planet A (2 layers) | sun A front disc | bend room x2 |
   sun B back disc | gap: planet B (2 layers) | sun B front disc | front carrier
-The planet's A and B layers are joined by 5 hub rings (passing the two middle discs, inside their rims) and 2 wire
-pins, and spin on an M3 axle bolt nutted to both carriers.
+The planet's gear A (2 layers) and gear B (2 layers) are clamped by ONE M3 bolt + nuts round a bought spacer (which
+passes the two middle discs inside their rims); that bolt is the planet's shaft, turning in holes in both carriers.
+Everything else that only holds parts apart is a bought M3 spacer too (SP_* below).
 
     python3 marbles/clock/clock_pins.py   # numbers + clock_pins_profiles.scad (used by clock_train.scad)
 """
@@ -32,10 +33,15 @@ BEND = 2.05               # a bent-over pin end stands this proud of its disc fa
 A = 72.0
 STAGES = {"minute": dict(ZA=59, PA=12, ZB=60, PB=12, N=3), "hour": dict(ZA=55, PA=12, ZB=60, PB=12, N=3)}
 CB = 3.0                  # back carrier to sun A back disc: room for the bent pin ends
-G = 3 * T                 # disc to disc round a planet gear (2 layers + T/2 each side)
-M = 2 * T                 # sun A front disc to sun B back disc: two rows of bent ends (2 x 2.05) + clearance
-HUB_R = 7.2               # planet hub ring radius (must pass inside A - disc rim)
-TIE_R = 4.4               # planet tie pins, from the planet centre
+# bought M3 spacers (lengths): everything that only holds parts apart is a spacer on an M3 bolt, not cut ply
+SP_SUN = 8.0              # between a sun's two discs (round a planet gear: 2 layers + 1.37 each side)
+SP_HUB = 15.0             # planet: gear A front face to gear B back face, round the planet's M3 bolt
+SP_CAGE = 40.0            # back carrier to front carrier (tie standoffs between the planets)
+SP_D = 7.0                # spacer outside diameter (as drawn; the planet hub spacer must pass inside the disc rims)
+G = SP_SUN
+M = SP_HUB - SP_SUN       # sun A front disc to sun B back disc: two rows of bent ends (2 x 2.05) + clearance
+FG = SP_CAGE - (CB + 4 * T + 2 * G + M)   # sun B front disc to front carrier
+HUB_R = SP_D / 2
 TIP_W = 0.8               # planet tooth tip width (sets the addendum)
 
 
@@ -120,8 +126,9 @@ if __name__ == "__main__":
             out.append(f"{name}_{lay}_R = {sn['R']:.4f}; {name}_{lay}_RIM = {sn['rim']:.4f}; {name}_{lay}_TIP = {ra:.3f};")
         print(f"  hub ring r <= A - max disc r - 1 = {A} - {max(a['rim'], b['rim']):.2f} - 1 = {hub_max:.2f} (using {HUB_R})")
         assert HUB_R <= hub_max
-    print(f"tie pin web: to the axle hole {TIE_R - PIN_HOLE/2 - 1.65:.2f}, to the hub edge {HUB_R - TIE_R - PIN_HOLE/2:.2f}")
-    depth = T + CB + T + G + T + M + T + G + T + 0.5 + T
-    print(f"stage depth {depth:.2f}; sun pin span (outer faces) {2*T+G:.2f}; planet stack {9*T:.2f}")
+    assert M >= 2 * BEND + 0.5 and FG >= 0.5, (M, FG)
+    depth = T + CB + T + G + T + M + T + G + T + FG + T
+    print(f"between the suns {M:.2f} for 2 rows of bent ends ({2 * BEND:.2f}); sun B front disc to front carrier {FG:.2f}")
+    print(f"stage depth {depth:.2f}; sun pin span (outer faces) {2*T+G:.2f}; planet stack {4*T + SP_HUB:.2f}")
     (HERE / "clock_pins_profiles.scad").write_text("\n".join(out) + "\n")
     print("wrote clock_pins_profiles.scad")
