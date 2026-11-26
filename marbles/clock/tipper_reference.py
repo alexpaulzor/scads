@@ -13,6 +13,8 @@ import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 D = 19.05; R = D / 2
+RING_OD = 28.2                    # retaining rings, seen edge-on from this side (a line RING_OD long, across the tube)
+AXIS_Z = R + 0.7                  # tube axis above the balls' bottoms (ball centre sits 0.7 below it)
 RA = 60.0                         # arc radius = pivot to the 2-ball section's upstream end
 P = (RA, 0.0)                     # pivot; the track floor (balls' bottoms) at z = 0 at rest, queue from the left
 POST_X, POST_H = 2 * D + 1.4, 4.0 # fixed post just in front of ball 0 (balls 1, 0 centred at R, R + D)
@@ -36,24 +38,39 @@ def tipper(th):
     xr = ex[0] + R + 2.5                                              # outer rail of the descent, left of the axle
     over = [(0, top_z), (xr - 12, top_z)] + [(xr - 12 + 12 * math.sin(math.radians(a)), top_z - 12 + 12 * math.cos(math.radians(a))) for a in range(0, 91, 10)]
     over += [(xr, ex[1] + 10)]
-    return [[rot(p, th) for p in floor], [rot(p, th) for p in arc], [rot(p, th) for p in over]], rot(ex, th)
+    # retaining rings on the tipper, edge-on: upstream end of the 2-ball section (vertical), at the overhead track's bend
+    # (45 deg), and the EXIT RING at the bottom of the descent (horizontal: the balls drop down through it)
+    h = RING_OD / 2
+    xd = xr - R - 1.0                                                 # descent tube axis
+    zm = (AXIS_Z + ex[1]) / 2 - 4                                     # a ring part way down the descent
+    rings = [((0.6, AXIS_Z - h), (0.6, AXIS_Z + h)),
+             ((xd - h, zm), (xd + h, zm)),
+             ((xd - h, ex[1]), (xd + h, ex[1]))]                     # exit ring: where the arc and the overhead track meet
+    exit_c = (xd, ex[1])
+    rr = [[rot(a, th), rot(b, th)] for a, b in rings]
+    return [[rot(p, th) for p in floor], [rot(p, th) for p in arc], [rot(p, th) for p in over]], rot(exit_c, th), rr
 
 
 def panel(ax, th, title, tripped):
     ax.plot([-80, 0], [0, 0], color="red", lw=2.5); ax.plot([-80, 0], [D + 1.5, D + 1.5], color="red", lw=1, ls=":")
     ax.text(-78, -6, "fixed feed track (red)", fontsize=7, color="red")
     ax.plot([POST_X, POST_X], [-6, POST_H], color="red", lw=3); ax.text(POST_X - 4, -12, "fixed post\n(on the feed track)", fontsize=7, color="red")
-    lines, ex = tipper(th)
+    lines, ex, rings = tipper(th)
+    for k, (a, b) in enumerate(rings):
+        ax.plot([a[0], b[0]], [a[1], b[1]], color="green", lw=4, solid_capstyle="butt")
+    ax.text(rings[0][1][0] - 4, rings[0][1][1] + 2, "ring", fontsize=7, color="green")
+    ax.text(rings[1][0][0] - 12, rings[1][0][1] - 1, "ring", fontsize=7, color="green")
+    ax.plot([-40, -40], [AXIS_Z - RING_OD / 2, AXIS_Z + RING_OD / 2], color="green", lw=4, solid_capstyle="butt")
+    ax.text(-46, AXIS_Z + RING_OD / 2 + 2, "fixed track ring", fontsize=7, color="green")
     for ln, col, lab in zip(lines, ("navy", "royalblue", "steelblue"), ("2-ball section floor", "arc r 60 (centred on the pivot)", "overhead track")):
         ax.plot(*zip(*ln), color=col, lw=2.2)
-    ax.add_patch(plt.Circle(ex, 14.1, fc="none", ec="royalblue", lw=2.5))
-    ax.text(ex[0] + 16, ex[1] - 4, "EXIT RING", fontsize=8, color="royalblue", weight="bold")
+    ax.text(rings[2][1][0] + 2, rings[2][1][1] - 2, "EXIT RING (edge-on:\nballs drop down through it)", fontsize=8, color="green", weight="bold")
     ax.plot(*P, "o", ms=9, mfc="w", mec="k"); ax.text(P[0] + 4, P[1] + 3, "pivot (axle)", fontsize=8)
     balls = [(-(k - 1) * D - R, R) for k in range(1, 4)]                             # 2, 3, 4 on the fixed track (touching ball 1)
     if tripped:
         e0 = rot((ex[0], ex[1]), 0)
         held = [rot((R, R), th), rot((R + D, R), th)]
-        held = [(ex[0] - 2, ex[1] + 2), (ex[0] - 9, ex[1] + 22)]                     # rolling down into the exit ring
+        held = [(ex[0], ex[1] - 12), (ex[0], ex[1] + 14)]                           # dropping down through the exit ring
     else:
         held = [(R, R), (R + D, R)]
     for (x, y), n in zip(held, (1, 0)):
