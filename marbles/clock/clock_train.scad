@@ -26,7 +26,9 @@ M_MOD = 2.0; M_ZA = 59; M_PA = 12; M_ZB = 60; M_PB = 12; M_N = 3;
 /* [Hour stage] */
 H_MOD = 2.0; H_ZA = 55; H_PA = 10; H_ZB = 60; H_PB = 10; H_N = 5;
 /* [Mounting] */
-SK8_W = 42; SK8_T = 14; SK8_H = 20;   // SK8 (assumed standard): width, thickness along the rod, rod centre above its base
+// SK8, as measured in mowerbot/purchased_parts.scad (sk8_*): flange width, length along the rod, rod centre above the base,
+// total height, upright width, flange height, bolt holes (d, centre-centre)
+SK8_W = 42; SK8_T = 14; SK8_H = 20; SK8_TOP = 33.5; SK8_UP_W = 20; SK8_FL_H = 6.5; SK8_HOLE = 5.5; SK8_HOLE_CC = 31.5;
 BEAM = 15; BEAM_L = 50;               // 1515 MakerBeam XL piece
 GAP = 24;                             // carrier standoff length: room behind each fixed sun for its beam + SK8
 CAR_IN = 44.5;                        // carrier opening radius (SK8 + beam reach 43)
@@ -82,7 +84,11 @@ module stage(z0, MOD, ZA, PA, ZB, PB, N, c, o, CCAR, CPL, COUT) {
     slab(zA, C_FIX) rotate(180 / ZA) difference() { gear2d(ZA, MOD, 8.4); for (x = [-15, 15]) translate([x, -SK8_H - BEAM / 2]) circle(d = 3.3); }
     color(C_FIX) translate([0, 0, zA]) mirror([0, 0, 1]) {
         translate([-BEAM_L / 2, -SK8_H - BEAM, 0]) cube([BEAM_L, BEAM, BEAM]);
-        translate([-SK8_W / 2, -SK8_H, 0.5]) difference() { cube([SK8_W, SK8_H + 12.8, SK8_T]); translate([SK8_W / 2, SK8_H, -1]) cylinder(d = 8.2, h = SK8_T + 2); }
+        translate([0, -SK8_H, 0.5]) difference() {
+            union() { translate([-SK8_W / 2, 0, 0]) cube([SK8_W, SK8_FL_H, SK8_T]); translate([-SK8_UP_W / 2, 0, 0]) cube([SK8_UP_W, SK8_TOP, SK8_T]); }
+            translate([0, SK8_H, -1]) cylinder(d = 8.2, h = SK8_T + 2);
+            for (x = [-1, 1]) translate([x * SK8_HOLE_CC / 2, -1, SK8_T / 2]) rotate([-90, 0, 0]) cylinder(d = SK8_HOLE, h = SK8_FL_H + 2);
+        }
     }
     // OUTPUT SUN (gear + 2 hub rings, bolted) on its 608
     slab(zB, COUT) rotate(o + 180 / ZB) difference() { gear2d(ZB, MODB, 22.2); for (k = [0:2]) rotate(k * 120 + 60) translate([16, 0]) circle(d = 3.3); }
