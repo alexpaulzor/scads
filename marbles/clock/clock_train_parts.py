@@ -9,7 +9,14 @@ Per stage: 3 + 3 sun layers, 2 carriers, 2 discs + 2 covers (one lantern), 2 kee
 the front-carrier files give 2, one each).
 Hands are only sketched (views/clock_hands_sketch.png), no G-code yet.
 
-    python3 marbles/clock/clock_train_parts.py
+FULL SHEETS (--sheets): the whole set on 5 sheets of 300 x 300 ply3 (layout area 298 x 290: Y stays under the 292 travel):
+  A..D  one carrier (with its nested lantern parts) middle-left + two layers of one sun stacked on the right; the left
+        corners hold the 2 extra keepers the set needs (A) or spares (B, C, D)
+  E     one layer of each of the 4 suns
+Together: 3 layers of each of the 4 suns, the 4 carriers, 2 lanterns' discs + covers, 4 keepers (+ spares).
+
+    python3 marbles/clock/clock_train_parts.py            # one file per part (as above)
+    python3 marbles/clock/clock_train_parts.py --sheets   # the 5 full sheets
 """
 import math
 import sys
@@ -180,6 +187,110 @@ def hands_sketch():
     return out
 
 
+SHEET_W, SHEET_H, GAP = 298.0, 290.0, 3.0
+
+
+def parts():
+    """every part, centred at the origin: suns[(stage, kind)], carrier groups[(stage, side)] (carrier + nested), keeper"""
+    suns, groups = {}, {}
+    for name, S in cl.STAGES.items():
+        st = cl.stage(S)
+        rp = st["A"]["r"]
+        for kind, lay in (("fixed", "A"), ("out", "B")):
+            suns[(name, kind)] = (sun_layer(st[lay]["g"], kind, name), st[lay]["Z"])
+        back, _ = carrier(name, "back")
+        groups[(name, "back")] = [affinity.translate(lantern_disc(rp, True), sx * 21.5, 0) for sx in (-1, 1)] + [back]
+        front, _ = carrier(name, "front")
+        inner = [lantern_disc(rp, False), lantern_disc(rp, False), keeper()]
+        groups[(name, "front")] = [affinity.translate(q, *polar(31, 90 + 120 * k)) for k, q in enumerate(inner)] + [front]
+    return suns, groups
+
+
+def sheets():
+    suns, groups = parts()
+    T, kerf, _ = gcode.fit(MAT)
+    rs = max(math.hypot(x, y) for g, _ in suns.values() for x, y in g.exterior.coords) + kerf / 2   # sun radius incl. kerf
+    rc = CAR_OUT + kerf / 2
+    rk = 21 + kerf / 2                                                 # keeper / lantern disc radius (keeper is the bigger)
+    c_car = (rc, SHEET_H / 2)                                          # carrier middle-left
+    c_suns = [(SHEET_W - rs, rs), (SHEET_W - rs, SHEET_H - rs)]        # two suns stacked on the right
+    c_corner = [(rk, rk), (rk, SHEET_H - rk)]                          # the left corners
+    grid = [(rs, rs), (SHEET_W - rs, rs), (rs, SHEET_H - rs), (SHEET_W - rs, SHEET_H - rs)]
+    chk = {"carrier-sun": (math.dist(c_car, c_suns[0]), rc + rs + GAP), "sun-sun": (c_suns[1][1] - c_suns[0][1], 2 * rs + GAP),
+           "corner-carrier": (math.dist(c_corner[0], c_car), rc + rk + GAP), "grid": (min(SHEET_W, SHEET_H) - 2 * rs, 2 * rs + GAP)}
+    for k, (have, need) in chk.items():
+        assert have >= need, (k, have, need)
+    print("; ".join(f"{k} {have:.2f} (need {need:.2f})" for k, (have, need) in chk.items()))
+    st = {n: cl.stage(S)["A"]["r"] for n, S in cl.STAGES.items()}
+    spare = {"keeper": keeper(), "mindisc": lantern_disc(st["minute"], True), "houdisc": lantern_disc(st["hour"], True),
+             "cover": lantern_disc(st["minute"], False)}
+    # tag, carrier group, sun kind (x2), corner parts (2 keepers are part of the set; the rest are SPARES)
+    plan = [("A", ("minute", "back"), ("minute", "fixed"), ["keeper", "keeper"]),
+            ("B", ("minute", "front"), ("minute", "out"), ["mindisc", "cover"]),
+            ("C", ("hour", "back"), ("hour", "fixed"), ["houdisc", "cover"]),
+            ("D", ("hour", "front"), ("hour", "out"), ["keeper", "keeper"])]
+    out = []
+    for tag, grp, sk, corner in plan:
+        polys = [affinity.translate(q, *c_car) for q in groups[grp]]
+        polys += [affinity.translate(suns[sk][0], *xy) for xy in c_suns]
+        polys += [affinity.translate(spare[c], *xy) for c, xy in zip(corner, c_corner)]
+        cn = "2 keepers (the set needs them)" if tag == "A" else "spares: " + " + ".join(corner)
+        what = f"{grp[0]} {grp[1]} carrier + its nested lantern parts; 2 layers of the {sk[0]} {sk[1]} sun ({suns[sk][1]} teeth); corners: {cn}"
+        out.append(write_sheet(f"clock_sheet{tag}_{grp[0][:3]}{grp[1]}_{sk[0][:3]}{sk[1]}{suns[sk][1]}x2", polys, what))
+    ks = [("minute", "fixed"), ("minute", "out"), ("hour", "fixed"), ("hour", "out")]
+    polys = [affinity.translate(suns[k][0], *xy) for k, xy in zip(ks, grid)]
+    what = ("1 layer each: minute fixed 59 (bottom left), minute out 60 (bottom right), hour fixed 55 (top left), "
+            "hour out 60 (top right)")
+    out.append(write_sheet("clock_sheetE_minfixed59_minout60_houfixed55_houout60", polys, what))
+    return out
+
+
+def write_sheet(stem_base, polys, note):
+    """like write(), but laid out in sheet coordinates (no re-zeroing): X0 Y0 = the stock's bottom-left corner"""
+    T, kerf, _ = gcode.fit(MAT)
+    job = gcode.job(MAT)
+    gs = [p.buffer(kerf / 2, join_style=2) for p in polys]
+    x1 = max(g.bounds[2] for g in gs); y1 = max(g.bounds[3] for g in gs)
+    assert min(g.bounds[0] for g in gs) >= -1e-6 and min(g.bounds[1] for g in gs) >= -1e-6 and x1 <= SHEET_W + 1e-6 and y1 < 292
+    cuts = []
+    for g in gs:
+        cuts += [gcode.Polyline(list(r.coords), True) for r in g.interiors]
+        cuts.append(gcode.Polyline(list(g.exterior.coords), True))
+    cuts = gcode.order(cuts)
+    stem = gcode.name(stem_base, x1, y1, MAT)
+    lines = gcode.preamble(job, title=f"{stem} -- marbles/clock/clock_train_parts.py --sheets",
+                           notes=[note, f"{MAT}: T {T}, kerf {kerf}; X0 Y0 = the 300 x 300 stock's bottom-left corner"])
+    for i, c in enumerate(cuts, 1):
+        lines += gcode.cut(c, job, i, len(cuts))
+    p = gcode.write(OUT / f"{stem}.gcode", lines)
+    print(f"  {p.name}: {len(cuts)} cuts, extent {x1:.2f} x {y1:.2f}")
+    return p, polys
+
+
+def sheet_preview(files):
+    import matplotlib; matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(2, 3, figsize=(15, 10.5))
+    for ax in list(axs.flat)[len(files):]:
+        ax.axis("off")
+    for ax, (p, polys) in zip(axs.flat, files):
+        ax.add_patch(plt.Rectangle((0, 0), 300, 300, fc="none", ec="0.6", ls="--"))
+        ax.axhline(292, color="r", lw=.6, ls=":")
+        for g in sorted(polys, key=lambda q: -q.area):
+            for q in getattr(g, "geoms", [g]):
+                ax.fill(*q.exterior.xy, fc="burlywood", ec="k", lw=.4)
+                for r in q.interiors:
+                    ax.fill(*r.xy, fc="w", ec="k", lw=.4)
+        ax.set_xlim(-5, 305); ax.set_ylim(-5, 305); ax.set_aspect("equal")
+        ax.set_title(p.stem.replace("clock_", ""), fontsize=8); ax.tick_params(labelsize=6)
+    fig.suptitle("Clock train, full ply3 sheets (300 x 300 stock dashed; red dotted = Y 292 travel limit)", fontsize=11)
+    plt.tight_layout(); out = VIEWS / "clock_train_sheets.png"; plt.savefig(out, dpi=80)
+    return out
+
+
 if __name__ == "__main__":
-    fs = main()
-    print(preview(fs).name, hands_sketch().name)
+    if "--sheets" in sys.argv:
+        print(sheet_preview(sheets()).name)
+    else:
+        fs = main()
+        print(preview(fs).name, hands_sketch().name)
