@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Clock train, LANTERN version: the planets are lanterns (straight 2.05 wire pins), the suns plain ply gears (3 layers)
-with teeth cut as the envelope of the lantern pins. Each mesh is wood on steel, the pins span the whole sun thickness
+"""Clock train, LANTERN version: ONE lantern planet per stage (16 straight 2.05 wire pins running right through it, serving
+both suns) + a counterweight, the suns plain ply gears (3 layers) with teeth cut as the envelope of the pins. Each mesh is wood on steel, the pins span the whole sun thickness
 (so a sun can warp or float along them without losing the mesh), and nothing is bent.
 
 Differential suns: carrier in, sun A fixed, sun B out; out / carrier = 1 - ZA*PB / (PA*ZB).
-Both stages: A = 76, sun B (60 teeth) at pitch 2*pi, PA = PB = 16 pins, 2 planets.
+Both stages: A = 76, P = 16 pins on ONE circle, midway between the two suns' pitch-circle sizes (the teeth are cut to the
+pins' real path, so being a little off each pitch circle costs nothing).
+Shared pins put the planet at the same phase on both suns, which only fits planets 360 / (ZB - ZA) apart: minutes (60 - 59
+= 1) one planet; hours (60 - 55 = 5) one, or up to 5 at 72 deg. Extra minute planets would need separate A / B pin sets.
 
-One planet (lantern), back -> front, all ply3, all clamped by 2 M3 tie bolts (+ 10 spacers in the two sun zones), spinning
-on a centre M3 axle bolt nutted to both carriers:
-  cover A (solid) | disc A (A holes) | [sun A zone, 10] | c1 (A holes) | separator (solid) | c2 (B holes) |
-  [sun B zone, 10] | disc B (B holes) | cover B (solid)
-The A pins (cut to disc A + 10 + c1) are trapped between cover A and the separator, the B pins likewise: straight wire,
-cut to length, dropped in. Gear B's holes sit at each planet's own angle to the tie holes (cut per planet).
+The lantern, back -> front, all ply3, clamped by 2 M3 tie bolts (+ 10 spacers in the two sun zones), spinning on a centre
+M3 axle bolt nutted to both carriers:
+  cover (solid) | disc (holes) | [sun A zone, 10] | middle disc (holes) | [sun B zone, 10] | disc (holes) | cover (solid)
+The pins (disc to disc, straight wire cut to one length) are trapped between the covers. All planets identical.
 
     python3 marbles/clock/clock_lantern.py    # numbers + clock_lantern_profiles.scad (used by clock_train.scad)
 """
@@ -24,7 +25,7 @@ HERE = Path(__file__).resolve().parent
 T = 2.63
 PIN, PIN_HOLE, RIM = cp.PIN, cp.PIN_HOLE, cp.RIM
 P_PL = 16                        # lantern pins (each side)
-N_PL = 2                         # planets per stage
+N_PL = 1                         # planets per stage (shared pins: see above)
 L_SUN = 3                        # ply layers per sun gear
 ZONE = 10.0                      # lantern disc to lantern disc round a sun (a bought 10 spacer on each tie bolt)
 TIE_D = 6.5                      # tie bolts, either side of the planet centre
@@ -33,13 +34,54 @@ STAGES = {"minute": dict(ZA=59, ZB=60), "hour": dict(ZA=55, ZB=60)}
 A = 60.0 + P_PL                  # sun B pitch 2*pi -> pin circle (lantern B) r P_PL, sun B pitch r 60
 
 
+def pin_r(S):
+    """the one pin circle: midway between the two pitch radii the suns would like"""
+    return (A * P_PL / (S["ZA"] + P_PL) + A * P_PL / (S["ZB"] + P_PL)) / 2
+
+
+def sun_cut(Z, rp, steps=2400, tip_w=cp.TIP_W):
+    """sun of Z teeth meshing the P_PL-pin lantern (centre distance A) whose pins sit on radius rp: blank minus the pins
+    through every position (true kinematics: sun / planet turn = P_PL / Z). Returns pitch r, tip r, outline, contact."""
+    from shapely.geometry import Point
+    from shapely.ops import unary_union
+    R = A * Z / (Z + P_PL); r = A - R
+    cut = []
+    turns = 2 * math.pi * R / r
+    for i in range(steps + 1):
+        b = -turns / 2 + turns * i / steps              # planet turn (rel. carrier)
+        a = -b * r / R                                  # sun turn (external mesh: opposite)
+        c, s = math.cos(-a), math.sin(-a)
+        for j in range(P_PL):
+            g = math.pi + b + j * 2 * math.pi / P_PL
+            x, y = A + rp * math.cos(g), rp * math.sin(g)
+            if math.hypot(x, y) > R + 6:
+                continue
+            cut.append(Point(c * x - s * y, s * x + c * y).buffer(PIN / 2 + cp.PIN_CLR, 16))
+    cut = unary_union(cut)
+    best = None
+    for k in range(80):
+        ra = R + 0.5 + 0.05 * k
+        g = Point(0, 0).buffer(ra, 512).difference(cut)
+        ring = Point(0, 0).buffer(ra, 512).difference(Point(0, 0).buffer(ra - 0.05, 512))
+        land = ring.intersection(g)
+        w = min(x.length for x in getattr(land, "geoms", [land])) / 2 if not land.is_empty else 0
+        if w < tip_w:
+            break
+        best = (ra, g)
+    ra, g = best
+    t = 0.0
+    while math.hypot(A + rp * math.cos(math.pi + t), rp * math.sin(math.pi + t)) <= ra + PIN / 4:
+        t += 0.0005
+    return R, ra, g, t / (2 * math.pi / P_PL)
+
+
 def stage(S):
+    rp = pin_r(S)
     out = {}
     for lay in ("A", "B"):
         Z = S["Z" + lay]
-        p = 2 * math.pi * A / (Z + P_PL)
-        R, tip, g = cp.planet_profile(Z, P_PL, p, steps=2400)       # sun (Z teeth) cut by the P_PL-pin lantern
-        out[lay] = dict(Z=Z, p=p, R=R, tip=tip, g=g, r=P_PL * p / (2 * math.pi), cr=cp.contact_ratio(Z, P_PL, p, tip))
+        R, tip, g, cr = sun_cut(Z, rp)
+        out[lay] = dict(Z=Z, R=R, tip=tip, g=g, r=rp, cr=cr, p=2 * math.pi * rp / P_PL)
     return out
 
 
@@ -49,7 +91,7 @@ def pts(poly):
 
 if __name__ == "__main__":
     from shapely import affinity
-    lines = ["// generated by clock_lantern.py: sun gear outlines (a tooth on +x) + lantern pin circles",
+    lines = ["// generated by clock_lantern.py: sun gear outlines (a tooth space on +x) + lantern pin circles",
              f"CLOCK_A = {A}; N_PL = {N_PL}; P_PL = {P_PL}; L_SUN = {L_SUN}; ZONE = {ZONE}; TIE_D = {TIE_D};"]
     disc_r = 0
     for name, S in STAGES.items():
@@ -57,21 +99,28 @@ if __name__ == "__main__":
         ratio = 1 - S["ZA"] / S["ZB"]
         print(f"{name}: out/carrier = 1 - {S['ZA']}*{P_PL}/({P_PL}*{S['ZB']}) = {ratio:.6f} (1/{1 / ratio:.3f})")
         for lay, d in st.items():
-            room = d["r"] - (d["tip"] - d["R"])
-            print(f"  sun {lay}: {d['Z']} teeth, pitch r {d['R']:.3f}, tip r {d['tip']:.2f}; lantern pin circle r {d['r']:.3f} "
+            room = A - d["tip"]
+            print(f"  sun {lay}: {d['Z']} teeth, pitch r {d['R']:.3f}, tip r {d['tip']:.2f}; pin circle r {d['r']:.3f} "
                   f"(pitch {d['p']:.3f}, gap between pins {d['p'] - PIN:.2f}); contact ~{d['cr']:.2f}; "
                   f"room for the tie bolts inside the sun tips {room:.2f} (need {TIE_D + SP_D / 2 + 1:.2f})")
             assert room >= TIE_D + SP_D / 2 + 1
-            g = affinity.rotate(d["g"], 180 / d["Z"], origin=(0, 0))       # a tooth on +x
+            g = d["g"]                                                      # a tooth SPACE on +x (a pin sits there at 0)
             lines.append(f"function sun_{name}_{lay}() = {pts(g.simplify(0.02))};")
-            lines.append(f"{name}_{lay}_r = {d['r']:.4f};")
+            if lay == "A":
+                lines.append(f"{name}_r = {d['r']:.4f};")
             disc_r = max(disc_r, d["r"] + PIN_HOLE / 2 + RIM)
     lines.append(f"LANTERN_R = {disc_r:.3f};")
-    pin_len = T + ZONE + T
-    n = 2 * P_PL * N_PL * len(STAGES)
+    pin_len = 3 * T + 2 * ZONE
+    n = P_PL * N_PL * len(STAGES)
     print(f"lantern disc r {disc_r:.2f}; planet reaches {A - disc_r:.2f} .. {A + disc_r:.2f} from the rod")
-    print(f"pins: {P_PL} x 2 sides x {N_PL} planets x {len(STAGES)} stages = {n}, each {pin_len:.2f} long "
-          f"(disc {T} + zone {ZONE} + c-layer {T}) -> {n * pin_len / 1000:.2f} m of wire")
-    print(f"planet stack: 7 layers + 2 zones = {7 * T + 2 * ZONE:.2f}")
+    print(f"pins: {P_PL} x {N_PL} planet x {len(STAGES)} stages = {n}, each {pin_len:.2f} long "
+          f"(3 discs {3 * T:.2f} + 2 zones {2 * ZONE}) -> {n * pin_len / 1000:.2f} m of wire")
+    print(f"planet stack: 5 layers + 2 zones = {5 * T + 2 * ZONE:.2f}")
+    # counterweight: rough planet mass (ply 0.6 g/cm3, steel 7.85) -- an estimate, balance the carrier by hand
+    ply = 5 * math.pi * disc_r ** 2 * T * 0.6e-3
+    pins = n / len(STAGES) * pin_len * math.pi * (PIN / 2) ** 2 * 7.85e-3
+    hw = 3 * (40 * math.pi * 1.5 ** 2 * 7.85e-3) + 6 * 0.6 + 2 * 1.0       # 3 M3 x ~40, 6 nuts, 2 spacers (guesses)
+    print(f"planet mass ~{ply + pins + hw:.0f} g (ply {ply:.1f} + pins {pins:.1f} + hardware ~{hw:.1f}, estimate) -> "
+          f"counterweight that much at r {A} opposite, tuned so the carrier sits still at any angle")
     (HERE / "clock_lantern_profiles.scad").write_text("\n".join(lines) + "\n")
     print("wrote clock_lantern_profiles.scad")

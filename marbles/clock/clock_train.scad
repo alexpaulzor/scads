@@ -1,20 +1,20 @@
 // Clock train MVP, LANTERN version: two "differential sun" planetaries on the FIXED escape-wheel axle (smooth 8 mm
 // rod). No dial, no ring gears; the hands come straight off the parts that turn at the right speed.
-// Every PLANET is a lantern: straight 2.05 wire pins, 16 on each side of a 3-layer centre, trapped by solid covers (no
-// bending). Every SUN is a plain ply gear, 3 layers, teeth cut as the envelope of the pins (clock_lantern.py). Each mesh is
+// Every PLANET is a lantern: 16 straight 2.05 wire pins running right through it (serving both suns), trapped by solid
+// covers (no bending). One planet per stage + a counterweight opposite it (shared pins only fit planets 360/(ZB-ZA) apart). Every SUN is a plain ply gear, 3 layers, teeth cut as the envelope of the pins (clock_lantern.py). Each mesh is
 // wood on steel, and the pins span the sun's whole thickness, so a sun can warp or float along them.
 //
 // WHAT DRIVES WHAT (each colour is one rigid body that turns as a unit):
 //   ORANGE  escape wheel (1 rev/min, seconds pointer) --6 standoffs--> MINUTE CARRIER (back + front annulus, tied by
-//           M3 bolts + spacers between the planets) --> 2 minute planets on their M3 axle bolts
+//           M3 bolts + spacers) --> the minute planet on its M3 axle bolt; counterweight opposite
 //   YELLOW  minute planet (lantern): A pins roll round the FIXED 59-tooth sun; B pins turn the 60-tooth MINUTE SUN.
-//   RED     MINUTE SUN (on a 608) --5 standoffs--> HOUR CARRIER + MINUTE HAND --> 2 hour planets
+//   RED     MINUTE SUN (on a 608) --5 standoffs--> HOUR CARRIER + MINUTE HAND --> the hour planet
 //   PINK    hour planet: A pins roll round the FIXED 55-tooth sun; B pins turn the 60-tooth HOUR SUN.
 //   BLUE    HOUR SUN (on a 608) + HOUR HAND (on spacers).
 //   GREY    fixed: the rod; each fixed sun bolted (M3) to a 1515 MakerBeam XL piece, an SK8 on the beam clamping the rod.
 //   output / carrier = 1 - (ZA * PB) / (PA * ZB): minutes 1 - 59/60 = 1/60, hours 1 - 55/60 = 1/12.
-// Lantern, back -> front: cover A | disc A | [sun A, 10 zone] | c1 | separator | c2 | [sun B, 10 zone] | disc B | cover B,
-// all clamped by 2 M3 tie bolts (10 spacers in the zones); it spins on a centre M3 axle bolt nutted to both carriers.
+// Lantern, back -> front: cover | disc | [sun A, 10 zone] | middle disc | [sun B, 10 zone] | disc | cover, clamped by 2 M3
+// tie bolts (10 spacers in the zones); it spins on a centre M3 axle bolt nutted to both carriers.
 // Output sun = 3 gear layers (22.2 bore: the 608) + a 16-bore keeper ring each side, bolted M3 at r16.
 // Viewed from the front (+z toward the viewer); every hand turns clockwise.
 // Animate (FPS 20, Steps 200): one run = `minutes_per_anim` minutes.
@@ -67,42 +67,39 @@ module m3(p, z0, len) { C(C_HW) translate([p[0], p[1], z0]) { cylinder(d = 3, h 
 module bearing608(z0) { C("silver") translate([0, 0, z0]) difference() { cylinder(d = 22, h = 7); translate([0, 0, -1]) cylinder(d = 8, h = 9); } }
 
 // z offsets inside one stage (from the back carrier's back face), explode-aware
-function zl(i) = T + CB + E + [0, T, 2 * T, 2 * T + ZONE, 3 * T + ZONE, 4 * T + ZONE, 5 * T + ZONE, 5 * T + 2 * ZONE, 6 * T + 2 * ZONE, 7 * T + 2 * ZONE][i] + E * [0, 1, 2, 4, 5, 6, 7, 9, 10, 11][i];
-// 0 cover A, 1 disc A, 2 zone A start, 3 c1, 4 separator, 5 c2, 6 zone B start, 7 disc B, 8 cover B, 9 end
+function zl(i) = T + CB + E + [0, T, 2 * T, 2 * T + ZONE, 3 * T + ZONE, 3 * T + 2 * ZONE, 4 * T + 2 * ZONE, 5 * T + 2 * ZONE][i] + E * [0, 1, 2, 4, 5, 7, 8, 9][i];
+// 0 cover, 1 disc, 2 zone A start, 3 middle disc, 4 zone B start, 5 disc, 6 cover, 7 end
 function z_sunA() = zl(2) + CL + E;
-function z_sunB() = zl(6) + CL + E;
-function z_fc() = zl(9) + FC + E;
+function z_sunB() = zl(4) + CL + E;
+function z_fc() = zl(7) + FC + E;
 function stage_depth() = z_fc() + T;
 
 module sun(z0, prof, ang, col, bore, holes) {
     for (i = [0:L_SUN - 1]) slab(z0 + i * T, col) rotate(ang) difference() { polygon(prof); circle(d = bore); for (h = holes) translate(h) circle(d = 3.3); }
 }
 
-// one lantern, in its own frame (centre at the origin), A pins at radius rA, B pins at radius rB rotated by phB
-module lantern(z0, rA, rB, phB, col) {
-    holesA = [for (k = [0:P - 1]) [rA * cos((k + 0.5) * 360 / P), rA * sin((k + 0.5) * 360 / P)]];
-    holesB = [for (k = [0:P - 1]) [rB * cos((k + 0.5) * 360 / P + phB), rB * sin((k + 0.5) * 360 / P + phB)]];
-    module disc(holes) { difference() { circle(r = LANTERN_R, $fn = 64); circle(d = 3.4); for (s = [-1, 1]) translate([s * TIE_D, 0]) circle(d = 3.3);
-                         for (h = holes) translate(h) circle(d = PIN_HOLE, $fn = 10); } }
-    slab(zl(0), col) disc([]);  slab(zl(1), col) disc(holesA);
-    slab(zl(3), col) disc(holesA); slab(zl(4), col) disc([]); slab(zl(5), col) disc(holesB);
-    slab(zl(7), col) disc(holesB); slab(zl(8), col) disc([]);
-    if (show_pins) C(C_PIN) {
-        for (h = holesA) translate([h[0], h[1], zl(1)]) cylinder(d = PIN, h = zl(4) - zl(1), $fn = 8);
-        for (h = holesB) translate([h[0], h[1], zl(5)]) cylinder(d = PIN, h = zl(8) - zl(5), $fn = 8);
-    }
-    for (s = [-1, 1]) let(q = [s * TIE_D, 0]) {
-        m3(q, zl(0), zl(9) - zl(0) + 2.6); nut(q, zl(9));
-        spacer(q, zl(2), zl(3) - zl(2)); spacer(q, zl(6), zl(7) - zl(6));
+// one lantern, in its own frame (centre at the origin): 16 pins on radius rp through disc, middle disc, disc
+module lantern(rp, col) {
+    holes = [for (k = [0:P - 1]) [rp * cos(k * 360 / P), rp * sin(k * 360 / P)]];
+    module disc(hs) { difference() { circle(r = LANTERN_R, $fn = 64); circle(d = 3.4); for (s = [-1, 1]) translate([0, s * TIE_D]) circle(d = 3.3);
+                      for (h = hs) translate(h) circle(d = PIN_HOLE, $fn = 10); } }
+    slab(zl(0), col) disc([]); slab(zl(1), col) disc(holes); slab(zl(3), col) disc(holes); slab(zl(5), col) disc(holes); slab(zl(6), col) disc([]);
+    if (show_pins) C(C_PIN) for (h = holes) translate([h[0], h[1], zl(1)]) cylinder(d = PIN, h = zl(6) - zl(1), $fn = 8);
+    for (s = [-1, 1]) let(q = [0, s * TIE_D]) {
+        m3(q, zl(0), zl(7) - zl(0) + 2.6); nut(q, zl(7));
+        spacer(q, zl(2), zl(3) - zl(2)); spacer(q, zl(4), zl(5) - zl(4));
     }
 }
 
 // one stage: z0 = back carrier's back face; c = carrier angle, o = output sun angle
-module stage(z0, ZA, SUN_A, SUN_B, rA, rB, c, o, CCAR, CPL, COUT) {
+module stage(z0, ZA, SUN_A, SUN_B, rp, c, o, CCAR, CPL, COUT) {
     translate([0, 0, z0]) {
         // CARRIERS: back annulus (opening for the fixed sun's mount) + front annulus, tied by M3 + spacers between planets
-        for (zc = [0, z_fc()]) slab(zc, CCAR) rotate(c) difference() { ann(zc == 0 ? CAR_IN : FC_IN, CAR_OUT); for (k = [0:2 * N - 1]) rotate(k * 180 / N) translate([A, 0]) circle(d = 3.3); }
-        for (k = [0:N - 1]) rotate(c + (k + 0.5) * 360 / N) { spacer([A, 0], T, z_fc() - T); m3([A, 0], 0, z_fc() + T + 2.6); nut([A, 0], z_fc() + T); }
+        // tie posts at 90 and 270 deg; COUNTERWEIGHT at 180 deg (a stack of washers on an M5 bolt, tuned by balancing)
+        for (zc = [0, z_fc()]) slab(zc, CCAR) rotate(c) difference() { ann(zc == 0 ? CAR_IN : FC_IN, CAR_OUT); for (k = [0:3]) rotate(k * 90) translate([A, 0]) circle(d = k == 2 ? 5.3 : 3.3); }
+        for (a = [90, 270]) rotate(c + a) { spacer([A, 0], T, z_fc() - T); m3([A, 0], 0, z_fc() + T + 2.6); nut([A, 0], z_fc() + T); }
+        rotate(c + 180) { C(C_HW) translate([A, 0, -2]) cylinder(d = 5, h = z_fc() + T + 6, $fn = 16);
+            C("silver") for (i = [0:3]) translate([A, 0, T + 2 + i * 1.6]) difference() { cylinder(d = 20, h = 1.5); translate([0, 0, -1]) cylinder(d = 5.3, h = 4); } }
         // FIXED SUN A + its mount behind it: 1515 beam bolted flat to its back, SK8 on the beam round the rod
         sun(z_sunA(), SUN_A, 0, C_FIX, 8.4, [[-15, -27.5], [15, -27.5], [-15, 27.5], [15, 27.5]]);
         for (h = [[-15, -27.5], [15, -27.5], [-15, 27.5], [15, 27.5]]) { m3(h, z_sunA() - (h[1] < 0 ? 12 : 0), L_SUN * T + (h[1] < 0 ? 12 : 0) + 2.6); nut(h, z_sunA() + L_SUN * T); }
@@ -120,15 +117,11 @@ module stage(z0, ZA, SUN_A, SUN_B, rA, rB, c, o, CCAR, CPL, COUT) {
         for (zz = [z_sunB() - T, z_sunB() + L_SUN * T]) slab(zz, COUT) rotate(o) difference() { circle(r = 21); circle(d = 16); for (h = hb) translate(h) circle(d = 3.3); }
         rotate(o) for (h = hb) { m3(h, z_sunB() - T, (L_SUN + 2) * T + 2.6); nut(h, z_sunB() + (L_SUN + 1) * T); }
         bearing608(z_sunB() + 0.4);
-        // PLANETS (lanterns) on their axle bolts
-        for (k = [0:N - 1]) {
-            th = c + k * 360 / N;
-            psiA = th * (1 + ZA / P);
-            psiB = th + (th - o) * ZB / P;
-            rotate(th) translate([A, 0]) {
-                m3([0, 0], 0, z_fc() + T + 2.6); nut([0, 0], T); nut([0, 0], z_fc() - 2.4); nut([0, 0], z_fc() + T);
-                rotate(psiA - th + 180 / P) lantern(0, rA, rB, psiB - psiA, CPL);
-            }
+        // THE PLANET (lantern) on its axle bolt: its turn rolling on the fixed sun (the same pins then fit the output sun)
+        psi = c * (1 + ZA / P);
+        rotate(c) translate([A, 0]) {
+            m3([0, 0], 0, z_fc() + T + 2.6); nut([0, 0], T); nut([0, 0], z_fc() - 2.4); nut([0, 0], z_fc() + T);
+            rotate(psi - c) lantern(rp, CPL);
         }
     }
 }
@@ -139,12 +132,12 @@ module train() {
     slab(zw, C_SEC) rotate(esc) ann(92, 122);
     C(C_SEC) translate([0, 0, zw + T]) rotate(esc) translate([112, -3]) cube([22, 6, 2]);
     for (k = [0:5]) standoff(80, esc + k * 60 + 30, zw + T, -zw - T, C_SEC);
-    stage(0, M_ZA, sun_minute_A(), sun_minute_B(), minute_A_r, minute_B_r, esc, m_out, C_SEC, C_MPL, C_MIN);
+    stage(0, M_ZA, sun_minute_A(), sun_minute_B(), minute_r, esc, m_out, C_SEC, C_MPL, C_MIN);
     // RED: minute sun front keeper -> 5 standoffs -> hour carrier (+ minute hand on its back face)
     z_mk = z_sunB() + (L_SUN + 1) * T;                     // front face of the minute sun's front keeper
     z_h = z_mk + SP_UP + 4 * E;
     for (k = [0:4]) standoff(UP_R, m_out + k * 72 + 36, z_sunB() + L_SUN * T, z_h - z_sunB() - L_SUN * T, C_MIN);
-    stage(z_h, H_ZA, sun_hour_A(), sun_hour_B(), hour_A_r, hour_B_r, m_out, h_out, C_MIN, C_HPL, C_HR);
+    stage(z_h, H_ZA, sun_hour_A(), sun_hour_B(), hour_r, m_out, h_out, C_MIN, C_HPL, C_HR);
     C(C_MIN) translate([0, 0, z_h - 1.6]) rotate(m_out) translate([UP_R - 4, -3.5]) cube([100, 7, 1.6]);   // minute hand
     // BLUE: SP_HAND spacers on the hour sun's 3 bolts, hour hand (with a round hub) on them, clear of the front carrier
     z_hk = z_h + z_mk;
