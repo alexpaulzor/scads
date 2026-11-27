@@ -33,11 +33,12 @@ SK8_W = 42; SK8_T = 14; SK8_H = 20; SK8_TOP = 33.5; SK8_UP_W = 20; SK8_FL_H = 6.
 BEAM = 15; BEAM_L = 50;      // 1515 MakerBeam XL piece
 GAP = 24;                    // escape wheel front ring -> minute carrier
 CAR_IN = 44.5;               // back carrier opening radius (SK8 + beam reach 43)
-UP_R = 48;                   // minute sun -> hour carrier standoffs radius (outside the hour beam, 43.01; inside the lanterns)
+UP_R = 50;                   // minute sun -> hour carrier standoffs radius (outside the hour beam, 43.01; inside the lanterns)
 /* [M3 spacing (spacers or nuts on thread)] */
 SP_UP = 20;                  // minute sun front keeper -> hour carrier
 SP_HAND = 15;                // hour sun front keeper -> hour hand (clear of the front carrier + its nuts)
 SP_D = 7;
+MH_ANG = 45;                 // minute hand angle on the hour carrier (clear of the planet bolt at 0)
 
 /* [Hidden] */
 T = 2.63; PIN = 2.05; PIN_HOLE = 2.2;
@@ -130,14 +131,14 @@ module train() {
     // ORANGE: escape wheel (schematic front ring) + seconds pointer + standoffs to the minute carrier
     slab(zw, C_SEC) rotate(esc) ann(92, 122);
     C(C_SEC) translate([0, 0, zw + T]) rotate(esc) translate([112, -3]) cube([22, 6, 2]);
-    for (k = [0:5]) standoff(80, esc + k * 60 + 30, zw + T, -zw - T, C_SEC);
+    for (k = [0:5]) standoff(80, esc + k * 60 + 15, zw + T, -zw - T, C_SEC);   // clear of the tie posts at 90 / 270
     stage(0, M_ZA, sun_minute_A(), sun_minute_B(), minute_r, esc, m_out, C_SEC, C_MPL, C_MIN);
     // RED: minute sun front keeper -> 5 standoffs -> hour carrier (+ minute hand on its back face)
     z_mk = z_sunB() + (L_SUN + 1) * T;                     // front face of the minute sun's front keeper
     z_h = z_mk + SP_UP + 4 * E;
     for (k = [0:4]) standoff(UP_R, m_out + k * 72 + 36, z_sunB() + L_SUN * T, z_h - z_sunB() - L_SUN * T, C_MIN);
     stage(z_h, H_ZA, sun_hour_A(), sun_hour_B(), hour_r, m_out, h_out, C_MIN, C_HPL, C_HR);
-    C(C_MIN) translate([0, 0, z_h - 1.6]) rotate(m_out) translate([UP_R - 4, -3.5]) cube([100, 7, 1.6]);   // minute hand
+    C(C_MIN) translate([0, 0, z_h - 1.6]) rotate(m_out + MH_ANG) translate([UP_R - 4, -3.5]) cube([100, 7, 1.6]);   // minute hand (2 M3 into the carrier)
     // BLUE: SP_HAND spacers on the hour sun's 3 bolts, hour hand (with a round hub) on them, clear of the front carrier
     z_hk = z_h + z_mk;
     z_hh = z_hk + SP_HAND + E;

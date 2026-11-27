@@ -10,7 +10,7 @@ import matplotlib.image as mi  # noqa: E402
 import clock_lantern as cl  # noqa: E402
 
 T, A, ZONE, L_SUN, N_PL = cl.T, cl.A, cl.ZONE, cl.L_SUN, cl.N_PL
-CB, FC, GAP, CAR_IN, UP_R, CAR_OUT = 3.0, 3.0, 24, 44.5, 48, cl.A + 14
+CB, FC, GAP, CAR_IN, UP_R, CAR_OUT = 3.0, 3.0, 24, 44.5, 50, cl.A + 14
 SP_UP, SP_HAND, SP_R, TIE_D = 20, 15, cl.SP_D / 2, cl.TIE_D
 BEAM_REACH = 43.01            # 1515 beam corner from the rod: hypot(25, 20 + 15)
 COL = dict(fix="0.80", sec="darkorange", mpl="gold", minute="firebrick", hpl="hotpink", hour="royalblue", hw="0.25", pin="0.15")
