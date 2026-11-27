@@ -7,8 +7,8 @@
 // WHAT DRIVES WHAT (each colour is one rigid body that turns as a unit):
 //   ORANGE  escape wheel (1 rev/min, seconds pointer) --6 standoffs--> MINUTE CARRIER (back + front annulus, tied by 3
 //           M3 bolts + 40 spacers between the planets) --> minute planets
-//   YELLOW  minute planet: gear A (2 layers) + 15 spacer + gear B (2 layers), clamped by one M3 bolt + nuts; the bolt is
-//           the planet's shaft, turning in holes in both carriers.
+//   YELLOW  minute planet (16 teeth): gear A (2 layers) + gear B (2 layers), tied by 2 M3 through bolts + nuts on 15
+//           spacers, spinning on a centre M3 axle bolt nutted to both carriers.
 //           gear A rolls round the FIXED 59-pin sun; gear B turns the 60-pin MINUTE SUN.
 //   RED     MINUTE SUN (on a 608) --5 standoffs--> HOUR CARRIER + MINUTE HAND --> hour planets
 //   PINK    hour planet: gear A rolls round the FIXED 55-pin sun; gear B turns the 60-pin HOUR SUN.
@@ -48,7 +48,7 @@ UP_R = 50;                   // minute sun -> hour carrier standoffs radius
 
 /* [Hidden] */
 T = 2.63; PIN = 2.05; PIN_HOLE = 2.2; BEND_L = 4;
-A = 72; P = 12; N = 3;       // both stages: centre distance, planet teeth, planets
+A = CLOCK_A; P = CLOCK_P; N = 3;   // both stages: centre distance, planet teeth, planets (clock_pins.py)
 M_ZA = 59; H_ZA = 55; ZB = 60;
 CB = 3; G = SP_SUN; MID = SP_HUB - SP_SUN;   // bend room behind sun A; disc-to-disc round a planet; between the two suns
 FG = SP_CAGE - (CB + 4 * T + 2 * G + MID);    // sun B front disc -> front carrier
@@ -116,19 +116,24 @@ module stage(z0, ZA, PROF_A, PROF_B, RA, RIMA, RB, RIMB, c, o, CCAR, CPL, COUT) 
     // OUTPUT SUN B (pin wheel) on its 608 (in the hub rings; the discs' 16 bore keeps it in)
     pin_wheel(z_fb, ZB, RB, RIMB, o, COUT, 16, 11.1, 21, [for (k = [0:2]) [16 * cos(k * 120 + 60), 16 * sin(k * 120 + 60)]], true);
     bearing608(z_fb + T + E + 0.4);
-    // PLANETS: gear A (2 layers) in sun A's gap, gear B (2 layers) in sun B's gap, SP_HUB spacer between, all clamped by
-    // one M3 bolt + 2 nuts; the bolt is the shaft (head behind the back carrier, a loose nut in front of the front one)
+    // PLANETS: gear A (2 layers) in sun A's gap, gear B (2 layers) in sun B's gap, tied by 2 M3 through bolts + nuts on
+    // SP_HUB spacers at +-TIE_D; the planet spins on the centre M3 axle bolt (nutted to both carriers). Gear B's teeth sit
+    // at each planet's own angle to the tie holes (cut per planet).
     z_pa = z_fa + T + E + (G - 2 * T) / 2; z_pb = z_fb + T + E + (G - 2 * T) / 2;
     for (k = [0:N - 1]) {
         th = c + k * 360 / N;
         psiA = th * (1 + ZA / P);
         psiB = th + (th - o) * ZB / P;
         rotate(th) translate([A, 0]) {
-            for (i = [0:1]) slab(z_pa + i * T, CPL) rotate(psiA - th) difference() { polygon(PROF_A); circle(d = 3.3); }
-            for (i = [0:1]) slab(z_pb + i * T, CPL) rotate(psiB - th) difference() { polygon(PROF_B); circle(d = 3.3); }
-            spacer([0, 0], z_pa + 2 * T, z_pb - z_pa - 2 * T);
-            bolt(z0, z_fc + T + 3 - z0, C_HW);
-            nut([0, 0], z_pa - 2.4); nut([0, 0], z_pb + 2 * T); nut([0, 0], z_fc + T);
+            for (i = [0:1]) slab(z_pa + i * T, CPL) rotate(psiA - th) difference() { polygon(PROF_A); circle(d = 3.4); for (s = [-1, 1]) translate([s * TIE_D, 0]) circle(d = 3.3); }
+            for (i = [0:1]) slab(z_pb + i * T, CPL) rotate(psiA - th) difference() { rotate(psiB - psiA) polygon(PROF_B); circle(d = 3.4); for (s = [-1, 1]) translate([s * TIE_D, 0]) circle(d = 3.3); }
+            rotate(psiA - th) for (s = [-1, 1]) let(q = [s * TIE_D, 0]) {
+                spacer(q, z_pa + 2 * T, z_pb - z_pa - 2 * T);
+                C(C_HW) translate([q[0], q[1], z_pa - 2]) cylinder(d = 3, h = z_pb + 2 * T - z_pa + 4.4, $fn = 12);
+                C(C_HW) translate([q[0], q[1], z_pa - 2]) cylinder(d = 5.5, h = 2, $fn = 24);
+                nut(q, z_pb + 2 * T);
+            }
+            bolt(z0, z_fc + T + 3 - z0, C_HW); nut([0, 0], z0 + T); nut([0, 0], z_fc - 2.4); nut([0, 0], z_fc + T);
         }
     }
 }

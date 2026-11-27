@@ -67,12 +67,16 @@ def stage(ax, z0, name, ccar, cpl, cout):
     tipA, tipB = TIPS[name]
     for zp, tip in ((z["pa"], tipA), (z["pb"], tipB)):
         box(ax, zp, 2 * T, A - tip, A + tip, cpl)
-    box(ax, z["pa"] + 2 * T, z["pb"] - z["pa"] - 2 * T, A - SP_R, A + SP_R, "silver")              # bought hub spacer
-    box(ax, z["bc"] - 2, z["fc"] + T + 4.4 - z["bc"], A - 1.5, A + 1.5, COL["hw"])                  # planet bolt = shaft
-    for zz in (z["pa"] - 2.4, z["pb"] + 2 * T, z["fc"] + T):
-        box(ax, zz, 2.4, A - 3.2, A + 3.2, COL["hw"])                                              # nuts
+    for sgn in (-1, 1):                                                                             # 2 tie bolts on spacers
+        rt = A + sgn * cp.TIE_D
+        box(ax, z["pa"] + 2 * T, z["pb"] - z["pa"] - 2 * T, rt - SP_R, rt + SP_R, "silver")
+        box(ax, z["pa"] - 2, z["pb"] + 2 * T - z["pa"] + 4.4, rt - 1.5, rt + 1.5, COL["hw"])
+        box(ax, z["pb"] + 2 * T, 2.4, rt - 3.2, rt + 3.2, COL["hw"])
+    box(ax, z["bc"] - 2, z["fc"] + T + 4.4 - z["bc"], A - 1.5, A + 1.5, COL["hw"])                  # centre axle bolt (fixed)
+    for zz in (z["bc"] + T, z["fc"] - 2.4, z["fc"] + T):
+        box(ax, zz, 2.4, A - 3.2, A + 3.2, COL["hw"])
     # clearances (assert, then report)
-    chk = {"planet hub spacer inside the middle discs' rims": A - SP_R - max(a["rim"], b["rim"]),
+    chk = {"planet tie spacers inside the middle discs' rims": A - cp.TIE_D - SP_R - max(a["rim"], b["rim"]),
            "planet tips vs fixed sun spacers (r 27.5 + 3.5)": A - tipA - 31,
            "hour hand vs front carrier nuts": SP_HAND - (FG + T + 2.4 + 2),
            "front carrier opening vs sun B rim": fc_in - b["rim"]}
@@ -105,8 +109,8 @@ def drive_diagram():
                                                 bbox=dict(fc="w", ec=c, lw=.8, pad=2))
     L("ESCAPE WHEEL front ring\n+ seconds pointer (1 rev/min)", (zw + 1, 125), (zw - 40, 138), COL["sec"])
     L("6 standoffs: wheel drives\nthe MINUTE CARRIER", (zw + 12, 80), (zw - 40, 100), COL["sec"])
-    L("minute carrier: back + front annulus,\ntied by 3 M3 bolts + 40 spacers between the planets", (1, 50), (zw - 40, 52), COL["sec"])
-    L(f"MINUTE PLANET: gear A (2 layers) + 15 spacer + gear B (2 layers), clamped\nby one M3 bolt + nuts: the bolt is its shaft, turning in both carriers.\n"
+    L("minute carrier: back + front annulus,\ntied by 3 M3 bolts + 40 spacers between the planets,\nand by the 3 planet axle bolts", (1, 50), (zw - 40, 52), COL["sec"])
+    L(f"MINUTE PLANET (16 teeth): gear A (2 layers) + gear B (2 layers), tied by 2 M3\nthrough bolts + nuts on 15 spacers, spinning on the centre M3 axle bolt.\n"
       f"A rolls round the FIXED {ma['Z']}-pin sun, B pushes the {mb['Z']}-pin MINUTE SUN", (m["pa"] + 3, A + 12), (-30, 108), "darkgoldenrod")
     L(f"FIXED minute sun: {ma['Z']} wire pins between 2 discs (8 spacers on its 4 M3 bolts),\nends bent inward; bolted to a 1515 beam, SK8 on the beam\n"
       f"clamps the rod (beam + SK8 drawn schematically: they sit below the rod)", (m["fa"] + 1, 30), (zw - 40, 14), "0.35")
@@ -138,7 +142,7 @@ def renders():
         a = fig.add_axes([0.0 + (i % 2) * 0.5, 0.52 - (i // 2) * 0.5, 0.5, 0.46]); a.imshow(mi.imread(VIEWS / f"{n}.png")); a.axis("off"); a.set_title(t, fontsize=14)
     a = fig.add_axes([0.05, 0.04, 0.9, 0.42]); a.axis("off")
     for k, (c, txt) in enumerate(((COL["sec"], "ORANGE: escape wheel + 6 standoffs + minute carrier (back + front) (1 rev/min)"),
-                                  (COL["mpl"], "YELLOW: the 3 minute planets: gear A (2 layers) + spacer + gear B (2 layers), clamped on an M3 bolt (their shaft)"),
+                                  (COL["mpl"], "YELLOW: the 3 minute planets: gear A + gear B (2 layers each) tied by 2 M3 through bolts on spacers, on an M3 axle"),
                                   (COL["minute"], "RED: minute sun (60 pins) + 5 standoffs + hour carrier (back + front) + minute hand (1 rev/h)"),
                                   (COL["hpl"], "PINK: the 3 hour planets (gear A in the fixed 55-pin sun, gear B in the hour sun)"),
                                   (COL["hour"], "BLUE: hour sun (60 pins) + hour hand (on spacers) (1 rev / 12 h)"),
