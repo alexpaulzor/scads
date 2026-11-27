@@ -7,12 +7,12 @@ Files (marbles/gcode/), each zeroed at its bottom-left, W x H in the name = the 
   clock_carrier_<stage>_front          front carrier + that stage's 2 lantern COVERS + 1 output-sun KEEPER ring nested inside
 Per stage: 3 + 3 sun layers, 2 carriers, 2 discs + 2 covers (one lantern), 2 keepers (one per side of the output sun:
 the front-carrier files give 2, one each).
-Hands are only sketched (views/clock_hands_sketch.png), no G-code yet.
+Hands: first draft in views/clock_hands_sketch.png, cut on full sheet E only.
 
 FULL SHEETS (--sheets): the whole set on 5 sheets of 300 x 300 ply3 (layout area 298 x 290: Y stays under the 292 travel):
   A..D  one carrier (with its nested lantern parts) middle-left + two layers of one sun stacked on the right; the left
         corners hold the 2 extra keepers the set needs (A) or spares (B, C, D)
-  E     one layer of each of the 4 suns
+  E     one layer of each of the 4 suns + the MVP hands (hour, minute, seconds pointer) between them
 Together: 3 layers of each of the 4 suns, the 4 carriers, 2 lanterns' discs + covers, 4 keepers (+ spares).
 
     python3 marbles/clock/clock_train_parts.py            # one file per part (as above)
@@ -159,21 +159,25 @@ def preview(files):
     return out
 
 
-def hands_sketch():
-    """first-draft hands (no G-code): minute hand on the hour carrier, hour hand on the hour sun's spacers, seconds
-    pointer on the escape wheel rim"""
-    import matplotlib; matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+def hands():
+    """MVP hands, in clock coordinates (the rod at the origin, pointing +x): minute hand (on the hour carrier's back face,
+    2 M3 at r 54 / 66), hour hand (round hub on the hour sun's 3 bolts at r 16, leaf to r 80), seconds pointer (escape
+    wheel rim, 2 M3)"""
     from shapely.geometry import Polygon
-    fig, axs = plt.subplots(1, 3, figsize=(16, 6))
-    # minute hand: a slim taper from r 44 to r 146, bolted at r 54 / 66 (MH_ANG on the carrier), counterpoise tail-less
-    mh = Polygon([(44, -6), (70, -5), (146, -1.2), (149, 0), (146, 1.2), (70, 5), (44, 6)])
-    mh = holes(mh, [(54, 0), (66, 0)], M3)
-    # hour hand: round hub r 21 on the 3 sun bolts (r 16), a leaf to r 80
+    mh = holes(Polygon([(44, -6), (70, -5), (146, -1.2), (149, 0), (146, 1.2), (70, 5), (44, 6)]), [(54, 0), (66, 0)], M3)
     hh = unary_union([circ(0, 0, 42, 128), Polygon([(15, -7), (55, -9), (74, -4), (80, 0), (74, 4), (55, 9), (15, 7)])])
     hh = holes(hh, [(0, 0)], 8.4); hh = holes(hh, [polar(16, 60 + 120 * k) for k in range(3)], M3)
-    # seconds pointer: an arrow on the escape wheel rim (2 M3)
     sp = holes(Polygon([(108, -5), (126, -5), (126, -3), (134, 0), (126, 3), (126, 5), (108, 5)]), [(112, 0), (120, 0)], M3)
+    return mh, hh, sp
+
+
+def hands_sketch():
+    """first-draft hands: minute hand on the hour carrier, hour hand on the hour sun's spacers, seconds pointer on the
+    escape wheel rim (cut on full sheet E)"""
+    import matplotlib; matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(1, 3, figsize=(16, 6))
+    mh, hh, sp = hands()
     for ax, g, t in zip(axs, (mh, hh, sp), ("MINUTE hand (on the hour carrier's back face, 2 M3)",
                                             "HOUR hand (on spacers on the hour sun's 3 bolts)",
                                             "SECONDS pointer (on the escape wheel rim, 2 M3)")):
@@ -182,7 +186,7 @@ def hands_sketch():
             ax.fill(*r.xy, fc="w", ec="k")
         ax.plot([0], [0], "k+", ms=12); ax.set_aspect("equal"); ax.set_title(t, fontsize=10); ax.grid(alpha=.3)
         ax.set_xlabel("mm from the rod")
-    fig.suptitle("Clock hands, FIRST DRAFT (no G-code yet): ply3, shapes to be refined", fontsize=12)
+    fig.suptitle("Clock hands, FIRST DRAFT (MVP: cut on full sheet E), ply3, shapes to be refined", fontsize=12)
     plt.tight_layout(); out = VIEWS / "clock_hands_sketch.png"; plt.savefig(out, dpi=80)
     return out
 
@@ -239,9 +243,16 @@ def sheets():
         out.append(write_sheet(f"clock_sheet{tag}_{grp[0][:3]}{grp[1]}_{sk[0][:3]}{sk[1]}{suns[sk][1]}x2", polys, what))
     ks = [("minute", "fixed"), ("minute", "out"), ("hour", "fixed"), ("hour", "out")]
     polys = [affinity.translate(suns[k][0], *xy) for k, xy in zip(ks, grid)]
+    # the MVP hands in the cross-shaped gap between the 4 suns: hour hub in the middle, its leaf up the vertical channel,
+    # the minute hand down it, the seconds pointer in the left arm
+    mh, hh, sp = hands()
+    cx, cy = SHEET_W / 2, SHEET_H / 2
+    polys.append(affinity.translate(affinity.rotate(hh, 90, origin=(0, 0)), cx, cy))
+    polys.append(affinity.translate(affinity.rotate(mh, -90, origin=(0, 0)), cx, cy - 21 - GAP - 1 + 44))   # base under the hub, tip down
+    polys.append(affinity.translate(sp, -108 + 2 + kerf, cy))
     what = ("1 layer each: minute fixed 59 (bottom left), minute out 60 (bottom right), hour fixed 55 (top left), "
-            "hour out 60 (top right)")
-    out.append(write_sheet("clock_sheetE_minfixed59_minout60_houfixed55_houout60", polys, what))
+            "hour out 60 (top right); MVP hands between them (hour, minute, seconds pointer)")
+    out.append(write_sheet("clock_sheetE_minfixed59_minout60_houfixed55_houout60_hands", polys, what))
     return out
 
 
@@ -252,6 +263,8 @@ def write_sheet(stem_base, polys, note):
     gs = [p.buffer(kerf / 2, join_style=2) for p in polys]
     x1 = max(g.bounds[2] for g in gs); y1 = max(g.bounds[3] for g in gs)
     assert min(g.bounds[0] for g in gs) >= -1e-6 and min(g.bounds[1] for g in gs) >= -1e-6 and x1 <= SHEET_W + 1e-6 and y1 < 292
+    gap = min(gs[i].distance(gs[j]) for i in range(len(gs)) for j in range(i + 1, len(gs)))
+    assert gap >= 2.0, (stem_base, gap)                       # cut edges (kerf-grown parts) at least 2 mm apart
     cuts = []
     for g in gs:
         cuts += [gcode.Polyline(list(r.coords), True) for r in g.interiors]
@@ -263,7 +276,7 @@ def write_sheet(stem_base, polys, note):
     for i, c in enumerate(cuts, 1):
         lines += gcode.cut(c, job, i, len(cuts))
     p = gcode.write(OUT / f"{stem}.gcode", lines)
-    print(f"  {p.name}: {len(cuts)} cuts, extent {x1:.2f} x {y1:.2f}")
+    print(f"  {p.name}: {len(cuts)} cuts, extent {x1:.2f} x {y1:.2f}, closest parts {gap:.2f} apart")
     return p, polys
 
 
