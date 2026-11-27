@@ -250,9 +250,8 @@ def sheets():
     polys.append(affinity.translate(affinity.rotate(hh, 90, origin=(0, 0)), cx, cy))
     polys.append(affinity.translate(affinity.rotate(mh, -90, origin=(0, 0)), cx, cy - 21 - GAP - 1 + 44))   # base under the hub, tip down
     polys.append(affinity.translate(sp, -108 + 2 + kerf, cy))
-    what = ("1 layer each: minute fixed 59 (bottom left), minute out 60 (bottom right), hour fixed 55 (top left), "
-            "hour out 60 (top right); MVP hands between them (hour, minute, seconds pointer)")
-    out.append(write_sheet("clock_sheetE_minfixed59_minout60_houfixed55_houout60_hands", polys, what))
+    what = "1 layer of each sun (min 59 BL, min 60 BR, hour 55 TL, hour 60 TR) + MVP hands"
+    out.append(write_sheet("clock_sheetE_suns_hands", polys, what))
     return out
 
 
