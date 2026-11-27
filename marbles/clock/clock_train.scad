@@ -1,7 +1,7 @@
 // Clock train MVP, LANTERN version: two "differential sun" planetaries on the FIXED escape-wheel axle (smooth 8 mm
 // rod). No dial, no ring gears; the hands come straight off the parts that turn at the right speed.
-// Every PLANET is a lantern: 16 straight 2.05 wire pins running right through it (serving both suns), trapped by solid
-// covers (no bending). One planet per stage + a counterweight opposite it (shared pins only fit planets 360/(ZB-ZA) apart). Every SUN is a plain ply gear, 3 layers, teeth cut as the envelope of the pins (clock_lantern.py). Each mesh is
+// Every PLANET is a lantern: 16 straight 2.05 wire pins between two discs (serving both suns), trapped by solid covers
+// (no bending). One planet per stage + a counterweight opposite it (shared pins only fit planets 360/(ZB-ZA) apart). Every SUN is a plain ply gear, 3 layers, teeth cut as the envelope of the pins (clock_lantern.py). Each mesh is
 // wood on steel, and the pins span the sun's whole thickness, so a sun can warp or float along them.
 //
 // WHAT DRIVES WHAT (each colour is one rigid body that turns as a unit):
@@ -13,8 +13,8 @@
 //   BLUE    HOUR SUN (on a 608) + HOUR HAND (on spacers).
 //   GREY    fixed: the rod; each fixed sun bolted (M3) to a 1515 MakerBeam XL piece, an SK8 on the beam clamping the rod.
 //   output / carrier = 1 - (ZA * PB) / (PA * ZB): minutes 1 - 59/60 = 1/60, hours 1 - 55/60 = 1/12.
-// Lantern, back -> front: cover | disc | [sun A, 10 zone] | middle disc | [sun B, 10 zone] | disc | cover, clamped by 2 M3
-// tie bolts (10 spacers in the zones); it spins on a centre M3 axle bolt nutted to both carriers.
+// Lantern, back -> front: cover | disc | [ sun A | gap | sun B ] | disc | cover, clamped by 2 M3 tie bolts (nuts or
+// spacers set the gap); it spins on a centre M3 axle bolt nutted to both carriers.
 // Output sun = 3 gear layers (22.2 bore: the 608) + a 16-bore keeper ring each side, bolted M3 at r16.
 // Viewed from the front (+z toward the viewer); every hand turns clockwise.
 // Animate (FPS 20, Steps 200): one run = `minutes_per_anim` minutes.
@@ -34,7 +34,7 @@ BEAM = 15; BEAM_L = 50;      // 1515 MakerBeam XL piece
 GAP = 24;                    // escape wheel front ring -> minute carrier
 CAR_IN = 44.5;               // back carrier opening radius (SK8 + beam reach 43)
 UP_R = 48;                   // minute sun -> hour carrier standoffs radius (outside the hour beam, 43.01; inside the lanterns)
-/* [Bought M3 spacers] */
+/* [M3 spacing (spacers or nuts on thread)] */
 SP_UP = 20;                  // minute sun front keeper -> hour carrier
 SP_HAND = 15;                // hour sun front keeper -> hour hand (clear of the front carrier + its nuts)
 SP_D = 7;
@@ -45,7 +45,6 @@ A = CLOCK_A; N = N_PL; P = P_PL;
 M_ZA = 59; H_ZA = 55; ZB = 60;
 CB = 3;                                   // back carrier -> cover A (axle nut + tie heads)
 FC = 3;                                   // cover B -> front carrier (tie nuts)
-CL = (ZONE - L_SUN * T) / 2;              // sun to lantern disc, each side
 CAR_OUT = A + 14; FC_IN = A - LANTERN_R + 1;
 $fn = 36;
 tt = t_fixed >= 0 ? t_fixed : $t;
@@ -67,27 +66,27 @@ module m3(p, z0, len) { C(C_HW) translate([p[0], p[1], z0]) { cylinder(d = 3, h 
 module bearing608(z0) { C("silver") translate([0, 0, z0]) difference() { cylinder(d = 22, h = 7); translate([0, 0, -1]) cylinder(d = 8, h = 9); } }
 
 // z offsets inside one stage (from the back carrier's back face), explode-aware
-function zl(i) = T + CB + E + [0, T, 2 * T, 2 * T + ZONE, 3 * T + ZONE, 3 * T + 2 * ZONE, 4 * T + 2 * ZONE, 5 * T + 2 * ZONE][i] + E * [0, 1, 2, 4, 5, 7, 8, 9][i];
-// 0 cover, 1 disc, 2 zone A start, 3 middle disc, 4 zone B start, 5 disc, 6 cover, 7 end
-function z_sunA() = zl(2) + CL + E;
-function z_sunB() = zl(4) + CL + E;
-function z_fc() = zl(7) + FC + E;
+function zl(i) = T + CB + E + [0, T, 2 * T, 2 * T + ZONE, 3 * T + ZONE, 4 * T + ZONE][i] + E * [0, 1, 2, 6, 7, 8][i];
+// 0 cover, 1 disc, 2 zone start, 3 disc, 4 cover, 5 end
+function z_sunA() = zl(2) + SUN_CLR + E;
+function z_sunB() = z_sunA() + L_SUN * T + SUN_GAP + 2 * E;
+function z_fc() = zl(5) + FC + E;
 function stage_depth() = z_fc() + T;
 
 module sun(z0, prof, ang, col, bore, holes) {
     for (i = [0:L_SUN - 1]) slab(z0 + i * T, col) rotate(ang) difference() { polygon(prof); circle(d = bore); for (h = holes) translate(h) circle(d = 3.3); }
 }
 
-// one lantern, in its own frame (centre at the origin): 16 pins on radius rp through disc, middle disc, disc
+// one lantern, in its own frame (centre at the origin): 16 pins on radius rp between its two discs
 module lantern(rp, col) {
     holes = [for (k = [0:P - 1]) [rp * cos(k * 360 / P), rp * sin(k * 360 / P)]];
     module disc(hs) { difference() { circle(r = LANTERN_R, $fn = 64); circle(d = 3.4); for (s = [-1, 1]) translate([0, s * TIE_D]) circle(d = 3.3);
                       for (h = hs) translate(h) circle(d = PIN_HOLE, $fn = 10); } }
-    slab(zl(0), col) disc([]); slab(zl(1), col) disc(holes); slab(zl(3), col) disc(holes); slab(zl(5), col) disc(holes); slab(zl(6), col) disc([]);
-    if (show_pins) C(C_PIN) for (h = holes) translate([h[0], h[1], zl(1)]) cylinder(d = PIN, h = zl(6) - zl(1), $fn = 8);
+    slab(zl(0), col) disc([]); slab(zl(1), col) disc(holes); slab(zl(3), col) disc(holes); slab(zl(4), col) disc([]);
+    if (show_pins) C(C_PIN) for (h = holes) translate([h[0], h[1], zl(1)]) cylinder(d = PIN, h = zl(4) - zl(1), $fn = 8);
     for (s = [-1, 1]) let(q = [0, s * TIE_D]) {
-        m3(q, zl(0), zl(7) - zl(0) + 2.6); nut(q, zl(7));
-        spacer(q, zl(2), zl(3) - zl(2)); spacer(q, zl(4), zl(5) - zl(4));
+        m3(q, zl(0), zl(5) - zl(0) + 2.6); nut(q, zl(5));
+        spacer(q, zl(2), zl(3) - zl(2));
     }
 }
 

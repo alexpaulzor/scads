@@ -12,7 +12,6 @@ import clock_lantern as cl  # noqa: E402
 T, A, ZONE, L_SUN, N_PL = cl.T, cl.A, cl.ZONE, cl.L_SUN, cl.N_PL
 CB, FC, GAP, CAR_IN, UP_R, CAR_OUT = 3.0, 3.0, 24, 44.5, 48, cl.A + 14
 SP_UP, SP_HAND, SP_R, TIE_D = 20, 15, cl.SP_D / 2, cl.TIE_D
-CL = (ZONE - L_SUN * T) / 2
 BEAM_REACH = 43.01            # 1515 beam corner from the rod: hypot(25, 20 + 15)
 COL = dict(fix="0.80", sec="darkorange", mpl="gold", minute="firebrick", hpl="hotpink", hour="royalblue", hw="0.25", pin="0.15")
 HERE = Path(__file__).resolve().parent
@@ -26,8 +25,8 @@ def box(ax, z0, dz, r0, r1, col, ec="k", lw=.5):
 def layout():
     """z (along the rod) inside one stage, back carrier's back face = 0, as clock_train.scad (explode 0)"""
     z0 = T + CB
-    zl = [z0 + x for x in (0, T, 2 * T, 2 * T + ZONE, 3 * T + ZONE, 3 * T + 2 * ZONE, 4 * T + 2 * ZONE, 5 * T + 2 * ZONE)]
-    z = dict(zl=zl, sunA=zl[2] + CL, sunB=zl[4] + CL, fc=zl[7] + FC)
+    zl = [z0 + x for x in (0, T, 2 * T, 2 * T + ZONE, 3 * T + ZONE, 4 * T + ZONE)]
+    z = dict(zl=zl, sunA=zl[2] + cl.SUN_CLR, sunB=zl[2] + cl.SUN_CLR + L_SUN * T + cl.SUN_GAP, fc=zl[5] + FC)
     z["depth"] = z["fc"] + T
     z["keeper_front"] = z["sunB"] + (L_SUN + 1) * T
     return z
@@ -46,20 +45,20 @@ def stage(ax, z0, name, ccar, cpl, cout, st):
     for zz in (z["sunB"] - T, z["sunB"] + L_SUN * T):
         box(ax, zz, T, 8, 21, cout)                                                                  # keepers
     box(ax, z["sunB"] + 0.4, 7, 4, 11, "silver")                                                    # 608
-    for i in (0, 1, 3, 5, 6):                                                                        # lantern layers
+    for i in (0, 1, 3, 4):                                                                           # lantern layers
         box(ax, zl[i], T, A - lr, A + lr, cpl)
     r = st["A"]["r"]
     for sgn in (-1, 1):                                                                              # pins (one set, both suns)
-        box(ax, zl[1], zl[6] - zl[1], A + sgn * r - cl.PIN / 2, A + sgn * r + cl.PIN / 2, COL["pin"], ec="none")
+        box(ax, zl[1], zl[4] - zl[1], A + sgn * r - cl.PIN / 2, A + sgn * r + cl.PIN / 2, COL["pin"], ec="none")
     for sgn in (-1, 1):                                                                              # tie bolts + spacers
         rt = A + sgn * TIE_D
-        box(ax, zl[0] - 2, zl[7] - zl[0] + 4.4, rt - 1.5, rt + 1.5, COL["hw"])
-        for za, zb in ((zl[2], zl[3]), (zl[4], zl[5])):
+        box(ax, zl[0] - 2, zl[5] - zl[0] + 4.4, rt - 1.5, rt + 1.5, COL["hw"])
+        for za, zb in ((zl[2], zl[3]),):
             box(ax, za, zb - za, rt - SP_R, rt + SP_R, "silver")
     box(ax, z0 - 2, z["fc"] + T + 4.6 - z0, A - 1.5, A + 1.5, COL["hw"])                            # axle bolt (fixed)
     for zz in (z0 + T, z["fc"] - 2.4, z["fc"] + T):
         box(ax, zz, 2.4, A - 3.2, A + 3.2, COL["hw"])
-    chk = {"sun A to middle disc": zl[3] - (z["sunA"] + L_SUN * T), "lantern inner reach vs sun tips (axial: zones)": CL,
+    chk = {"sun B to front lantern disc": zl[3] - (z["sunB"] + L_SUN * T), "fixed sun to output sun's back keeper": cl.SUN_GAP - T,
            "UP_R standoff vs hour beam": UP_R - 2.5 - BEAM_REACH, "UP_R standoff vs lantern discs": A - lr - UP_R - 2.5,
            "tie spacers inside the sun tips": min(st[k]["r"] - (st[k]["tip"] - st[k]["R"]) for k in st) - TIE_D - SP_R}
     for k, v in chk.items():
@@ -91,16 +90,16 @@ def drive_diagram():
     L("ESCAPE WHEEL front ring\n+ seconds pointer (1 rev/min)", (zw + 1, 125), (zw - 40, 140), COL["sec"])
     L("6 standoffs: wheel drives\nthe MINUTE CARRIER", (zw + 12, 80), (zw - 40, 104), COL["sec"])
     L("minute carrier: back + front annulus, tied by\nM3 + spacers between the planets\nand by the planet axle bolts", (1, 50), (zw - 40, 52), COL["sec"])
-    L(f"MINUTE PLANET (one lantern, counterweight opposite): {cl.P_PL} straight wire pins right through 3 discs,\n"
-      f"trapped by solid covers; 2 M3 tie bolts (+10 spacers); spins on its M3 axle bolt.\n"
+    L(f"MINUTE PLANET (one lantern, counterweight opposite): {cl.P_PL} straight wire pins between 2 discs,\n"
+      f"trapped by solid covers; 2 M3 tie bolts; spins on its M3 axle bolt.\n"
       f"The same pins roll round the FIXED {sm['A']['Z']}-tooth sun and push the {sm['B']['Z']}-tooth MINUTE SUN",
-      (m["zl"][3] + 1, A + 18), (-38, 118), "darkgoldenrod")
+      (m["zl"][2] + 12, A + 18), (-38, 118), "darkgoldenrod")
     L(f"FIXED minute sun: {sm['A']['Z']} teeth, 3 ply layers, bolted to a 1515 beam,\nSK8 on the beam clamps the rod "
       f"(beam + SK8 drawn schematically: they sit below the rod)", (m["sunA"] + 1, 30), (zw - 40, 14), "0.35")
     L(f"MINUTE SUN: {sm['B']['Z']} teeth, the 608 sits in its 3 layers,\na keeper ring each side (1 rev/h)", (m["sunB"] + 1, 45), (m["sunB"] - 30, -34), COL["minute"])
     L(f"5 standoffs ({SP_UP}): minute sun\ndrives the HOUR CARRIER", (m["sunB"] + 14, UP_R), (m["sunB"] + 30, -30), COL["minute"])
     L("MINUTE HAND, on the hour carrier", (z_h - 1, 138), (z_h - 50, 148), COL["minute"])
-    L(f"HOUR PLANET (one lantern + counterweight): its pins roll\nround the FIXED {sh['A']['Z']}-tooth sun and push the {sh['B']['Z']}-tooth HOUR SUN", (h["zl"][3] + 1, A + 18), (z_h + 6, 112), "mediumvioletred")
+    L(f"HOUR PLANET (one lantern + counterweight): its pins roll\nround the FIXED {sh['A']['Z']}-tooth sun and push the {sh['B']['Z']}-tooth HOUR SUN", (h["zl"][2] + 12, A + 18), (z_h + 6, 112), "mediumvioletred")
     L(f"FIXED hour sun ({sh['A']['Z']} teeth)\n+ its beam + SK8", (h["sunA"] + 1, 30), (z_h + 50, 36), "0.35")
     L(f"HOUR SUN (60 teeth) on a 608,\n{SP_HAND} spacers + HOUR HAND\n(1 rev / 12 h), clear of the\nfront carrier and its nuts", (z_hh + 1, 66), (z_hh + 12, 74), COL["hour"])
     L("straight wire pin: rides in\nBOTH suns' teeth, trapped\nbetween the two covers", (m["zl"][2] + 4, A - sm["A"]["r"]), (m["zl"][2] - 12, 92), COL["pin"])
@@ -125,7 +124,7 @@ def renders():
         a = fig.add_axes([0.0 + (i % 2) * 0.5, 0.52 - (i // 2) * 0.5, 0.5, 0.46]); a.imshow(mi.imread(VIEWS / f"{n}.png")); a.axis("off"); a.set_title(t, fontsize=14)
     a = fig.add_axes([0.05, 0.04, 0.9, 0.42]); a.axis("off")
     for k, (c, txt) in enumerate(((COL["sec"], "ORANGE: escape wheel + 6 standoffs + minute carrier (back + front) (1 rev/min)"),
-                                  (COL["mpl"], "YELLOW: the minute planet: one lantern, 16 straight wire pins through 3 discs, on an M3 axle (counterweight opposite)"),
+                                  (COL["mpl"], "YELLOW: the minute planet: one lantern, 16 straight wire pins between 2 discs, on an M3 axle (counterweight opposite)"),
                                   (COL["minute"], "RED: minute sun (60 teeth) + 5 standoffs + hour carrier (back + front) + minute hand (1 rev/h)"),
                                   (COL["hpl"], "PINK: the hour planet (one lantern: its pins mesh the fixed 55-tooth sun and the hour sun)"),
                                   (COL["hour"], "BLUE: hour sun (60 teeth) + hour hand (on spacers) (1 rev / 12 h)"),
