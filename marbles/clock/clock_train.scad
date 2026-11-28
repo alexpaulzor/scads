@@ -36,7 +36,7 @@ CAR_IN = 44.5;               // back carrier opening radius (SK8 + beam reach 43
 UP_R = 50;                   // minute sun -> hour carrier standoffs radius (outside the hour beam, 43.01; inside the lanterns)
 /* [M3 spacing (spacers or nuts on thread)] */
 SP_UP = 20;                  // minute sun front keeper -> hour carrier
-SP_HAND = 15;                // hour sun front keeper -> hour hand (clear of the front carrier + its nuts)
+SP_HAND = 19;                // hour sun front keeper -> hour hand (clear of the front carrier + its nuts)
 SP_D = 7;
 MH_ANG = 45;                 // minute hand angle on the hour carrier (clear of the planet bolt at 0)
 

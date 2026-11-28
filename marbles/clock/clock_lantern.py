@@ -28,12 +28,13 @@ PIN, PIN_HOLE, RIM = cp.PIN, cp.PIN_HOLE, cp.RIM
 P_PL = 16                        # lantern pins (each side)
 N_PL = 1                         # planets per stage (shared pins: see above)
 L_SUN = 3                        # ply layers per sun gear
-SUN_CLR = 1.0                    # sun to lantern disc, each side
+PIN_LEN = 30.0                   # lantern pin, cut length (outer face to outer face of the 2 holed discs)
 SUN_GAP = 4.0                    # fixed sun to output sun (the output sun's back keeper ring, 2.63, sits in it)
 TIE_D = 6.5                      # tie bolts, either side of the planet centre
 SP_D = 7.0
 STAGES = {"minute": dict(ZA=59, ZB=60), "hour": dict(ZA=55, ZB=60)}
-ZONE = 2 * SUN_CLR + 2 * L_SUN * T + SUN_GAP     # disc to disc
+ZONE = PIN_LEN - 2 * T                           # disc to disc (set by the nuts on the 2 tie bolts)
+SUN_CLR = (ZONE - 2 * L_SUN * T - SUN_GAP) / 2   # sun to lantern disc, each side
 A = 60.0 + P_PL                  # sun B pitch 2*pi -> pin circle (lantern B) r P_PL, sun B pitch r 60
 
 
@@ -113,7 +114,8 @@ if __name__ == "__main__":
                 lines.append(f"{name}_r = {d['r']:.4f};")
             disc_r = max(disc_r, d["r"] + PIN_HOLE / 2 + RIM)
     lines.append(f"LANTERN_R = {disc_r:.3f};")
-    pin_len = 2 * T + ZONE
+    pin_len = PIN_LEN
+    print(f"zone {ZONE:.2f} = pin {PIN_LEN} - 2 discs {2 * T:.2f}; sun to disc {SUN_CLR:.2f} each side, suns {SUN_GAP} apart")
     n = P_PL * N_PL * len(STAGES)
     print(f"lantern disc r {disc_r:.2f}; planet reaches {A - disc_r:.2f} .. {A + disc_r:.2f} from the rod")
     print(f"pins: {P_PL} x {N_PL} planet x {len(STAGES)} stages = {n}, each {pin_len:.2f} long "
