@@ -131,7 +131,7 @@ module train() {
     // ORANGE: escape wheel (schematic front ring) + seconds pointer + standoffs to the minute carrier
     slab(zw, C_SEC) rotate(esc) ann(92, 122);
     C(C_SEC) translate([0, 0, zw + T]) rotate(esc) translate([112, -3]) cube([22, 6, 2]);
-    for (k = [0:5]) standoff(80, esc + k * 60 + 15, zw + T, -zw - T, C_SEC);   // clear of the tie posts at 90 / 270
+    for (k = [0:7]) standoff(79.8, esc + k * 45 + 22.5, zw + T, -zw - T, C_SEC);   // M5 on the wheel's 8 outer spoke bolts
     stage(0, M_ZA, sun_minute_A(), sun_minute_B(), minute_r, esc, m_out, C_SEC, C_MPL, C_MIN);
     // RED: minute sun front keeper -> 5 standoffs -> hour carrier (+ minute hand on its back face)
     z_mk = z_sunB() + (L_SUN + 1) * T;                     // front face of the minute sun's front keeper

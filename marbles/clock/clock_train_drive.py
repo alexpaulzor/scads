@@ -74,7 +74,7 @@ def drive_diagram():
     z_h = m["keeper_front"] + SP_UP
     h, chk_h = stage(ax, z_h, "hour", COL["minute"], COL["hpl"], COL["hour"], st["hour"])
     box(ax, zw, T, 92, 122, COL["sec"]); box(ax, zw + T, 2, 112, 134, COL["sec"])
-    box(ax, zw + T, -zw - T, 80 - 2.5, 80 + 2.5, COL["sec"])                                         # wheel -> carrier standoff
+    box(ax, zw + T, -zw - T, 79.8 - 2.5, 79.8 + 2.5, COL["sec"])                                         # wheel -> carrier standoff
     box(ax, m["sunB"] + L_SUN * T, z_h - m["sunB"] - L_SUN * T, UP_R - 2.5, UP_R + 2.5, COL["minute"])  # minute sun -> hour carrier
     box(ax, z_h - 1.6, 1.6, UP_R - 4, 146, COL["minute"])                                            # minute hand
     z_hh = h["keeper_front"] + SP_HAND
@@ -88,7 +88,7 @@ def drive_diagram():
                                                 bbox=dict(fc="w", ec=c, lw=.8, pad=2))
     sm, sh = st["minute"], st["hour"]
     L("ESCAPE WHEEL front ring\n+ seconds pointer (1 rev/min)", (zw + 1, 125), (zw - 40, 140), COL["sec"])
-    L("6 standoffs: wheel drives\nthe MINUTE CARRIER", (zw + 12, 80), (zw - 40, 104), COL["sec"])
+    L("M5 rods on the wheel's 8 outer\nspoke bolts drive the MINUTE CARRIER", (zw + 12, 79.8), (zw - 40, 104), COL["sec"])
     L("minute carrier: back + front annulus, tied by\nM3 + spacers between the planets\nand by the planet axle bolts", (1, 50), (zw - 40, 52), COL["sec"])
     L(f"MINUTE PLANET (one lantern, counterweight opposite): {cl.P_PL} straight wire pins between 2 discs,\n"
       f"trapped by solid covers; 2 M3 tie bolts; spins on its M3 axle bolt.\n"

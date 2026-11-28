@@ -35,7 +35,8 @@ MAT = "ply3"
 A, P, TIE_D = cl.A, cl.P_PL, cl.TIE_D
 M3, M5, PIN_HOLE = 3.3, 5.3, cl.PIN_HOLE
 CAR_IN, CAR_OUT = 44.5, A + 14
-UP_R, ESC_R, MH_ANG = 50, 80, 45
+UP_R, MH_ANG = 50, 45
+ESC_SPOKE_R = 79.8          # escape wheel (escapement_ball.py): outer M5 on each of its 8 spokes, 45 deg apart
 OUT = HERE.parent / "gcode"
 VIEWS = HERE.parent / "views"
 
@@ -86,7 +87,7 @@ def carrier(stage, side):
     g = holes(g, [polar(A, a) for a in (0, 90, 270)], M3)                                        # planet axle, 2 tie posts
     g = holes(g, [polar(A, 180)], M5)                                                            # counterweight bolt
     if side == "back" and stage == "minute":
-        g = holes(g, [polar(ESC_R, 15 + 60 * k) for k in range(6)], M3)                          # escape wheel standoffs
+        g = holes(g, [polar(ESC_SPOKE_R, 22.5 + 45 * k) for k in range(8)], M5)                 # the wheel's 8 outer spoke M5
     if side == "back" and stage == "hour":
         g = holes(g, [polar(UP_R, 36 + 72 * k) for k in range(5)], M3)                           # standoffs from the minute sun
         g = holes(g, [polar(r, MH_ANG) for r in (54, 66)], M3)                                   # minute hand
